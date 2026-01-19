@@ -11,57 +11,74 @@
 
 ## Phases
 
-### Phase 1: Minimal VR Scene
+### Phase 1: Minimal VR Scene ✅
 
 **Goal:** Display a simple cube in VR on Meta Quest 3
 
 **Pre-requisites:**
-- [ ] Install ADB: `brew install android-platform-tools`
-- [ ] Enable Developer Mode on Quest (via Meta App)
-- [ ] Connect Quest via USB-C (data cable!)
-- [ ] Verify: `adb devices` shows Quest
+- [x] Install ADB: `brew install android-platform-tools`
+- [x] Enable Developer Mode on Quest (via Meta App)
+- [x] Connect Quest via USB-C (data cable!)
+- [x] Verify: `adb devices` shows Quest
 
 **Implementation:**
-- [ ] Set up HTTPS server with Bun.serve()
-- [ ] Generate SSL certs: `bunx mkcert localhost`
-- [ ] Create minimal index.html with Three.js
-- [ ] Implement basic scene with rotating cube
-- [ ] Add VRButton for WebXR entry
+- [x] Set up HTTPS server with Bun.serve()
+- [x] Generate SSL certs: `bunx mkcert localhost`
+- [x] Create minimal index.html with Three.js
+- [x] Implement basic scene with rotating cube
+- [x] Add VRButton for WebXR entry
 
 **Testing:**
-- [ ] `adb reverse tcp:3000 tcp:3000`
-- [ ] Start server: `bun --hot ./server.ts`
-- [ ] Open `https://localhost:3000` in Quest Browser
-- [ ] Click "Enter VR" and verify cube in VR
+- [x] `adb reverse tcp:3000 tcp:3000`
+- [x] Start server: `bun --hot ./server.ts`
+- [x] Open `https://localhost:3000` in Quest Browser
+- [x] Grüner Cube sichtbar ✅
 
-**Exit Criteria:** Can view rotating cube in VR on Quest 3 via USB-C
-
----
-
-### Phase 2: Template Polish
-
-**Goal:** Make this a reusable starter template
-
-- [ ] Add proper TypeScript types
-- [ ] Structure code for extensibility
-- [ ] Add controller support (optional)
-- [ ] Document setup process in README
-- [ ] Add development scripts to package.json
-
-**Exit Criteria:** Clone-ready template with clear documentation
+**Exit Criteria:** ✅ Can view rotating cube in VR on Quest 3 via USB-C
 
 ---
 
-### Phase 3: AR Foundation (Future)
+### Phase 2: AR Mode + Remote Control
 
-**Goal:** Add AR capabilities
+**Goal:** AR Passthrough + Steuerung vom Mac aus
 
-- [ ] Research AR session types
-- [ ] Implement hit testing
-- [ ] Add plane detection
-- [ ] Test passthrough on Quest 3
+#### 2a: AR Mode (Passthrough)
+- [ ] `VRButton` → `ARButton` wechseln
+- [ ] Renderer mit `alpha: true` für Transparenz
+- [ ] `scene.background` entfernen
+- [ ] Cube-Position anpassen (1-2m vor Kamera)
+- [ ] Testen: Cube schwebt in echtem Raum
 
-**Exit Criteria:** Working AR demo with passthrough
+#### 2b: Remote Control (WebSocket)
+- [ ] WebSocket zu `server.ts` hinzufügen
+- [ ] Keyboard-Listener auf Server (Arrow Keys)
+- [ ] Message-Handler in `main.ts`
+- [ ] Key-Mappings: Pfeiltasten → Position, R/G/B → Farbe
+- [ ] Testen: Mac-Tastatur steuert Cube auf Quest
+
+#### 2c: Polish
+- [ ] Auto-AR via Query Parameter (`?mode=ar`)
+- [ ] UI für Verbindungsstatus
+- [ ] Refactor: Scene-Setup auslagern
+
+**Exit Criteria:**
+- Cube in AR sichtbar (Passthrough)
+- Mac-Tastatur steuert Cube-Position und Farbe
+
+**Docs:** `dev/RESEARCH_AR_REMOTE.md`
+
+---
+
+### Phase 3: Interactivity (Future)
+
+**Goal:** Quest Controller Support
+
+- [ ] Controller-Modelle laden
+- [ ] Raycasting für Objekt-Selektion
+- [ ] Grab/Move mit Controller
+- [ ] Haptic Feedback
+
+**Exit Criteria:** Objekte mit Quest Controllern greifen und bewegen
 
 ---
 

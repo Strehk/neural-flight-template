@@ -2,118 +2,96 @@
 
 ## Session Info
 
-**Date:** 2026-01-15
-**Duration:** ~30 min
-**Focus:** Project Setup & USB-C/ADB Research
+**Date:** 2026-01-19
+**Previous Session:** VR Test auf Quest 3
+**Focus:** Phase 1 abgeschlossen + Research für Phase 2
 
 ---
 
-## Completed
+## ✅ Diese Session erledigt
 
-- ✅ Project structure created (.claude/, dev/)
-- ✅ WebXR/TypeScript rules documented
-- ✅ CLAUDE.md mit projekt-spezifischen Infos
-- ✅ USB-C + ADB Setup recherchiert und dokumentiert
-- ✅ Alle Workflow-Docs erstellt
-- ✅ Git Repository initialisiert
+### Phase 1: VR Scene - COMPLETE ✅
 
----
+1. **Quality Check** bestanden (Biome + TypeScript)
+2. **ADB Verbindung** erfolgreich (`2G0YC5ZH750024 device`)
+3. **Port Forwarding** eingerichtet
+4. **Desktop-Test** ✅ Grüner Cube + VR Button (ausgegraut)
+5. **Quest-Test** ✅ Grüner Cube sichtbar!
 
-## Project State
+### Dokumentation erstellt
 
-**Projekt:** WebXR VR/AR Starter Template
-**Ziel:** Minimales WebXR Hello World für Meta Quest 3 – als wiederverwendbares Starter-Template mit sehr guter Dokumentation
+| Datei | Inhalt |
+|-------|--------|
+| `dev/QUEST_USB_WORKFLOW.md` | Kompletter USB-C + ADB Workflow mit Learnings |
+| `dev/RESEARCH_AR_REMOTE.md` | Research zu AR, Positionierung, Remote-Control |
+| `dev/PLAN.md` | Aktualisiert mit Phase 2 Tasks |
 
-**Stack:**
-- Bun (Runtime + Server)
-- Three.js (3D Engine)
-- WebXR API (VR/AR)
-- TypeScript
+### Wichtige Learnings
 
-**Connection:** USB-C + ADB (kein WiFi nötig!)
+1. **Port Forwarding verschwindet!**
+   - Geht verloren bei Quest-Standby oder USB-Unterbrechung
+   - **Immer prüfen:** `adb reverse --list`
+   - **Fix:** `adb reverse tcp:3000 tcp:3000`
 
----
+2. **Remote Browser Start funktioniert:**
+   ```bash
+   adb shell am start -a android.intent.action.VIEW \
+     -d "https://localhost:3000" com.oculus.browser
+   ```
 
-## Open Items (Phase 1)
-
-### Pre-requisites
-- [ ] ADB installieren: `brew install android-platform-tools`
-- [ ] Developer Mode auf Quest aktivieren (Meta App)
-- [ ] Quest via USB-C verbinden
-- [ ] Verifizieren: `adb devices`
-
-### Implementation
-- [ ] HTTPS Server mit Bun.serve() erstellen
-- [ ] SSL Zertifikate generieren: `bunx mkcert localhost`
-- [ ] index.html mit Three.js Setup
-- [ ] Minimale Scene mit rotierendem Cube
-- [ ] VRButton für WebXR Entry
-
-### Testing
-- [ ] `adb reverse tcp:3000 tcp:3000`
-- [ ] Server starten: `bun --hot ./server.ts`
-- [ ] Quest Browser: `https://localhost:3000`
-- [ ] "Enter VR" → Cube in VR sehen
+3. **WiFi nicht nötig** - USB-Tunnel funktioniert unabhängig
 
 ---
 
-## Files Overview
+## 🔧 Nächste Session: Phase 2
 
-| File | Purpose |
-|------|---------|
-| `CLAUDE.md` | Projekt-Config, Quick Start, USB-C Setup |
-| `.claude/rules/webxr-typescript.md` | WebXR Development Rules |
-| `.claude/commands/start.md` | Session Start Command |
-| `dev/WORKFLOW.md` | Development Steps |
-| `dev/PLAN.md` | Project Phases |
-| `dev/git-workflow.md` | Git Conventions |
-| `package.json` | Dependencies (Three.js) |
-| `index.ts` | Placeholder (wird server.ts) |
+### Empfohlene Reihenfolge
 
----
+1. **2a: AR Mode** (ca. 30min)
+   - `ARButton` statt `VRButton`
+   - `alpha: true` am Renderer
+   - Cube-Position anpassen
 
-## Key Decisions
+2. **2b: Remote Control** (ca. 45min)
+   - WebSocket zu server.ts
+   - Keyboard → Cube-Steuerung
 
-1. **USB-C + ADB** statt WiFi für Quest-Verbindung
-   - Funktioniert im Firmen-Netzwerk
-   - `adb reverse tcp:3000 tcp:3000` leitet localhost
+Siehe `dev/RESEARCH_AR_REMOTE.md` für Code-Beispiele!
 
-2. **Bun.serve()** statt Vite/Express
-   - Native HTTPS Support
-   - HTML imports für Frontend
-
-3. **Sehr gute Dokumentation** da Test-Projekt
-   - Soll als Template für zukünftige Projekte dienen
-
----
-
-## Next Session
-
-**Ziel:** Fertiges Hello World das auf Quest 3 läuft
-
-1. ADB einrichten (falls noch nicht)
-2. Server + Scene implementieren
-3. Auf Quest testen bis es funktioniert
-4. Dokumentation finalisieren
-
-**Start mit:** `/start`
-
----
-
-## Useful Commands
+### Quick Start nächste Session
 
 ```bash
-# ADB Setup
-brew install android-platform-tools
-adb devices
-adb reverse tcp:3000 tcp:3000
+# 1. Verbindung + Server
+adb devices && adb reverse tcp:3000 tcp:3000 && bun --hot ./server.ts
 
-# Dev Server
-bunx mkcert localhost
-bun --hot ./server.ts
-
-# Quality Check
-bunx biome check --write . && bunx tsc --noEmit
+# 2. Quest Browser öffnen
+adb shell am start -a android.intent.action.VIEW \
+  -d "https://localhost:3000" com.oculus.browser
 ```
 
-*Updated: 2026-01-15*
+---
+
+## Uncommitted Changes
+
+```
+M  dev/HANDOVER.md
+M  dev/PLAN.md
++  dev/QUEST_USB_WORKFLOW.md (neu)
++  dev/RESEARCH_AR_REMOTE.md (neu)
+```
+
+**Empfehlung:** Committen bevor nächste Session startet!
+
+```bash
+git add -A && git commit -m "docs: 📝 add USB workflow + AR research"
+```
+
+---
+
+## Offene Fragen
+
+Keine - Research ist vollständig für Phase 2.
+
+---
+
+*Updated: 2026-01-19*
