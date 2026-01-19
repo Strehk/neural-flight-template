@@ -1,62 +1,57 @@
-# SESSION HANDOVER
+# 📋 SESSION HANDOVER
 
-## Session Info
+## 📅 Session Info
 
 **Date:** 2026-01-19
-**Previous Session:** VR Test auf Quest 3
-**Focus:** Phase 1 abgeschlossen + Research für Phase 2
+**Previous Session:** Phase 2 vollständig abgeschlossen
+**Focus:** 📚 Educational Reference Repository aufbereiten
 
 ---
 
 ## ✅ Diese Session erledigt
 
-### Phase 1: VR Scene - COMPLETE ✅
+### Phase 2: AR Mode + Remote Control - COMPLETE ✅
 
-1. **Quality Check** bestanden (Biome + TypeScript)
-2. **ADB Verbindung** erfolgreich (`2G0YC5ZH750024 device`)
-3. **Port Forwarding** eingerichtet
-4. **Desktop-Test** ✅ Grüner Cube + VR Button (ausgegraut)
-5. **Quest-Test** ✅ Grüner Cube sichtbar!
+Das gesamte Feature-Set ist implementiert und getestet:
 
-### Dokumentation erstellt
+| Feature | Status | Dateien |
+|---------|--------|---------|
+| AR Passthrough | ✅ | `src/main.ts` |
+| VR/AR Mode Switch | ✅ | `?mode=ar` / `?mode=vr` |
+| WebSocket Broadcast | ✅ | `server.ts` |
+| Remote Controller | ✅ | `controller.html` |
+| Touch/Mouse/Keyboard | ✅ | D-Pad, W/S, R/G/B |
+| Connection Status | ✅ | 🟢/🔴 Indicator |
+| One-Command Startup | ✅ | `start.sh` |
+
+### Dokumentation - Educational Reference 📚
 
 | Datei | Inhalt |
 |-------|--------|
-| `dev/QUEST_USB_WORKFLOW.md` | Kompletter USB-C + ADB Workflow mit Learnings |
-| `dev/RESEARCH_AR_REMOTE.md` | Research zu AR, Positionierung, Remote-Control |
-| `dev/PLAN.md` | Aktualisiert mit Phase 2 Tasks |
-
-### Wichtige Learnings
-
-1. **Port Forwarding verschwindet!**
-   - Geht verloren bei Quest-Standby oder USB-Unterbrechung
-   - **Immer prüfen:** `adb reverse --list`
-   - **Fix:** `adb reverse tcp:3000 tcp:3000`
-
-2. **Remote Browser Start funktioniert:**
-   ```bash
-   adb shell am start -a android.intent.action.VIEW \
-     -d "https://localhost:3000" com.oculus.browser
-   ```
-
-3. **WiFi nicht nötig** - USB-Tunnel funktioniert unabhängig
+| `docs/ARCHITECTURE.md` | Technische Deep-Dive mit Mermaid-Diagrammen |
+| `docs/TUTORIAL.md` | Step-by-Step Guide für Anfänger |
+| `docs/CONCEPTS.md` | 🆕 WebXR/Three.js Grundlagen |
+| `docs/PITFALLS.md` | 🆕 Common Mistakes + Lösungen |
+| `README.md` | 🔄 Mit Emojis + Educational Focus |
 
 ---
 
-## 🔧 Nächste Session: Phase 2
+## 🔧 Nächste Session: Phase 3
 
-### Empfohlene Reihenfolge
+### Quest Controller Integration
 
-1. **2a: AR Mode** (ca. 30min)
-   - `ARButton` statt `VRButton`
-   - `alpha: true` am Renderer
-   - Cube-Position anpassen
+```
+- [ ] XRControllerModelFactory einbinden
+- [ ] Raycasting für Objekt-Selektion
+- [ ] Grab/Move Interaction
+- [ ] Haptic Feedback API
+```
 
-2. **2b: Remote Control** (ca. 45min)
-   - WebSocket zu server.ts
-   - Keyboard → Cube-Steuerung
+### Ressourcen
 
-Siehe `dev/RESEARCH_AR_REMOTE.md` für Code-Beispiele!
+- [Three.js XR Controllers](https://threejs.org/docs/#manual/en/introduction/How-to-create-VR-content)
+- [WebXR Input API](https://developer.mozilla.org/en-US/docs/Web/API/WebXR_Device_API/Inputs)
+- [XRControllerModelFactory](https://github.com/mrdoob/three.js/blob/master/examples/jsm/webxr/XRControllerModelFactory.js)
 
 ### Quick Start nächste Session
 
@@ -67,30 +62,50 @@ adb devices && adb reverse tcp:3000 tcp:3000 && bun --hot ./server.ts
 # 2. Quest Browser öffnen
 adb shell am start -a android.intent.action.VIEW \
   -d "https://localhost:3000" com.oculus.browser
+
+# Oder mit start.sh:
+./start.sh vr
 ```
 
 ---
 
-## Uncommitted Changes
+## 📁 Projekt-Status
 
 ```
-M  dev/HANDOVER.md
-M  dev/PLAN.md
-+  dev/QUEST_USB_WORKFLOW.md (neu)
-+  dev/RESEARCH_AR_REMOTE.md (neu)
+Repository: Educational Reference Ready ✅
+Phase 1:    VR Scene         ✅
+Phase 2:    AR + Remote      ✅
+Phase 3:    Controllers      🔮 (next)
 ```
 
-**Empfehlung:** Committen bevor nächste Session startet!
+### Dateistruktur
 
-```bash
-git add -A && git commit -m "docs: 📝 add USB workflow + AR research"
+```
+├── server.ts              # 🖥️  HTTPS + WebSocket + TS Transpiler
+├── index.html             # 🌐 VR/AR Scene Entry
+├── controller.html        # 🎮 Remote Control UI
+├── start.sh               # 🚀 One-Command Startup
+├── src/
+│   └── main.ts            # 🎨 Three.js Scene + Commands
+├── docs/
+│   ├── ARCHITECTURE.md    # 📐 Technical Deep-Dive
+│   ├── TUTORIAL.md        # 📖 Step-by-Step Guide
+│   ├── CONCEPTS.md        # 🎓 Fundamentals
+│   └── PITFALLS.md        # ⚠️  Common Mistakes
+└── dev/
+    ├── PLAN.md            # 📋 Project Phases
+    ├── HANDOVER.md        # 👋 This file
+    └── WORKFLOW.md        # 🔄 Dev Workflow
 ```
 
 ---
 
-## Offene Fragen
+## 🎓 Für Anfänger
 
-Keine - Research ist vollständig für Phase 2.
+1. **Start here:** `README.md` → Quick Start
+2. **Verstehen:** `docs/CONCEPTS.md` → Grundlagen
+3. **Deep-Dive:** `docs/ARCHITECTURE.md` → Wie alles zusammenhängt
+4. **Probleme?** `docs/PITFALLS.md` → Häufige Fehler
 
 ---
 

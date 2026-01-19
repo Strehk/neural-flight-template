@@ -1,15 +1,18 @@
-# PROJECT PLAN
+# 📋 PROJECT PLAN
 
-## Overview
+## 📖 Overview
 
 **Project:** WebXR VR/AR Starter Template
 **Goal:** Minimal WebXR setup for Meta Quest 3 – reusable starter for VR/AR experiments
 **Stack:** Bun + Three.js + WebXR API + TypeScript
 **Device:** Meta Quest 3
 
+> 🎓 **Educational Focus:** This repository serves as a learning reference for WebXR beginners.
+> See `docs/CONCEPTS.md` for fundamentals and `docs/PITFALLS.md` for common mistakes.
+
 ---
 
-## Phases
+## 🚀 Phases
 
 ### Phase 1: Minimal VR Scene ✅
 
@@ -38,38 +41,39 @@
 
 ---
 
-### Phase 2: AR Mode + Remote Control
+### Phase 2: AR Mode + Remote Control ✅
 
 **Goal:** AR Passthrough + Steuerung vom Mac aus
 
-#### 2a: AR Mode (Passthrough)
-- [ ] `VRButton` → `ARButton` wechseln
-- [ ] Renderer mit `alpha: true` für Transparenz
-- [ ] `scene.background` entfernen
-- [ ] Cube-Position anpassen (1-2m vor Kamera)
-- [ ] Testen: Cube schwebt in echtem Raum
+#### 2a: AR Mode (Passthrough) ✅
+- [x] `VRButton` → `ARButton` wechseln (dynamisch via `?mode=ar`)
+- [x] Renderer mit `alpha: true` für Transparenz
+- [x] `scene.background` entfernen (nur in AR-Modus)
+- [x] Cube-Position anpassen (y=1.0 für AR, y=0 für VR)
+- [x] Testen: Cube schwebt in echtem Raum ✅
 
-#### 2b: Remote Control (WebSocket)
-- [ ] WebSocket zu `server.ts` hinzufügen
-- [ ] Keyboard-Listener auf Server (Arrow Keys)
-- [ ] Message-Handler in `main.ts`
-- [ ] Key-Mappings: Pfeiltasten → Position, R/G/B → Farbe
-- [ ] Testen: Mac-Tastatur steuert Cube auf Quest
+#### 2b: Remote Control (WebSocket) ✅
+- [x] WebSocket zu `server.ts` hinzufügen
+- [x] `controller.html` mit Touch/Mouse/Keyboard-Support
+- [x] Message-Handler in `main.ts`
+- [x] Key-Mappings: Pfeiltasten/W/S → Position, R/G/B → Farbe
+- [x] Testen: Mac-Tastatur steuert Cube auf Quest ✅
 
-#### 2c: Polish
-- [ ] Auto-AR via Query Parameter (`?mode=ar`)
-- [ ] UI für Verbindungsstatus
-- [ ] Refactor: Scene-Setup auslagern
+#### 2c: Polish ✅
+- [x] Auto-Modus via Query Parameter (`?mode=ar` / `?mode=vr`)
+- [x] UI für Verbindungsstatus (🟢/🔴)
+- [x] `start.sh` Script für One-Command-Startup
+- [x] Dokumentation: `docs/ARCHITECTURE.md`, `docs/TUTORIAL.md`
 
-**Exit Criteria:**
-- Cube in AR sichtbar (Passthrough)
-- Mac-Tastatur steuert Cube-Position und Farbe
+**Exit Criteria:** ✅
+- ✅ Cube in AR sichtbar (Passthrough)
+- ✅ Mac-Tastatur/Touch steuert Cube-Position und Farbe
 
 **Docs:** `dev/RESEARCH_AR_REMOTE.md`
 
 ---
 
-### Phase 3: Interactivity (Future)
+### 🔮 Phase 3: Interactivity (Future)
 
 **Goal:** Quest Controller Support
 
@@ -82,7 +86,7 @@
 
 ---
 
-## Backlog
+## 📝 Backlog
 
 Issues and improvements discovered during development.
 **Don't fix immediately - collect here, prioritize later.**
@@ -91,7 +95,7 @@ Issues and improvements discovered during development.
 
 ---
 
-## Completed
+## ✅ Completed
 
 ### Phase 0: Setup ✅
 
@@ -103,16 +107,17 @@ Issues and improvements discovered during development.
 
 ---
 
-## Notes
+## 💡 Notes
 
-**WebXR Gotchas:**
+**⚠️ WebXR Gotchas:**
 - HTTPS mandatory (use mkcert for local certs)
 - Use `renderer.setAnimationLoop()` not `requestAnimationFrame`
+- See `docs/PITFALLS.md` for common mistakes and solutions
 
-**Büro/Firmen-Netzwerk Setup (USB-C + ADB):**
+**🔌 Büro/Firmen-Netzwerk Setup (USB-C + ADB):**
 - Kein WiFi nötig! Quest verbindet über USB-C
 - `adb reverse tcp:3000 tcp:3000` leitet localhost zur Quest
 - Im Quest Browser: `https://localhost:3000`
 - USB-C muss Datenkabel sein (nicht nur Ladekabel)
 
-*Created: 2026-01-15*
+*Created: 2026-01-15 | Updated: 2026-01-19*

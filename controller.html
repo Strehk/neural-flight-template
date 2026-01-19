@@ -343,6 +343,16 @@
 		/**
 		 * Attach event listeners to all buttons with data-action attribute
 		 * Supports both mouse (desktop) and touch (mobile) events
+		 *
+		 * WHY both mouse AND touch events?
+		 * - Desktop browsers fire mouse events
+		 * - Mobile/tablet browsers fire touch events
+		 * - Some devices fire BOTH (touch first, then synthetic mouse)
+		 *
+		 * WHY e.preventDefault() on touchstart?
+		 * Without it, the browser fires both touchstart AND mousedown,
+		 * causing the action to execute twice. preventDefault() stops
+		 * the synthetic mouse event from being generated.
 		 */
 		document.querySelectorAll("[data-action]").forEach(btn => {
 			const action = btn.dataset.action;
@@ -357,7 +367,7 @@
 
 			// Touch events (mobile/tablet)
 			btn.addEventListener("touchstart", (e) => {
-				e.preventDefault(); // Prevent double-firing with mouse events
+				e.preventDefault(); // CRITICAL: Prevents double-firing (touch + synthetic mouse)
 				btn.classList.add("pressed");
 				actions[action]?.();
 			});

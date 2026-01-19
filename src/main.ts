@@ -58,10 +58,17 @@ camera.position.z = 3;
  * WebGL Renderer with WebXR support
  * - antialias: Smooth edges
  * - alpha: Required for AR transparency
+ *
+ * WHY `alpha: mode === "ar"`?
+ * In AR mode, the Quest's passthrough cameras show the real world behind
+ * our scene. For this to work, our canvas background must be transparent.
+ * Setting alpha:true enables the alpha channel in the framebuffer.
+ * In VR mode, we don't need transparency (closed environment), so we
+ * save GPU resources by keeping alpha:false.
  */
 const renderer = new THREE.WebGLRenderer({
 	antialias: true,
-	alpha: mode === "ar", // Enable transparency for AR passthrough
+	alpha: mode === "ar", // Transparency only needed for AR passthrough
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
@@ -189,11 +196,17 @@ const COLOR_MAP: Record<string, number> = {
  * - move: Adds value to cube.position[axis] (cumulative)
  * - color: Sets material color from COLOR_MAP
  *
+ * WHY dynamic property access (`cube.position[cmd.axis]`)?
+ * Instead of writing separate if/else for x, y, z, we use the axis string
+ * directly as a property key. TypeScript's union type ("x" | "y" | "z")
+ * ensures only valid axes are accepted at compile time.
+ *
  * @param cmd - Parsed command object from WebSocket
  */
 function handleCommand(cmd: Command): void {
 	switch (cmd.type) {
 		case "move":
+			// Dynamic property access - axis is typed as "x" | "y" | "z"
 			cube.position[cmd.axis] += cmd.value;
 			break;
 		case "color":
@@ -247,8 +260,16 @@ ws.onmessage = (event) => {
 /**
  * Main render loop
  *
- * IMPORTANT: Must use setAnimationLoop() instead of requestAnimationFrame()
- * for WebXR compatibility. This handles XR session timing automatically.
+ * WHY setAnimationLoop() instead of requestAnimationFrame()?
+ * - requestAnimationFrame runs at monitor refresh rate (60fps)
+ * - VR headsets run at different rates (72/90/120fps) and need
+ *   frame timing synchronized with their displays
+ * - setAnimationLoop() automatically:
+ *   1. Uses XR session timing when in VR/AR
+ *   2. Falls back to requestAnimationFrame on desktop
+ *   3. Pauses when XR session is inactive
+ *
+ * @see docs/CONCEPTS.md#-der-render-loop for detailed explanation
  */
 renderer.setAnimationLoop(() => {
 	// Continuous rotation for visual interest

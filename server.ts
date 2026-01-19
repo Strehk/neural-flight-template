@@ -101,13 +101,24 @@ const clients = new Set<ServerWebSocket<unknown>>();
 /**
  * Broadcasts a message to all connected clients except the sender
  *
- * This "broadcast-to-others" pattern:
- * - Prevents echo loops (sender receiving their own message)
- * - Enables multi-controller scenarios
- * - Controller sends command → Server broadcasts → Quest receives
+ * WHY "broadcast-to-others" instead of "broadcast-to-all"?
+ *
+ * Problem with broadcast-to-all:
+ *   Controller sends "move x +0.1"
+ *   → Server sends to ALL clients (including controller)
+ *   → Controller receives its own message back (echo!)
+ *   → Confusing UX, wasted bandwidth, potential feedback loops
+ *
+ * Solution: Exclude the sender from broadcast:
+ *   Controller sends "move x +0.1"
+ *   → Server sends to all EXCEPT controller
+ *   → Only Quest receives the command ✓
+ *
+ * Bonus: This enables multi-controller scenarios where multiple
+ * devices can send commands without receiving their own back.
  *
  * @param data - JSON string to broadcast
- * @param sender - Optional WebSocket to exclude from broadcast
+ * @param sender - WebSocket to exclude (typically the command source)
  */
 function broadcast(data: string, sender?: ServerWebSocket<unknown>): void {
 	for (const client of clients) {

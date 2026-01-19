@@ -1,22 +1,27 @@
-# WebXR Starter Template
+# 🥽 WebXR Starter Template
 
-A minimal WebXR development template for Meta Quest 3 with Three.js, featuring remote control via WebSocket.
+A minimal WebXR development template for **Meta Quest 3** with Three.js, featuring remote control via WebSocket.
 
-## Architecture
+> 🎓 **Educational Focus:** This repository is designed as a learning reference for WebXR beginners.
+> Every file is thoroughly documented with "why" explanations.
+
+---
+
+## 🏗️ Architecture
 
 ```mermaid
 graph TB
     subgraph Desktop
-        C[controller.html<br/>Remote UI]
+        C[🎮 controller.html<br/>Remote UI]
     end
 
     subgraph Server
-        S[server.ts<br/>Bun HTTPS + WebSocket]
-        T[TypeScript<br/>Transpiler]
+        S[🖥️ server.ts<br/>Bun HTTPS + WebSocket]
+        T[📦 TypeScript<br/>Transpiler]
     end
 
     subgraph Meta Quest 3
-        Q[index.html<br/>Three.js + WebXR]
+        Q[🌐 index.html<br/>Three.js + WebXR]
     end
 
     C -->|Commands| S
@@ -24,34 +29,34 @@ graph TB
     T -.->|.ts → .js| S
 ```
 
-**Key Feature:** Control the VR/AR scene from any browser while viewing on Quest.
+**✨ Key Feature:** Control the VR/AR scene from any browser while viewing on Quest.
 
 ---
 
-## Quick Start
+## 🚀 Quick Start
 
 ```bash
-# 1. Install dependencies
+# 1️⃣ Install dependencies
 bun install
 
-# 2. Generate HTTPS certificates (required for WebXR)
+# 2️⃣ Generate HTTPS certificates (required for WebXR)
 bunx mkcert localhost
 
-# 3. Start everything (server + controller + Quest browser)
+# 3️⃣ Start everything (server + controller + Quest browser)
 ./start.sh vr
 ```
 
 ---
 
-## Connection Methods
+## 🔌 Connection Methods
 
-### Option 1: USB-C + ADB (Recommended)
+### Option 1: USB-C + ADB ⭐ (Recommended)
 
 Best for corporate networks where Quest can't connect to WiFi.
 
 ```bash
-# Prerequisites
-brew install android-platform-tools   # Install ADB (once)
+# Prerequisites (once)
+brew install android-platform-tools   # Install ADB
 # Enable Developer Mode on Quest via Meta app
 
 # Setup (each session)
@@ -77,37 +82,39 @@ bun --hot ./server.ts
 
 ---
 
-## Project Structure
+## 📁 Project Structure
 
 ```
-├── server.ts              # Bun HTTPS server + WebSocket + TS transpiler
-├── index.html             # VR/AR scene entry point
-├── controller.html        # Remote control UI (touch/mouse/keyboard)
-├── start.sh               # One-command startup script
+├── 🖥️  server.ts          # Bun HTTPS server + WebSocket + TS transpiler
+├── 🌐 index.html          # VR/AR scene entry point
+├── 🎮 controller.html     # Remote control UI (touch/mouse/keyboard)
+├── 🚀 start.sh            # One-command startup script
 ├── src/
-│   └── main.ts            # Three.js scene + WebXR + command handler
+│   └── 🎨 main.ts         # Three.js scene + WebXR + command handler
 ├── docs/
-│   ├── ARCHITECTURE.md    # Technical deep-dive
-│   └── TUTORIAL.md        # Step-by-step guide
-├── localhost.pem          # HTTPS certificate (generated)
-└── localhost-key.pem      # HTTPS private key (generated)
+│   ├── 🎓 CONCEPTS.md     # WebXR fundamentals for beginners
+│   ├── ⚠️  PITFALLS.md     # Common mistakes + solutions
+│   ├── 📐 ARCHITECTURE.md # Technical deep-dive
+│   └── 📖 TUTORIAL.md     # Step-by-step guide
+├── 🔑 localhost.pem       # HTTPS certificate (generated)
+└── 🔑 localhost-key.pem   # HTTPS private key (generated)
 ```
 
 ---
 
-## Commands
+## 📋 Commands
 
 | Command | Description |
 |---------|-------------|
-| `./start.sh vr` | Start server + open controller + launch Quest browser (VR) |
-| `./start.sh ar` | Same as above, but AR mode |
-| `bun --hot ./server.ts` | Start server only (with hot reload) |
-| `bunx biome check --write .` | Lint and format code |
-| `bunx tsc --noEmit` | TypeScript type check |
+| `./start.sh vr` | 🚀 Start server + open controller + launch Quest browser (VR) |
+| `./start.sh ar` | 👓 Same as above, but AR mode |
+| `bun --hot ./server.ts` | 🖥️ Start server only (with hot reload) |
+| `bunx biome check --write .` | ✨ Lint and format code |
+| `bunx tsc --noEmit` | 📝 TypeScript type check |
 
 ---
 
-## Technology Stack
+## 🛠️ Technology Stack
 
 | Component | Technology | Rationale |
 |-----------|------------|-----------|
@@ -120,7 +127,7 @@ bun --hot ./server.ts
 
 ---
 
-## WebSocket Protocol
+## 📡 WebSocket Protocol
 
 ### Movement Command
 ```json
@@ -141,19 +148,19 @@ bun --hot ./server.ts
 
 ---
 
-## Key Learnings
+## 💡 Key Learnings
 
-### WebXR Requirements
+### ⚠️ WebXR Requirements
 - **HTTPS is mandatory** - WebXR API is blocked on HTTP
-- Use `renderer.setAnimationLoop()` not `requestAnimationFrame`
+- Use `renderer.setAnimationLoop()` not `requestAnimationFrame()`
 - Three.js imports must be explicit: `three/examples/jsm/webxr/VRButton.js`
 
-### TypeScript in Browser
+### 📦 TypeScript in Browser
 - Browsers can't parse `.ts` files directly
-- Solution: `Bun.Transpiler` converts TS → JS on-the-fly in `server.ts`
-- No build step required
+- Solution: `Bun.Transpiler` converts TS → JS on-the-fly
+- No build step required!
 
-### Quest Browser Auto-Launch
+### 🤖 Quest Browser Auto-Launch
 ```bash
 adb shell am start -a android.intent.action.VIEW \
   -d "https://localhost:3000" com.oculus.browser
@@ -161,13 +168,28 @@ adb shell am start -a android.intent.action.VIEW \
 
 ---
 
-## Documentation
+## 📚 Documentation
 
-- [Architecture Reference](docs/ARCHITECTURE.md) - Technical deep-dive with diagrams
-- [Tutorial](docs/TUTORIAL.md) - Step-by-step guide for beginners
+| Document | Description | Audience |
+|----------|-------------|----------|
+| [🎓 Concepts](docs/CONCEPTS.md) | WebXR/Three.js fundamentals | Beginners |
+| [⚠️ Pitfalls](docs/PITFALLS.md) | Common mistakes + solutions | Everyone |
+| [📐 Architecture](docs/ARCHITECTURE.md) | Technical deep-dive | Advanced |
+| [📖 Tutorial](docs/TUTORIAL.md) | Step-by-step guide | Beginners |
 
 ---
 
-## License
+## 🎓 For Beginners
+
+**Recommended reading order:**
+
+1. **Start here:** This README → Quick Start
+2. **Understand:** [CONCEPTS.md](docs/CONCEPTS.md) → Fundamentals
+3. **Deep-Dive:** [ARCHITECTURE.md](docs/ARCHITECTURE.md) → How it all connects
+4. **Stuck?** [PITFALLS.md](docs/PITFALLS.md) → Common mistakes
+
+---
+
+## 📄 License
 
 MIT
