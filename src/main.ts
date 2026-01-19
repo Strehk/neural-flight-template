@@ -1,11 +1,51 @@
+/**
+ * WebXR Scene - Three.js VR/AR Application
+ *
+ * This module creates a WebXR-enabled 3D scene with:
+ * - A rotating cube that can be controlled remotely
+ * - VR mode (immersive environment) or AR mode (passthrough)
+ * - WebSocket connection for receiving commands from controller.html
+ *
+ * @see docs/ARCHITECTURE.md for data flow documentation
+ * @see docs/TUTORIAL.md for adding new features
+ */
+
 import * as THREE from "three";
+import { ARButton } from "three/examples/jsm/webxr/ARButton.js";
 import { VRButton } from "three/examples/jsm/webxr/VRButton.js";
 
-// Scene setup
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x1a1a2e);
+// ============================================================================
+// Configuration
+// ============================================================================
 
-// Camera
+/**
+ * Mode detection from URL query parameter
+ * - ?mode=vr (default): Immersive VR with dark background
+ * - ?mode=ar: AR passthrough with transparent background
+ */
+const params = new URLSearchParams(window.location.search);
+const mode = params.get("mode") || "vr";
+
+// ============================================================================
+// Three.js Scene Setup
+// ============================================================================
+
+/**
+ * Main scene container
+ * AR mode: No background (transparent for camera passthrough)
+ * VR mode: Dark blue background
+ */
+const scene = new THREE.Scene();
+if (mode !== "ar") {
+	scene.background = new THREE.Color(0x1a1a2e);
+}
+
+/**
+ * Perspective camera
+ * - 75° FOV for comfortable VR viewing
+ * - Near plane at 0.1 for close objects
+ * - Far plane at 1000 for distant objects
+ */
 const camera = new THREE.PerspectiveCamera(
 	75,
 	window.innerWidth / window.innerHeight,
@@ -14,23 +54,63 @@ const camera = new THREE.PerspectiveCamera(
 );
 camera.position.z = 3;
 
-// Renderer
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+/**
+ * WebGL Renderer with WebXR support
+ * - antialias: Smooth edges
+ * - alpha: Required for AR transparency
+ */
+const renderer = new THREE.WebGLRenderer({
+	antialias: true,
+	alpha: mode === "ar", // Enable transparency for AR passthrough
+});
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 document.body.appendChild(renderer.domElement);
 
-// Enable WebXR
+/**
+ * Enable WebXR
+ * IMPORTANT: This must be set before creating VR/AR buttons
+ */
 renderer.xr.enabled = true;
-document.body.appendChild(VRButton.createButton(renderer));
 
-// Cube
-const geometry = new THREE.BoxGeometry(1, 1, 1);
+/**
+ * XR Entry Button
+ * Creates the "Enter VR" or "Start AR" button based on mode
+ */
+const xrButton =
+	mode === "ar"
+		? ARButton.createButton(renderer)
+		: VRButton.createButton(renderer);
+document.body.appendChild(xrButton);
+
+// ============================================================================
+// Scene Objects
+// ============================================================================
+
+/**
+ * Interactive Cube
+ * - Smaller in AR mode (0.3m) for real-world scale
+ * - Larger in VR mode (1m) for visibility
+ */
+const cubeSize = mode === "ar" ? 0.3 : 1;
+const geometry = new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize);
 const material = new THREE.MeshStandardMaterial({ color: 0x00ff88 });
 const cube = new THREE.Mesh(geometry, material);
+
+/**
+ * Cube positioning
+ * - AR: At chest height (y=1.0) for comfortable viewing
+ * - VR: Centered (y=0)
+ * - Both: 2 meters in front of user (z=-2)
+ */
+cube.position.set(0, mode === "ar" ? 1.0 : 0, -2);
 scene.add(cube);
 
-// Lighting
+/**
+ * Lighting Setup
+ * - Ambient: Soft fill light (50% intensity)
+ * - Directional: Main light source from upper-right
+ */
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
 scene.add(ambientLight);
 
@@ -38,16 +118,143 @@ const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
 directionalLight.position.set(5, 5, 5);
 scene.add(directionalLight);
 
-// Handle resize
+// ============================================================================
+// Responsive Handling
+// ============================================================================
+
+/**
+ * Window resize handler
+ * Updates camera aspect ratio and renderer size
+ */
 window.addEventListener("resize", () => {
 	camera.aspect = window.innerWidth / window.innerHeight;
 	camera.updateProjectionMatrix();
 	renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// Animation loop (WebXR compatible)
+// ============================================================================
+// WebSocket Remote Control
+// ============================================================================
+
+/** Connection status display element */
+const statusEl = document.getElementById("connection-status");
+
+/**
+ * Updates the connection status indicator in the UI
+ * @param connected - Whether WebSocket is connected
+ */
+function updateStatus(connected: boolean): void {
+	if (!statusEl) return;
+	statusEl.textContent = connected ? "🟢 Connected" : "🔴 Disconnected";
+	statusEl.style.color = connected ? "#4ade80" : "#f87171";
+}
+
+// ============================================================================
+// Command Protocol
+// ============================================================================
+
+/**
+ * Movement command - adjusts cube position along an axis
+ * @example { type: "move", axis: "x", value: 0.1 }
+ */
+interface MoveCommand {
+	type: "move";
+	axis: "x" | "y" | "z";
+	value: number;
+}
+
+/**
+ * Color command - changes cube material color
+ * @example { type: "color", color: "red" }
+ */
+interface ColorCommand {
+	type: "color";
+	color: "red" | "green" | "blue";
+}
+
+/** Union type for all supported commands */
+type Command = MoveCommand | ColorCommand;
+
+/** Color name to hex mapping */
+const COLOR_MAP: Record<string, number> = {
+	red: 0xff0000,
+	green: 0x00ff00,
+	blue: 0x0000ff,
+};
+
+/**
+ * Processes incoming commands from the controller
+ *
+ * Command handlers:
+ * - move: Adds value to cube.position[axis] (cumulative)
+ * - color: Sets material color from COLOR_MAP
+ *
+ * @param cmd - Parsed command object from WebSocket
+ */
+function handleCommand(cmd: Command): void {
+	switch (cmd.type) {
+		case "move":
+			cube.position[cmd.axis] += cmd.value;
+			break;
+		case "color":
+			material.color.setHex(COLOR_MAP[cmd.color] ?? 0x00ff88);
+			break;
+	}
+}
+
+// ============================================================================
+// WebSocket Connection
+// ============================================================================
+
+/**
+ * WebSocket client for receiving commands
+ * Connects to same host via secure WebSocket (wss://)
+ */
+const ws = new WebSocket(`wss://${location.host}`);
+
+ws.onopen = () => {
+	console.log("WebSocket connected");
+	updateStatus(true);
+};
+
+ws.onclose = () => {
+	console.log("WebSocket disconnected");
+	updateStatus(false);
+};
+
+ws.onerror = (err) => {
+	console.error("WebSocket error:", err);
+	updateStatus(false);
+};
+
+/**
+ * Message handler
+ * Parses JSON commands and routes to handleCommand()
+ */
+ws.onmessage = (event) => {
+	try {
+		const cmd: Command = JSON.parse(event.data);
+		handleCommand(cmd);
+	} catch (e) {
+		console.error("Invalid message:", e);
+	}
+};
+
+// ============================================================================
+// Animation Loop
+// ============================================================================
+
+/**
+ * Main render loop
+ *
+ * IMPORTANT: Must use setAnimationLoop() instead of requestAnimationFrame()
+ * for WebXR compatibility. This handles XR session timing automatically.
+ */
 renderer.setAnimationLoop(() => {
+	// Continuous rotation for visual interest
 	cube.rotation.x += 0.01;
 	cube.rotation.y += 0.01;
+
+	// Render the scene
 	renderer.render(scene, camera);
 });

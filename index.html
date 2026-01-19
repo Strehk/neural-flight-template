@@ -9,6 +9,78 @@
       margin: 0;
       overflow: hidden;
       background: #000;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    #ui-overlay {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    #connection-status {
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.7);
+      border-radius: 8px;
+      font-size: 14px;
+      color: #f87171;
+    }
+
+    #help-toggle {
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.7);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    #help-toggle:hover {
+      background: rgba(50, 50, 50, 0.8);
+    }
+
+    #help-panel {
+      display: none;
+      padding: 12px 16px;
+      background: rgba(0, 0, 0, 0.85);
+      border-radius: 8px;
+      font-size: 13px;
+      color: #e5e5e5;
+      line-height: 1.6;
+    }
+
+    #help-panel.visible {
+      display: block;
+    }
+
+    #help-panel h3 {
+      margin: 0 0 8px 0;
+      color: #fff;
+      font-size: 14px;
+    }
+
+    #help-panel code {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+
+    #mode-indicator {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.7);
+      border-radius: 8px;
+      font-size: 14px;
+      color: #a78bfa;
+      z-index: 100;
     }
   </style>
   <script type="importmap">
@@ -21,6 +93,36 @@
   </script>
 </head>
 <body>
+  <div id="ui-overlay">
+    <div id="connection-status">🔴 Disconnected</div>
+    <button id="help-toggle">? Help</button>
+    <div id="help-panel">
+      <h3>Keyboard Controls</h3>
+      <p>
+        <code>↑↓←→</code> Move cube (X/Z)<br>
+        <code>W</code> / <code>S</code> Move up/down (Y)<br>
+        <code>R</code> / <code>G</code> / <code>B</code> Change color
+      </p>
+      <h3>URL Parameters</h3>
+      <p>
+        <code>?mode=vr</code> VR Mode (default)<br>
+        <code>?mode=ar</code> AR Passthrough
+      </p>
+    </div>
+  </div>
+
+  <div id="mode-indicator"></div>
+
+  <script>
+    // Show current mode
+    const mode = new URLSearchParams(window.location.search).get('mode') || 'vr';
+    document.getElementById('mode-indicator').textContent = mode.toUpperCase() + ' Mode';
+
+    // Toggle help panel
+    document.getElementById('help-toggle').addEventListener('click', () => {
+      document.getElementById('help-panel').classList.toggle('visible');
+    });
+  </script>
   <script type="module" src="./src/main.ts"></script>
 </body>
 </html>
