@@ -60,69 +60,50 @@ bun add -d @types/three
 
 ---
 
-### Phase 2: Assets + Low-Poly Terrain 🔜
+### ~~Phase 2: Low-Poly Terrain + Assets~~ ✅
 
-**Goal:** ICAROS GLB laden, Low-Poly Terrain im Stil der Referenzbilder
-
-**Files:**
-- `src/lib/three/terrain.ts` — Chunked procedural Low-Poly Terrain
-- `src/lib/three/loader.ts` — GLTFLoader Utility
-- Update `IcarosPreview.svelte` — GLTFLoader statt Placeholder
-
-**Tasks:**
-- [ ] `icaros.glb` nach `static/models/` kopieren + optimieren (Draco?)
-- [ ] GLTFLoader in IcarosPreview: Ersetzt Placeholder-Box
-- [ ] Low-Poly Terrain Generator:
-  - Simplex-Noise Heightmap (2–3 Oktaven)
-  - `flatShading: true` + Vertex-Colors (höhenbasiert, Referenz-Farben)
-  - Chunked Load/Unload um Spielerposition
-  - Object-Pooling für Terrain-Chunks
-- [ ] Low-Poly Bäume/Felsen als InstancedMesh (Referenz: bunte Bäume)
-- [ ] Wasser-Plane (Referenz: Küste + Fluss)
-- [ ] 🧑‍💻 Noise-Oktaven Tuning (Amplitude, Frequenz, Persistenz)
-
-**Art Direction (aus Referenzen):**
-- Facettierte Geometrie, KEIN Smooth Shading
-- Bunte Baum-Kronen (rot, orange, lila, grün) — nicht realistisch
-- Weiche Hügel + dramatische Berge (Mix aus Landschaft 1+2+3)
-- Wasser: flache Plane mit leichtem Blau-Gradient
-- Himmel: bereits implementiert (#87ceeb + Fog)
-
-**Performance-Budget (Quest):**
-- `InstancedMesh` für alle wiederholten Objekte
-- Max 500k Triangles, <100 Draw Calls
-- Vertex-Colors statt Texturen = 0 VRAM für Textures
-
-**Exit Criteria:** Low-Poly Welt mit Bäumen, Bergen und Wasser; ICAROS GLB in Preview
+- [x] Chunked procedural Low-Poly Terrain (Simplex-Noise, 5 Oktaven)
+- [x] `flatShading: true` + Vertex-Colors (höhenbasiert, 32 Segments = sichtbare Facetten)
+- [x] Chunked Load/Unload um Spielerposition + Object-Pooling
+- [x] Low-Poly Bäume/Felsen als InstancedMesh pro Chunk (10 Baumfarben)
+- [x] Wasser-Plane (halbtransparent, blaue Fläche)
+- [x] Low-Poly Sky Dome (IcosahedronGeometry, Vertex-Color-Gradient)
+- [x] Low-Poly Wolken (40 Gruppen, DodecahedronGeometry-Blobs)
+- [x] Hartes Sonnenlicht (SUN: 3.0, AMBIENT: 0.3, warme Farbe)
+- [x] GLTFLoader Utility (`src/lib/three/loader.ts`)
 
 ---
 
-### Phase 3: Ring Course
+### ~~Phase 3: Ring Course~~ ✅
 
-**Goal:** Durchflieg-Ringe mit visueller Rückmeldung
+- [x] Torus-Geometrie Ringe pro Chunk (chunk-basiert, seeded random)
+- [x] Ring-Platzierung entlang Terrain-Kontur (Höhe über Terrain)
+- [x] Distanz-basierte Kollisionserkennung
+- [x] Visuelles Feedback: Farb-/Emissive-Änderung bei Durchflug
+- [x] Score-Counter + UI-Overlay
 
-**Files:**
-- `src/lib/three/rings.ts` — InstancedMesh Rings + Collision
+---
+
+### Phase 4: Polish + ICAROS Integration 🔜
+
+**Goal:** ICAROS GLB in Preview, Device Orientation, Audio
 
 **Tasks:**
-- [ ] Torus-Geometrie Ringe via `InstancedMesh`
-- [ ] Ring-Platzierung entlang Terrain-Kontur
-- [ ] Distanz-basierte Kollisionserkennung
-- [ ] Visuelles Feedback: Farb-/Opacity-Änderung bei Durchflug
-- [ ] Score-Counter + UI-Overlay
-- [ ] 🧑‍💻 Kollisionslogik (Distanz-Threshold + Durchflug-Erkennung)
-
-**Exit Criteria:** Spieler fliegt durch Ringe, visuelles Feedback + Score
+- [ ] `icaros.glb` nach `static/models/` + GLTFLoader in IcarosPreview
+- [ ] Device Orientation API Integration (echtes ICAROS-Gerät)
+- [ ] VR Score Overlay (THREE.Sprite oder Text-Mesh statt HTML)
+- [ ] Audio-Feedback (Wind, Ring-Pickup)
+- [ ] Wolken-Drift (langsame Bewegung)
+- [ ] Controller UI: Orientierung an `UIscreen.png` Referenz
 
 ---
 
 ## 📝 Backlog
 
-- [ ] Device Orientation API Integration (echtes ICAROS)
-- [ ] Audio-Feedback (Wind, Ring-Pickup)
 - [ ] Room-basiertes WebSocket-Pairing
 - [ ] Leaderboard / Scoring-Persistenz
-- [ ] Controller UI: Orientierung an `UIscreen.png` Referenz (Activity Log, Slider, farbcodierte Status-Labels)
+- [ ] Terrain LOD (Fern-Chunks mit weniger Segments)
+- [ ] Draco-Kompression für GLB
 
 ---
 
@@ -138,7 +119,9 @@ bun add -d @types/three
 
 - [x] Phase 0: Types + WebSocket Infrastructure
 - [x] Phase 1a: Controller UI
-- [x] Phase 1b: VR Flight Scene (ohne Flight Physics)
+- [x] Phase 1b: VR Flight Scene
+- [x] Phase 2: Low-Poly Terrain + Assets
+- [x] Phase 3: Ring Course
 
 ---
 

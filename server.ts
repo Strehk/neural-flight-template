@@ -160,7 +160,9 @@ Bun.serve({
 		// Handle WebSocket upgrade requests
 		if (req.headers.get("upgrade") === "websocket") {
 			const upgraded = server.upgrade(req);
-			return upgraded ? undefined : new Response("Upgrade failed", { status: 400 });
+			return upgraded
+				? undefined
+				: new Response("Upgrade failed", { status: 400 });
 		}
 
 		// Route "/" to "/index.html"

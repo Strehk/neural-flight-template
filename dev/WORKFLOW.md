@@ -1,12 +1,12 @@
-# WORKFLOW
+# WORKFLOW — SvelteKit + WebXR
 
-WebXR + Three.js development workflow for Meta Quest 3.
+ICAROS VR Flight Sim development workflow.
 
 ## Principles
 
-- **KISS** - Simplest solution wins
-- **Separation of Concerns** - Scene / Logic / Server separate
-- **Clean Code** - Readable > clever
+- **KISS** — Simplest solution wins
+- **Separation of Concerns** — Route / Component / Three.js / WebSocket separate
+- **Clean Code** — Readable > clever
 
 ---
 
@@ -21,30 +21,27 @@ ACTION: `git add -A && git commit -m "checkpoint: 📍 before [description]"`
 
 ### STEP: research
 
-TRIGGER: Unclear requirements OR new Three.js/WebXR feature
+TRIGGER: Unclear requirements OR new SvelteKit/Three.js/WebXR feature
 
 ACTIONS:
 ```
-1. CODEBASE: Does this already exist here?
+1. CODEBASE: Does this already exist?
    - Grep for similar functions/patterns
    - Read related files
    → If found: USE IT
 
-2. THREE.JS: Does Three.js have this built-in?
-   - Check three/examples/jsm/ for existing modules
-   - mcp__context7__ for Three.js docs
+2. SVELTEKIT / BITS-UI: Built-in solution?
    → If found: USE IT
 
-3. WEBXR: Check WebXR examples
-   - Three.js WebXR examples: node_modules/three/examples/webxr/
-   → If found: ADAPT IT
+3. THREE.JS: Built-in or examples/jsm?
+   → If found: USE IT / ADAPT IT
 
 4. ONLY THEN: Plan custom implementation
 ```
 
-Tool priority: Codebase search > Three.js examples > mcp__context7__ > WebSearch
+Tool priority: Codebase search > SvelteKit docs > Three.js examples > context7 > WebSearch
 
-SKIP_IF: Requirements clear AND solution approach known
+SKIP_IF: Requirements clear AND solution known
 
 ---
 
@@ -64,8 +61,8 @@ Use subagents for complex scope analysis:
 TRIGGER: After plan OR after research
 ACTIONS:
 1. Small, focused changes
-2. One feature/fix per iteration
-3. Follow WebXR rules from `.claude/rules/webxr-typescript.md`
+2. One feature per iteration
+3. Follow rules from `.claude/rules/sveltekit-webxr.md`
 
 ---
 
@@ -78,29 +75,24 @@ TRIGGER: After implement
 bunx biome check --write .
 
 # Type check
-bunx tsc --noEmit
+bunx svelte-check --threshold warning
+
+# Dev server
+bun run dev
 ```
 
 **Quest Testing (USB-C + ADB):**
 ```bash
-# 1. Ensure ADB connection
 adb devices
-
-# 2. Port forwarding (if not already done)
-adb reverse tcp:3000 tcp:3000
-
-# 3. Start server
-bun --hot ./server.ts
-
-# 4. Open in Quest Browser: https://localhost:3000
+adb reverse tcp:5173 tcp:5173
+bun run dev
+# Quest Browser: https://localhost:5173/vr
 ```
 
-Browser verification checklist:
-- [ ] `adb devices` shows Quest
-- [ ] Page loads without console errors
-- [ ] "Enter VR" button appears
-- [ ] VR session starts on Quest
-- [ ] Scene renders correctly in VR
+**WebSocket Test:**
+1. Open `/controller` on phone/laptop
+2. Open `/vr` on Quest
+3. Verify orientation data flows through
 
 MAX_ITERATIONS: 3
 
@@ -110,23 +102,10 @@ MAX_ITERATIONS: 3
 
 TRIGGER: After verify
 ACTIONS:
-1. `git add -A`
-2. `git commit -m "type: emoji description"`
+1. `git add [files]`
+2. `git commit -m "type: ✨ description"`
 3. Update `dev/HANDOVER.md`
 4. Update `dev/PLAN.md` (check off tasks)
-
----
-
-## ISSUE TRACKING
-
-**Don't fix problems immediately!**
-
-```
-1. Discover problem
-2. Create Issue: gh issue create --title "..." OR note in PLAN.md Backlog
-3. Continue current task
-4. Fix in dedicated session
-```
 
 ---
 
@@ -141,14 +120,25 @@ ACTIONS:
 | docs | 📝 | Documentation |
 | chore | 🔧 | Maintenance |
 | test | ✅ | Tests |
+| perf | ⚡ | Performance |
 | checkpoint | 📍 | Stable state |
+
+---
+
+## ISSUE TRACKING
+
+Don't fix problems immediately!
+1. Discover problem → Note in PLAN.md Backlog
+2. Continue current task
+3. Fix in dedicated session
 
 ---
 
 ## CONSTRAINTS
 
-- NEVER mention AI/Claude in commits
-- ALWAYS check Three.js examples before custom code
-- ALWAYS test in VR before commit
-- ALWAYS update docs at session end
-- ALWAYS use HTTPS for WebXR testing
+- ❌ Never mention AI/Claude in commits
+- ❌ Never use `any` type
+- ❌ Never use `requestAnimationFrame` (use `renderer.setAnimationLoop`)
+- ✅ Always test WebSocket flow before commit
+- ✅ Always use HTTPS for WebXR testing
+- ✅ Always update docs at session end

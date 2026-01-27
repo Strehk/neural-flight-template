@@ -1,124 +1,70 @@
-# WebXR VR/AR Starter Template
-
-Meta Quest 3 WebXR development template with Three.js and Bun.
+# ✈️ ICAROS VR Flight Sim
 
 ## Project Info
 
-**Goal:** Minimal WebXR setup for Meta Quest 3 – a reusable starter for VR/AR experiments
-**Stack:** Bun + Three.js + WebXR API + TypeScript
-**Device:** Meta Quest 3
+**Goal:** VR flight simulation for Meta Quest controlled by ICAROS device (pitch + roll → flight)
+**Stack:** SvelteKit + Bun + Three.js + WebXR + bits-ui + WebSocket
+**Device:** Meta Quest 3 + ICAROS fitness device
 
 ## Quick Start
 
 ```bash
-# Install dependencies
 bun install
-
-# Generate HTTPS certs (required for WebXR)
-bunx mkcert localhost
-
-# Start dev server
-bun --hot ./server.ts
-
-# Access from Quest: https://[YOUR_IP]:3000
-```
-
-## Commands
-
-```bash
-# Dev server with HMR
-bun --hot ./server.ts
-
-# Lint + Format
+bun run dev          # SvelteKit dev server (HTTPS)
 bunx biome check --write .
-
-# Type check
-bunx tsc --noEmit
-
-# Quality check (all)
-bunx biome check --write . && bunx tsc --noEmit
+bunx svelte-check --threshold warning
 ```
 
-## Quest 3 Connection
+## Routes
 
-### Option 1: USB-C + ADB ⭐ EMPFOHLEN (Büro/Firmen-Netzwerk)
+| Route | Purpose |
+|-------|---------|
+| `/vr` | 🥽 WebXR flight scene (Three.js + VR) |
+| `/controller` | 🎮 ICAROS controller UI (bits-ui, sends pitch/roll via WebSocket) |
 
-Kein WiFi nötig! Ideal wenn Quest nicht ins Netzwerk kann.
+## Module Structure
+
+```
+src/
+├── routes/
+│   ├── vr/+page.svelte          # VR flight scene
+│   └── controller/+page.svelte  # ICAROS controller UI
+├── lib/
+│   ├── three/                   # Three.js scene, terrain, rings, player
+│   ├── ws/                      # WebSocket client + server utilities
+│   ├── components/              # Svelte UI components (bits-ui based)
+│   └── types/                   # Shared TypeScript interfaces
+├── hooks.server.ts              # WebSocket upgrade handler
+└── app.html
+```
+
+## ICAROS Concept
+
+The ICAROS fitness device provides body-based input:
+- **Pitch** (forward/back lean) → altitude / speed control
+- **Roll** (left/right lean) → banking / turning
+
+Data flows: ICAROS → Phone (Device Orientation API) → WebSocket → Quest (flight controls)
+
+## Quest Connection
 
 ```bash
-# 1. ADB installieren (einmalig)
-brew install android-platform-tools
-
-# 2. Quest verbinden (USB-C Datenkabel!)
-# → Developer Mode muss auf Quest aktiviert sein (Meta App → Einstellungen → Developer)
-# → "Allow USB Debugging" auf Quest bestätigen
-
-# 3. Verbindung prüfen
+# USB-C + ADB (recommended)
 adb devices
-# Sollte Quest anzeigen
-
-# 4. Port forwarding einrichten
-adb reverse tcp:3000 tcp:3000
-
-# 5. Server starten
-bun --hot ./server.ts
-
-# 6. Im Quest Browser öffnen:
-# https://localhost:3000
+adb reverse tcp:5173 tcp:5173
+bun run dev
+# Quest Browser: https://localhost:5173/vr
 ```
 
-### Option 2: WiFi (gleiches Netzwerk)
+## Workflow
 
-Wenn beide Geräte im selben Netzwerk sind:
-
-```bash
-# IP finden
-ipconfig getifaddr en0
-
-# Im Quest Browser öffnen:
-# https://[DEINE_IP]:3000
-# → Self-signed Cert Warning akzeptieren
-```
-
-## Critical: WebXR Requirements
-
-⚠️ **HTTPS ist Pflicht** für WebXR! Entweder `localhost` oder HTTPS mit Zertifikaten.
-
-## Project Structure
-
-```
-├── server.ts          # Bun.serve() with HTTPS
-├── index.html         # Entry HTML
-├── src/
-│   ├── main.ts        # Three.js scene + WebXR setup
-│   └── types/         # TypeScript interfaces
-├── dev/               # Development docs
-│   ├── WORKFLOW.md    # Development steps
-│   ├── PLAN.md        # Project phases
-│   └── HANDOVER.md    # Session notes
-```
+Claude implements everything autonomously: code, dependencies (`bun add`), linting, type-checking, testing.
+David decides architecture and strategy — Claude asks when trade-offs or design direction need input.
 
 ## Rules
 
-- See `.claude/rules/webxr-typescript.md` for WebXR patterns
-- Use `renderer.setAnimationLoop()` NOT `requestAnimationFrame`
-- Use Three.js examples/jsm for VRButton, controllers, etc.
-- Biome for linting (not ESLint)
-- Bun.serve() for server (not Vite/Express)
-
-## Three.js WebXR Pattern
-
-```typescript
-import * as THREE from "three";
-import { VRButton } from "three/examples/jsm/webxr/VRButton.js";
-
-renderer.xr.enabled = true;
-document.body.appendChild(VRButton.createButton(renderer));
-renderer.setAnimationLoop(render);
-```
-
-## Docs
-
-- [Three.js WebXR](https://threejs.org/docs/#manual/en/introduction/How-to-create-VR-content)
-- [WebXR Device API](https://developer.mozilla.org/en-US/docs/Web/API/WebXR_Device_API)
-- [Bun.serve() Docs](https://bun.sh/docs/api/http)
+See `.claude/rules/sveltekit-webxr.md` for:
+- SvelteKit + Three.js patterns
+- WebSocket protocol (OrientationData)
+- Quest performance budget
+- Decision tree
