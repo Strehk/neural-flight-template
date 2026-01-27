@@ -1,123 +1,145 @@
-# 📋 PROJECT PLAN
+# 📋 PROJECT PLAN — ICAROS VR Flight Sim
 
-## 📖 Overview
+> **Prototyp-Vision:** siehe [`dev/GOAL.md`](./GOAL.md)
 
-**Project:** WebXR VR/AR Starter Template
-**Goal:** Minimal WebXR setup for Meta Quest 3 – reusable starter for VR/AR experiments
-**Stack:** Bun + Three.js + WebXR API + TypeScript
-**Device:** Meta Quest 3
+## Overview
 
-> 🎓 **Educational Focus:** This repository serves as a learning reference for WebXR beginners.
-> See `docs/CONCEPTS.md` for fundamentals and `docs/PITFALLS.md` for common mistakes.
+**Project:** ICAROS VR Flight Simulation
+**Goal:** Fly through procedural landscapes on Meta Quest, controlled by ICAROS device (pitch + roll)
+**Stack:** SvelteKit + Bun + Three.js + WebXR + bits-ui + WebSocket
+
+## Reference Assets (`assets/`)
+
+| Asset | Purpose |
+|-------|---------|
+| `icaros.glb` | 3D ICAROS device model (18MB GLB) → IcarosPreview + Controller UI |
+| `Landschaft_1.png` | Low-Poly Wald/Fluss/Wasserfälle — Terrain-Stil Referenz |
+| `Landschaft_2.png` | Low-Poly Berge/Hügel/Bäume — Terrain-Stil Referenz |
+| `Landschaft_3.png` | Low-Poly Küste/Berge/Ozean — Terrain-Stil Referenz |
+| `UIscreen.png` | Design System Spec — Brutalist UI Referenz |
+
+**Art Direction:** Low-Poly, facettiert, `flatShading: true`, Vertex-Colors, bunte stilisierte Farben, keine Texturen
+
+## Dependencies
+
+```bash
+# David installiert:
+bun add three simplex-noise
+bun add -d @types/three
+```
 
 ---
 
 ## 🚀 Phases
 
-### Phase 1: Minimal VR Scene ✅
+### ~~Phase 0: Foundation (Types + WebSocket)~~ ✅
 
-**Goal:** Display a simple cube in VR on Meta Quest 3
-
-**Pre-requisites:**
-- [x] Install ADB: `brew install android-platform-tools`
-- [x] Enable Developer Mode on Quest (via Meta App)
-- [x] Connect Quest via USB-C (data cable!)
-- [x] Verify: `adb devices` shows Quest
-
-**Implementation:**
-- [x] Set up HTTPS server with Bun.serve()
-- [x] Generate SSL certs: `bunx mkcert localhost`
-- [x] Create minimal index.html with Three.js
-- [x] Implement basic scene with rotating cube
-- [x] Add VRButton for WebXR entry
-
-**Testing:**
-- [x] `adb reverse tcp:3000 tcp:3000`
-- [x] Start server: `bun --hot ./server.ts`
-- [x] Open `https://localhost:3000` in Quest Browser
-- [x] Grüner Cube sichtbar ✅
-
-**Exit Criteria:** ✅ Can view rotating cube in VR on Quest 3 via USB-C
+- [x] Types: `OrientationData`, `SpeedCommand`, `ControllerMessage`
+- [x] WebSocket Client (Svelte 5 `$state`, Auto-Reconnect)
+- [x] WebSocket Server (Broadcast, Sender-Exclusion)
+- [x] Vite Plugin: `ws` Library, HTTPS, `host: true`
 
 ---
 
-### Phase 2: AR Mode + Remote Control ✅
+### ~~Phase 1a: Controller UI~~ ✅
 
-**Goal:** AR Passthrough + Steuerung vom Mac aus
-
-#### 2a: AR Mode (Passthrough) ✅
-- [x] `VRButton` → `ARButton` wechseln (dynamisch via `?mode=ar`)
-- [x] Renderer mit `alpha: true` für Transparenz
-- [x] `scene.background` entfernen (nur in AR-Modus)
-- [x] Cube-Position anpassen (y=1.0 für AR, y=0 für VR)
-- [x] Testen: Cube schwebt in echtem Raum ✅
-
-#### 2b: Remote Control (WebSocket) ✅
-- [x] WebSocket zu `server.ts` hinzufügen
-- [x] `controller.html` mit Touch/Mouse/Keyboard-Support
-- [x] Message-Handler in `main.ts`
-- [x] Key-Mappings: Pfeiltasten/W/S → Position, R/G/B → Farbe
-- [x] Testen: Mac-Tastatur steuert Cube auf Quest ✅
-
-#### 2c: Polish ✅
-- [x] Auto-Modus via Query Parameter (`?mode=ar` / `?mode=vr`)
-- [x] UI für Verbindungsstatus (🟢/🔴)
-- [x] `start.sh` Script für One-Command-Startup
-- [x] Dokumentation: `docs/ARCHITECTURE.md`, `docs/TUTORIAL.md`
-
-**Exit Criteria:** ✅
-- ✅ Cube in AR sichtbar (Passthrough)
-- ✅ Mac-Tastatur/Touch steuert Cube-Position und Farbe
-
-**Docs:** `dev/RESEARCH_AR_REMOTE.md`
+- [x] `src/app.css` — Brutalist Dark Theme (Custom Properties, Google Fonts)
+- [x] `src/routes/controller/+page.svelte` — Controller Layout + WS Integration
+- [x] `src/lib/components/ControlPad.svelte` — D-Pad + Arrow Keys
+- [x] `src/lib/components/SpeedButtons.svelte` — Accelerate/Brake
+- [x] `src/lib/components/IcarosPreview.svelte` — 3D Preview (Placeholder-Box)
 
 ---
 
-### 🔮 Phase 3: Interactivity (Future)
+### ~~Phase 1b: VR Flight Scene~~ ✅
 
-**Goal:** Quest Controller Support
+- [x] `src/routes/vr/+page.svelte` — Full-Screen Canvas, WebXR, VRButton
+- [x] `src/lib/three/scene.ts` — Scene Factory (Sky, Fog, Lights)
+- [x] `src/lib/three/player.ts` — FlightPlayer Class (Rig + Camera + Lerp)
+- [x] `player.ts` → `tick()` — Heading-basierte Flugphysik (Achsen-Entkopplung)
 
-- [ ] Controller-Modelle laden
-- [ ] Raycasting für Objekt-Selektion
-- [ ] Grab/Move mit Controller
-- [ ] Haptic Feedback
+---
 
-**Exit Criteria:** Objekte mit Quest Controllern greifen und bewegen
+### Phase 2: Assets + Low-Poly Terrain 🔜
+
+**Goal:** ICAROS GLB laden, Low-Poly Terrain im Stil der Referenzbilder
+
+**Files:**
+- `src/lib/three/terrain.ts` — Chunked procedural Low-Poly Terrain
+- `src/lib/three/loader.ts` — GLTFLoader Utility
+- Update `IcarosPreview.svelte` — GLTFLoader statt Placeholder
+
+**Tasks:**
+- [ ] `icaros.glb` nach `static/models/` kopieren + optimieren (Draco?)
+- [ ] GLTFLoader in IcarosPreview: Ersetzt Placeholder-Box
+- [ ] Low-Poly Terrain Generator:
+  - Simplex-Noise Heightmap (2–3 Oktaven)
+  - `flatShading: true` + Vertex-Colors (höhenbasiert, Referenz-Farben)
+  - Chunked Load/Unload um Spielerposition
+  - Object-Pooling für Terrain-Chunks
+- [ ] Low-Poly Bäume/Felsen als InstancedMesh (Referenz: bunte Bäume)
+- [ ] Wasser-Plane (Referenz: Küste + Fluss)
+- [ ] 🧑‍💻 Noise-Oktaven Tuning (Amplitude, Frequenz, Persistenz)
+
+**Art Direction (aus Referenzen):**
+- Facettierte Geometrie, KEIN Smooth Shading
+- Bunte Baum-Kronen (rot, orange, lila, grün) — nicht realistisch
+- Weiche Hügel + dramatische Berge (Mix aus Landschaft 1+2+3)
+- Wasser: flache Plane mit leichtem Blau-Gradient
+- Himmel: bereits implementiert (#87ceeb + Fog)
+
+**Performance-Budget (Quest):**
+- `InstancedMesh` für alle wiederholten Objekte
+- Max 500k Triangles, <100 Draw Calls
+- Vertex-Colors statt Texturen = 0 VRAM für Textures
+
+**Exit Criteria:** Low-Poly Welt mit Bäumen, Bergen und Wasser; ICAROS GLB in Preview
+
+---
+
+### Phase 3: Ring Course
+
+**Goal:** Durchflieg-Ringe mit visueller Rückmeldung
+
+**Files:**
+- `src/lib/three/rings.ts` — InstancedMesh Rings + Collision
+
+**Tasks:**
+- [ ] Torus-Geometrie Ringe via `InstancedMesh`
+- [ ] Ring-Platzierung entlang Terrain-Kontur
+- [ ] Distanz-basierte Kollisionserkennung
+- [ ] Visuelles Feedback: Farb-/Opacity-Änderung bei Durchflug
+- [ ] Score-Counter + UI-Overlay
+- [ ] 🧑‍💻 Kollisionslogik (Distanz-Threshold + Durchflug-Erkennung)
+
+**Exit Criteria:** Spieler fliegt durch Ringe, visuelles Feedback + Score
 
 ---
 
 ## 📝 Backlog
 
-Issues and improvements discovered during development.
-**Don't fix immediately - collect here, prioritize later.**
-
-- [ ] (empty - add issues as discovered)
+- [ ] Device Orientation API Integration (echtes ICAROS)
+- [ ] Audio-Feedback (Wind, Ring-Pickup)
+- [ ] Room-basiertes WebSocket-Pairing
+- [ ] Leaderboard / Scoring-Persistenz
+- [ ] Controller UI: Orientierung an `UIscreen.png` Referenz (Activity Log, Slider, farbcodierte Status-Labels)
 
 ---
 
 ## ✅ Completed
 
-### Phase 0: Setup ✅
+### Pre-SvelteKit (Legacy)
 
-- [x] Project initialized with Bun
-- [x] Three.js dependency installed
-- [x] CLAUDE.md created
-- [x] Workflow docs created
-- [x] Development environment configured
+- [x] Phase 1: Minimal VR Scene (cube in VR)
+- [x] Phase 2: AR Mode + Remote Control
+- [x] Documentation + Educational Reference
+
+### SvelteKit
+
+- [x] Phase 0: Types + WebSocket Infrastructure
+- [x] Phase 1a: Controller UI
+- [x] Phase 1b: VR Flight Scene (ohne Flight Physics)
 
 ---
 
-## 💡 Notes
-
-**⚠️ WebXR Gotchas:**
-- HTTPS mandatory (use mkcert for local certs)
-- Use `renderer.setAnimationLoop()` not `requestAnimationFrame`
-- See `docs/PITFALLS.md` for common mistakes and solutions
-
-**🔌 Büro/Firmen-Netzwerk Setup (USB-C + ADB):**
-- Kein WiFi nötig! Quest verbindet über USB-C
-- `adb reverse tcp:3000 tcp:3000` leitet localhost zur Quest
-- Im Quest Browser: `https://localhost:3000`
-- USB-C muss Datenkabel sein (nicht nur Ladekabel)
-
-*Created: 2026-01-15 | Updated: 2026-01-19*
+*Updated: 2026-01-27*
