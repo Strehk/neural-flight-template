@@ -16,5 +16,12 @@ export interface SpeedCommand {
 	timestamp: number;
 }
 
+/** Runtime settings update from controller sidebar */
+export interface SettingsUpdate {
+	type: "settings";
+	settings: Record<string, number | boolean | string>;
+	timestamp: number;
+}
+
 /** All possible controller → VR scene messages */
-export type ControllerMessage = OrientationData | SpeedCommand;
+export type ControllerMessage = OrientationData | SpeedCommand | SettingsUpdate;

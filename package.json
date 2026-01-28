@@ -25,6 +25,7 @@
 	},
 	"dependencies": {
 		"bits-ui": "^2.15.4",
+		"lucide-svelte": "^0.563.0",
 		"simplex-noise": "^4.0.3",
 		"three": "^0.182.0"
 	}

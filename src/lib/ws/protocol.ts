@@ -1,6 +1,7 @@
 import type {
 	ControllerMessage,
 	OrientationData,
+	SettingsUpdate,
 	SpeedCommand,
 } from "$lib/types/orientation";
 
@@ -35,6 +36,7 @@ export function parseMessage(raw: string): ControllerMessage {
 
 	if (isOrientationData(data)) return data;
 	if (isSpeedCommand(data)) return data;
+	if (isSettingsUpdate(data)) return data;
 
 	throw new Error(
 		`Invalid message: unknown type "${(data as Record<string, unknown>).type}"`,
@@ -59,6 +61,17 @@ export function isSpeedCommand(data: unknown): data is SpeedCommand {
 		d.type === "speed" &&
 		(d.action === "accelerate" || d.action === "brake") &&
 		typeof d.active === "boolean" &&
+		typeof d.timestamp === "number"
+	);
+}
+
+export function isSettingsUpdate(data: unknown): data is SettingsUpdate {
+	if (typeof data !== "object" || data === null) return false;
+	const d = data as Record<string, unknown>;
+	return (
+		d.type === "settings" &&
+		typeof d.settings === "object" &&
+		d.settings !== null &&
 		typeof d.timestamp === "number"
 	);
 }

@@ -57,3 +57,47 @@ export function createClouds(): THREE.Group {
 
 	return group;
 }
+
+/**
+ * 🧑‍💻 TODO (David): Implement the cloud drift logic below.
+ *
+ * Each cloud group drifts slowly in DRIFT_DIRECTION at DRIFT_SPEED.
+ * When a cloud drifts too far from the player, it wraps to the opposite side.
+ *
+ * @param clouds - The cloud group returned by createClouds()
+ * @param delta - Frame delta time in seconds
+ * @param playerPos - Current player position (for wrapping relative to player)
+ */
+export function updateClouds(
+	clouds: THREE.Group,
+	delta: number,
+	playerPos: THREE.Vector3,
+): void {
+	// ─── YOUR DRIFT LOGIC HERE (≈8 lines) ──────────────
+	//
+	// For each cloud child in clouds.children:
+	//   1. Move it by DRIFT_DIRECTION * DRIFT_SPEED * delta
+	//   2. Check distance from playerPos on X and Z axes
+	//   3. If too far (> CLOUDS.SPREAD), wrap to opposite side
+	//
+	// Consider:
+	//   - Normalize DRIFT_DIRECTION for consistent speed
+	//   - Wrap threshold = CLOUDS.SPREAD (same as spawn spread)
+	//   - Only wrap on the axis that's out of bounds
+	// ─────────────────────────────────────────────────────
+
+	const dirLen = Math.hypot(CLOUDS.DRIFT_DIRECTION.x, CLOUDS.DRIFT_DIRECTION.z);
+	const dx = (CLOUDS.DRIFT_DIRECTION.x / dirLen) * CLOUDS.DRIFT_SPEED * delta;
+	const dz = (CLOUDS.DRIFT_DIRECTION.z / dirLen) * CLOUDS.DRIFT_SPEED * delta;
+	const limit = CLOUDS.SPREAD;
+
+	for (const cloud of clouds.children) {
+		cloud.position.x += dx;
+		cloud.position.z += dz;
+
+		if (cloud.position.x - playerPos.x > limit) cloud.position.x -= limit * 2;
+		if (cloud.position.x - playerPos.x < -limit) cloud.position.x += limit * 2;
+		if (cloud.position.z - playerPos.z > limit) cloud.position.z -= limit * 2;
+		if (cloud.position.z - playerPos.z < -limit) cloud.position.z += limit * 2;
+	}
+}

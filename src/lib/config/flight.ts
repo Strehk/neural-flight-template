@@ -103,6 +103,56 @@ export const SKY = {
 	COLOR_BOTTOM: 0x87ceeb,
 } as const;
 
+// ── Runtime Config (mutable, changed via Settings Sidebar) ──
+
+export interface RuntimeConfig {
+	baseSpeed: number;
+	rollYawMultiplier: number;
+	lerpAlpha: number;
+	fogNear: number;
+	fogFar: number;
+	cloudCount: number;
+	cloudDriftEnabled: boolean;
+	viewRadius: number;
+	sunIntensity: number;
+	skyColorTop: string;
+	skyColorHorizon: string;
+	skyColorBottom: string;
+	ringColor: string;
+}
+
+function createDefaults(): RuntimeConfig {
+	return {
+		baseSpeed: FLIGHT.BASE_SPEED,
+		rollYawMultiplier: FLIGHT.ROLL_YAW_MULTIPLIER,
+		lerpAlpha: FLIGHT.LERP_ALPHA,
+		fogNear: SCENE.FOG_NEAR,
+		fogFar: SCENE.FOG_FAR,
+		cloudCount: 40,
+		cloudDriftEnabled: true,
+		viewRadius: TERRAIN.VIEW_RADIUS,
+		sunIntensity: SCENE.SUN_INTENSITY,
+		skyColorTop: "#1a6fc4",
+		skyColorHorizon: "#ffeebb",
+		skyColorBottom: "#87ceeb",
+		ringColor: "#f1c40f",
+	};
+}
+
+export let runtimeConfig: RuntimeConfig = createDefaults();
+
+export function applySettings(settings: Record<string, number | boolean | string>): void {
+	for (const [key, value] of Object.entries(settings)) {
+		if (key in runtimeConfig) {
+			(runtimeConfig as unknown as Record<string, number | boolean | string>)[key] = value;
+		}
+	}
+}
+
+export function resetRuntimeConfig(): void {
+	runtimeConfig = createDefaults();
+}
+
 // ── Clouds ──
 export const CLOUDS = {
 	COUNT: 40,
@@ -113,4 +163,6 @@ export const CLOUDS = {
 	BLOB_RADIUS: [10, 25] as [number, number],
 	COLOR: 0xffffff,
 	OPACITY: 0.9,
+	DRIFT_SPEED: 8,
+	DRIFT_DIRECTION: { x: 1, z: 0.3 },
 } as const;

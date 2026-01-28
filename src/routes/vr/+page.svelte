@@ -7,9 +7,11 @@ import { createFlightScene } from "$lib/three/scene";
 import { TerrainManager } from "$lib/three/terrain/manager";
 import { createWater } from "$lib/three/terrain/water";
 import { createSky } from "$lib/three/sky";
-import { createClouds } from "$lib/three/clouds";
+import { createClouds, updateClouds } from "$lib/three/clouds";
+import { Trophy } from "lucide-svelte";
 import { createWebSocketClient } from "$lib/ws/client.svelte";
-import { isOrientationData, isSpeedCommand } from "$lib/ws/protocol";
+import { isOrientationData, isSettingsUpdate, isSpeedCommand } from "$lib/ws/protocol";
+import { applySettings, runtimeConfig } from "$lib/config/flight";
 
 let canvas: HTMLCanvasElement;
 let renderer: THREE.WebGLRenderer;
@@ -30,7 +32,8 @@ onMount(() => {
 
 	scene.add(createWater());
 	scene.add(createSky());
-	scene.add(createClouds());
+	const clouds = createClouds();
+	scene.add(clouds);
 
 	renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 	renderer.setPixelRatio(window.devicePixelRatio);
@@ -46,6 +49,8 @@ onMount(() => {
 	}
 	window.addEventListener("resize", onResize);
 
+	const sun = scene.children.find((c): c is THREE.DirectionalLight => c instanceof THREE.DirectionalLight);
+
 	renderer.setAnimationLoop(() => {
 		const delta = clock.getDelta();
 
@@ -53,9 +58,20 @@ onMount(() => {
 		if (msg) {
 			if (isOrientationData(msg)) player.updateOrientation(msg);
 			if (isSpeedCommand(msg)) player.updateSpeed(msg);
+			if (isSettingsUpdate(msg)) {
+				applySettings(msg.settings);
+				if (scene.fog instanceof THREE.Fog) {
+					scene.fog.near = runtimeConfig.fogNear;
+					scene.fog.far = runtimeConfig.fogFar;
+				}
+				if (sun) sun.intensity = runtimeConfig.sunIntensity;
+			}
 		}
 
 		player.tick(delta);
+		if (runtimeConfig.cloudDriftEnabled) {
+			updateClouds(clouds, delta, player.rig.position);
+		}
 		score += terrainManager.update(player.rig.position);
 		renderer.render(scene, player.camera);
 	});
@@ -80,7 +96,7 @@ onDestroy(() => {
 <canvas bind:this={canvas} class="vr-canvas"></canvas>
 
 <div class="score-overlay">
-	🏆 {score}
+	<Trophy size={20} /> {score}
 </div>
 
 <style>
