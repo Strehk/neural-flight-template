@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { OrientationData, SpeedCommand } from "$lib/types/orientation";
 import { getHeight, DEFAULT_HEIGHTMAP } from "$lib/three/terrain/heightmap";
-import { FLIGHT, CAMERA } from "$lib/config/flight";
+import { FLIGHT, CAMERA, runtimeConfig } from "$lib/config/flight";
 
 const DEG2RAD = Math.PI / 180;
 
@@ -41,8 +41,8 @@ export class FlightPlayer {
 	}
 
 	tick(delta: number): void {
-		this.currentPitch += (this.targetPitch - this.currentPitch) * FLIGHT.LERP_ALPHA;
-		this.currentRoll += (this.targetRoll - this.currentRoll) * FLIGHT.LERP_ALPHA;
+		this.currentPitch += (this.targetPitch - this.currentPitch) * runtimeConfig.lerpAlpha;
+		this.currentRoll += (this.targetRoll - this.currentRoll) * runtimeConfig.lerpAlpha;
 
 		this.updateVelocity();
 
@@ -51,7 +51,7 @@ export class FlightPlayer {
 
 		// Heading accumulates from roll (banking turns the plane).
 		// This is a scalar — no Euler coupling possible.
-		this.heading -= rollRad * FLIGHT.ROLL_YAW_MULTIPLIER * delta;
+		this.heading -= rollRad * runtimeConfig.rollYawMultiplier * delta;
 
 		// Forward vector from spherical coordinates (heading + pitch).
 		// Decoupled: pure pitch = straight up/down, pure roll = pure turn.
@@ -71,11 +71,11 @@ export class FlightPlayer {
 
 	private updateVelocity(): void {
 		if (this.accelerating) {
-			this.velocity = FLIGHT.ACCEL_SPEED;
+			this.velocity = runtimeConfig.baseSpeed * 2;
 		} else if (this.braking) {
-			this.velocity = FLIGHT.BRAKE_SPEED;
+			this.velocity = runtimeConfig.baseSpeed * 0.25;
 		} else {
-			this.velocity = FLIGHT.BASE_SPEED;
+			this.velocity = runtimeConfig.baseSpeed;
 		}
 	}
 

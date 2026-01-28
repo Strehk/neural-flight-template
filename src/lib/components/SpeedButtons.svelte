@@ -1,5 +1,6 @@
 <script lang="ts">
 import { Button } from "bits-ui";
+import { Zap, CircleStop } from "lucide-svelte";
 import type { SpeedCommand } from "$lib/types/orientation";
 
 interface Props {
@@ -26,7 +27,7 @@ function send(action: "accelerate" | "brake", active: boolean): void {
 		onpointerup={() => send('accelerate', false)}
 		onpointerleave={() => { if (accelActive) send('accelerate', false); }}
 	>
-		⚡ Accelerate
+		<Zap size={14} /> Accelerate
 	</Button.Root>
 	<Button.Root
 		class="btn-accent speed-btn"
@@ -35,7 +36,7 @@ function send(action: "accelerate" | "brake", active: boolean): void {
 		onpointerup={() => send('brake', false)}
 		onpointerleave={() => { if (brakeActive) send('brake', false); }}
 	>
-		🛑 Brake
+		<CircleStop size={14} /> Brake
 	</Button.Root>
 </div>
 
@@ -50,5 +51,8 @@ function send(action: "accelerate" | "brake", active: boolean): void {
 		max-width: 200px;
 		padding: 0.75rem 1rem;
 		font-size: 0.8rem;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
 	}
 </style>
