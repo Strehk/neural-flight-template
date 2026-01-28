@@ -1,4 +1,4 @@
-# 📋 PROJECT PLAN — ICAROS VR Flight Sim
+# Project Plan — ICAROS VR Flight Sim
 
 > **Prototyp-Vision:** siehe [`dev/GOAL.md`](./GOAL.md)
 
@@ -6,123 +6,86 @@
 
 **Project:** ICAROS VR Flight Simulation
 **Goal:** Fly through procedural landscapes on Meta Quest, controlled by ICAROS device (pitch + roll)
-**Stack:** SvelteKit + Bun + Three.js + WebXR + bits-ui + WebSocket
+**Stack:** SvelteKit + Bun + Three.js + WebXR + bits-ui + Lucide + WebSocket
 
 ## Reference Assets (`assets/`)
 
 | Asset | Purpose |
 |-------|---------|
-| `icaros.glb` | 3D ICAROS device model (18MB GLB) → IcarosPreview + Controller UI |
-| `Landschaft_1.png` | Low-Poly Wald/Fluss/Wasserfälle — Terrain-Stil Referenz |
-| `Landschaft_2.png` | Low-Poly Berge/Hügel/Bäume — Terrain-Stil Referenz |
-| `Landschaft_3.png` | Low-Poly Küste/Berge/Ozean — Terrain-Stil Referenz |
-| `UIscreen.png` | Design System Spec — Brutalist UI Referenz |
+| `icaros.glb` | 3D ICAROS device model (18MB GLB) |
+| `Landschaft_*.png` | Low-Poly terrain style references |
+| `UIscreen.png` | Design System spec — Brutalist UI reference |
 
 **Art Direction:** Low-Poly, facettiert, `flatShading: true`, Vertex-Colors, bunte stilisierte Farben, keine Texturen
 
-## Dependencies
-
-```bash
-# David installiert:
-bun add three simplex-noise
-bun add -d @types/three
-```
-
 ---
 
-## 🚀 Phases
+## Completed Phases
 
-### ~~Phase 0: Foundation (Types + WebSocket)~~ ✅
+### ~~Phase 0: Foundation (Types + WebSocket)~~ Done
 
 - [x] Types: `OrientationData`, `SpeedCommand`, `ControllerMessage`
 - [x] WebSocket Client (Svelte 5 `$state`, Auto-Reconnect)
 - [x] WebSocket Server (Broadcast, Sender-Exclusion)
 - [x] Vite Plugin: `ws` Library, HTTPS, `host: true`
 
----
+### ~~Phase 1a: Controller UI~~ Done
 
-### ~~Phase 1a: Controller UI~~ ✅
+- [x] Brutalist Dark Theme (Custom Properties, Google Fonts)
+- [x] Controller Layout + WS Integration
+- [x] D-Pad + Arrow Keys (ControlPad)
+- [x] Accelerate/Brake (SpeedButtons)
+- [x] 3D ICAROS Preview (IcarosPreview)
 
-- [x] `src/app.css` — Brutalist Dark Theme (Custom Properties, Google Fonts)
-- [x] `src/routes/controller/+page.svelte` — Controller Layout + WS Integration
-- [x] `src/lib/components/ControlPad.svelte` — D-Pad + Arrow Keys
-- [x] `src/lib/components/SpeedButtons.svelte` — Accelerate/Brake
-- [x] `src/lib/components/IcarosPreview.svelte` — 3D Preview (Placeholder-Box)
+### ~~Phase 1b: VR Flight Scene~~ Done
 
----
+- [x] Full-Screen Canvas, WebXR, VRButton
+- [x] Scene Factory (Sky, Fog, Lights)
+- [x] FlightPlayer Class (Rig + Camera + Lerp)
+- [x] Heading-based flight physics (axis decoupling)
 
-### ~~Phase 1b: VR Flight Scene~~ ✅
+### ~~Phase 2: Low-Poly Terrain + Assets~~ Done
 
-- [x] `src/routes/vr/+page.svelte` — Full-Screen Canvas, WebXR, VRButton
-- [x] `src/lib/three/scene.ts` — Scene Factory (Sky, Fog, Lights)
-- [x] `src/lib/three/player.ts` — FlightPlayer Class (Rig + Camera + Lerp)
-- [x] `player.ts` → `tick()` — Heading-basierte Flugphysik (Achsen-Entkopplung)
+- [x] Chunked procedural Low-Poly Terrain (Simplex-Noise, 5 octaves)
+- [x] FlatShading + Vertex-Colors (height-based, 32 segments)
+- [x] Chunk Load/Unload + Object Pooling
+- [x] Low-Poly Trees/Rocks as InstancedMesh per chunk
+- [x] Water Plane, Sky Dome, Clouds
+- [x] Hard sunlight (SUN: 3.0, AMBIENT: 0.3, warm color)
 
----
+### ~~Phase 3: Ring Course~~ Done
 
-### ~~Phase 2: Low-Poly Terrain + Assets~~ ✅
+- [x] Torus rings per chunk (seeded random)
+- [x] Distance-based collision detection
+- [x] Visual feedback (color/emissive change)
+- [x] Score counter + UI overlay
 
-- [x] Chunked procedural Low-Poly Terrain (Simplex-Noise, 5 Oktaven)
-- [x] `flatShading: true` + Vertex-Colors (höhenbasiert, 32 Segments = sichtbare Facetten)
-- [x] Chunked Load/Unload um Spielerposition + Object-Pooling
-- [x] Low-Poly Bäume/Felsen als InstancedMesh pro Chunk (10 Baumfarben)
-- [x] Wasser-Plane (halbtransparent, blaue Fläche)
-- [x] Low-Poly Sky Dome (IcosahedronGeometry, Vertex-Color-Gradient)
-- [x] Low-Poly Wolken (40 Gruppen, DodecahedronGeometry-Blobs)
-- [x] Hartes Sonnenlicht (SUN: 3.0, AMBIENT: 0.3, warme Farbe)
-- [x] GLTFLoader Utility (`src/lib/three/loader.ts`)
+### ~~Phase 4a: Polish~~ Done
 
----
-
-### ~~Phase 3: Ring Course~~ ✅
-
-- [x] Torus-Geometrie Ringe pro Chunk (chunk-basiert, seeded random)
-- [x] Ring-Platzierung entlang Terrain-Kontur (Höhe über Terrain)
-- [x] Distanz-basierte Kollisionserkennung
-- [x] Visuelles Feedback: Farb-/Emissive-Änderung bei Durchflug
-- [x] Score-Counter + UI-Overlay
+- [x] Cloud drift animation (updateClouds with wrapping)
+- [x] Settings Sidebar (bits-ui Slider/Switch/Collapsible)
+- [x] Runtime config via WebSocket (SettingsUpdate message)
+- [x] Preset system (localStorage persistence)
+- [x] Lucide icons (project-wide, replacing emojis)
+- [x] Documentation (README, ARCHITECTURE, subdirectory READMEs)
 
 ---
 
-### Phase 4: Polish + ICAROS Integration 🔜
+## Phase 4b: Remaining Polish
 
-**Goal:** ICAROS GLB in Preview, Device Orientation, Audio
+- [ ] `icaros.glb` orientation fix in IcarosPreview
+- [ ] Device Orientation API Integration (real ICAROS device)
+- [ ] VR Score Overlay (THREE.Sprite instead of HTML)
+- [ ] Audio feedback (wind, ring pickup)
+- [ ] Controller UI: Align with `UIscreen.png` design reference
 
-**Tasks:**
-- [ ] `icaros.glb` nach `static/models/` + GLTFLoader in IcarosPreview
-- [ ] Device Orientation API Integration (echtes ICAROS-Gerät)
-- [ ] VR Score Overlay (THREE.Sprite oder Text-Mesh statt HTML)
-- [ ] Audio-Feedback (Wind, Ring-Pickup)
-- [ ] Wolken-Drift (langsame Bewegung)
-- [ ] Controller UI: Orientierung an `UIscreen.png` Referenz
+## Backlog
 
----
-
-## 📝 Backlog
-
-- [ ] Room-basiertes WebSocket-Pairing
-- [ ] Leaderboard / Scoring-Persistenz
-- [ ] Terrain LOD (Fern-Chunks mit weniger Segments)
-- [ ] Draco-Kompression für GLB
+- [ ] Room-based WebSocket pairing
+- [ ] Leaderboard / score persistence
+- [ ] Terrain LOD (far chunks with fewer segments)
+- [ ] Draco compression for GLB
 
 ---
 
-## ✅ Completed
-
-### Pre-SvelteKit (Legacy)
-
-- [x] Phase 1: Minimal VR Scene (cube in VR)
-- [x] Phase 2: AR Mode + Remote Control
-- [x] Documentation + Educational Reference
-
-### SvelteKit
-
-- [x] Phase 0: Types + WebSocket Infrastructure
-- [x] Phase 1a: Controller UI
-- [x] Phase 1b: VR Flight Scene
-- [x] Phase 2: Low-Poly Terrain + Assets
-- [x] Phase 3: Ring Course
-
----
-
-*Updated: 2026-01-27*
+*Updated: 2026-01-28*

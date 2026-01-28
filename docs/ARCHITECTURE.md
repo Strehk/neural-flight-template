@@ -1,422 +1,149 @@
-# Architecture Reference
+# 🏗️ Architecture
 
-Technical deep-dive into the WebXR Starter Template architecture.
+System design for the ICAROS VR Flight Sim.
 
 ---
 
 ## System Overview
 
 ```mermaid
-graph TB
-    subgraph Desktop Browser
-        C[controller.html]
-        CWS[WebSocket Client]
-        CUI[UI: D-Pad, Colors]
+graph LR
+    subgraph Phone/Laptop
+        C[Controller UI<br>/controller]
+        DOA[Device Orientation API]
     end
 
-    subgraph Bun Server :3000
-        S[server.ts]
-        HTTP[HTTPS Handler]
-        WS[WebSocket Server]
-        TR[Bun.Transpiler]
+    subgraph SvelteKit Server
+        WS[WebSocket<br>Broadcast]
     end
 
     subgraph Meta Quest 3
-        Q[index.html + main.ts]
-        QWS[WebSocket Client]
-        THREE[Three.js Scene]
-        XR[WebXR Session]
+        VR[VR Scene<br>/vr]
+        PHY[Flight Physics]
+        TER[Terrain Manager]
+        THREE[Three.js + WebXR]
     end
 
-    C --> CWS
-    CUI --> CWS
-    CWS -->|wss://| WS
-
-    WS -->|Broadcast| QWS
-    QWS --> THREE
-
-    HTTP -->|.ts files| TR
-    TR -->|JavaScript| Q
-
-    THREE --> XR
+    DOA -->|pitch/roll| C
+    C -->|OrientationData<br>SpeedCommand<br>SettingsUpdate| WS
+    WS -->|broadcast to others| VR
+    VR --> PHY --> THREE
+    VR --> TER --> THREE
 ```
-
----
 
 ## Data Flow
 
-### 1. Connection Sequence
+```
+ICAROS Device
+    ↓ body lean (pitch + roll)
+Phone (Device Orientation API)
+    ↓ OrientationData @ 60Hz
+Controller UI (/controller)
+    ↓ WebSocket (WSS)
+SvelteKit Server (hooks.server.ts)
+    ↓ broadcast to all except sender
+VR Scene (/vr on Quest)
+    ↓ FlightPlayer.updateOrientation()
+Three.js Render Loop @ 72fps
+```
+
+## Module Architecture
+
+### Routes
+
+| Route | Responsibility |
+|-------|---------------|
+| `/vr` | WebXR canvas, Three.js scene, animation loop, ring scoring |
+| `/controller` | D-Pad input, speed buttons, 3D preview, settings sidebar |
+
+### `lib/three/` — 3D Engine
+
+```
+scene.ts ─── Scene factory (lights, fog)
+player.ts ── FlightPlayer (rig + camera + arcade physics)
+sky.ts ───── Low-poly sky dome (vertex-color gradient)
+clouds.ts ── Procedural cloud groups (drift animation)
+rings.ts ─── Per-chunk collectible rings
+loader.ts ── GLTF loader wrapper
+
+terrain/
+├── manager.ts ──── Chunk load/unload + object pooling
+├── chunk.ts ────── Single 128×128 terrain tile
+├── geometry.ts ─── Heightmap → BufferGeometry
+├── heightmap.ts ── Simplex noise FBM (5 octaves)
+├── water.ts ────── Flat water plane
+└── decorations.ts  InstancedMesh trees + rocks
+```
+
+### `lib/ws/` — WebSocket
+
+```
+client.svelte.ts ── Reactive client (Svelte 5 $state, auto-reconnect)
+server.ts ───────── Broadcast-to-others handler
+protocol.ts ─────── Serialization + type guard validation
+```
+
+### `lib/config/` — Config-Driven Design
+
+All tuning values live in `flight.ts` — a single file with `as const` objects. Modules import what they need, never hardcode values.
+
+**Runtime config**: A mutable copy of defaults can be changed live via `SettingsUpdate` WebSocket messages from the controller sidebar. This enables real-time tuning without code changes.
+
+### `lib/components/` — Svelte UI
+
+```
+ControlPad.svelte ──── D-Pad for pitch/roll
+SpeedButtons.svelte ── Accelerate/Brake
+IcarosPreview.svelte ─ 3D model preview (reactive to input)
+SettingsSidebar.svelte  Runtime config sliders/switches
+```
+
+## Terrain Chunk System
 
 ```mermaid
-sequenceDiagram
-    participant Terminal
-    participant Server as Bun Server
-    participant Controller as Controller (Mac)
-    participant Quest as Quest Browser
-
-    Terminal->>Terminal: adb reverse tcp:3000 tcp:3000
-    Terminal->>Server: bun --hot server.ts
-    Server-->>Terminal: 🚀 Server running on :3000
-
-    Terminal->>Controller: open controller.html
-    Controller->>Server: WSS Connect
-    Server-->>Controller: 📱 Client 1 connected
-
-    Terminal->>Quest: adb am start browser
-    Quest->>Server: WSS Connect
-    Server-->>Quest: 📱 Client 2 connected
-
-    Note over Controller,Quest: Both clients connected
+graph TD
+    PM[Player moves] --> TC{Which chunks<br>in VIEW_RADIUS?}
+    TC -->|new chunk| LOAD[Create/recycle<br>from pool]
+    TC -->|old chunk| UNLOAD[Return to<br>object pool]
+    LOAD --> DECO[Spawn decorations<br>+ rings]
+    LOAD --> GEO[Generate heightmap<br>+ vertex colors]
 ```
 
-### 2. Command Flow
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant UI as Controller UI
-    participant WS as WebSocket
-    participant Server
-    participant Scene as Three.js
-
-    User->>UI: Click "→" button
-    UI->>UI: actions["x-right"]()
-    UI->>WS: ws.send(JSON.stringify(cmd))
-    WS->>Server: {"type":"move","axis":"x","value":0.1}
-
-    Server->>Server: Log: 📨 Command
-    Server->>Scene: broadcast(msg, sender)
-
-    Note over Server,Scene: Broadcast to all EXCEPT sender
-
-    Scene->>Scene: handleCommand(cmd)
-    Scene->>Scene: cube.position.x += 0.1
-```
-
-### 3. TypeScript Transpilation
-
-```mermaid
-sequenceDiagram
-    participant Browser
-    participant Server as Bun Server
-    participant FS as File System
-    participant TR as Transpiler
-
-    Browser->>Server: GET /src/main.ts
-    Server->>FS: Read main.ts
-    FS-->>Server: TypeScript source
-
-    Server->>TR: transpiler.transformSync(source)
-    TR-->>Server: JavaScript output
-
-    Server-->>Browser: Content-Type: application/javascript
-    Browser->>Browser: Execute JS
-```
-
----
-
-## Component Details
-
-### server.ts
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ server.ts                                                   │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌─────────────────┐  ┌─────────────────┐                  │
-│  │ MIME_TYPES      │  │ Bun.Transpiler  │                  │
-│  │ .html → text    │  │ .ts → .js       │                  │
-│  │ .ts → js        │  │                 │                  │
-│  └─────────────────┘  └─────────────────┘                  │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ Bun.serve()                                         │   │
-│  │ ┌───────────────┐  ┌────────────────────────────┐   │   │
-│  │ │ TLS Config    │  │ fetch() Handler            │   │   │
-│  │ │ • key.pem     │  │ • WebSocket upgrade        │   │   │
-│  │ │ • cert.pem    │  │ • Static file serving      │   │   │
-│  │ └───────────────┘  │ • TS transpilation         │   │   │
-│  │                    └────────────────────────────┘   │   │
-│  │ ┌────────────────────────────────────────────────┐  │   │
-│  │ │ websocket: { open, close, message }            │  │   │
-│  │ │ • Track clients in Set<WebSocket>              │  │   │
-│  │ │ • Broadcast to all except sender               │  │   │
-│  │ └────────────────────────────────────────────────┘  │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ broadcast(data, sender?)                            │   │
-│  │ • Iterate all clients                               │   │
-│  │ • Skip sender (prevents echo)                       │   │
-│  │ • Send JSON string                                  │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### src/main.ts
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ src/main.ts                                                 │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌─────────────────┐  ┌─────────────────┐                  │
-│  │ Mode Detection  │  │ Scene Setup     │                  │
-│  │ ?mode=vr|ar     │  │ • Camera        │                  │
-│  │                 │  │ • Renderer      │                  │
-│  └─────────────────┘  │ • Lighting      │                  │
-│                       │ • Cube mesh     │                  │
-│                       └─────────────────┘                  │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ WebXR Setup                                         │   │
-│  │ • renderer.xr.enabled = true                        │   │
-│  │ • VRButton.createButton() or ARButton              │   │
-│  │ • renderer.setAnimationLoop()                       │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ Command Handler                                     │   │
-│  │ ┌───────────────┐  ┌───────────────┐               │   │
-│  │ │ MoveCommand   │  │ ColorCommand  │               │   │
-│  │ │ axis: x|y|z   │  │ color: r|g|b  │               │   │
-│  │ │ value: number │  │               │               │   │
-│  │ └───────────────┘  └───────────────┘               │   │
-│  │                                                     │   │
-│  │ handleCommand(cmd) → cube.position / material.color │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ WebSocket Client                                    │   │
-│  │ • Connect to wss://${location.host}                 │   │
-│  │ • onmessage → JSON.parse → handleCommand            │   │
-│  │ • Status indicator (Connected/Disconnected)         │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### controller.html
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ controller.html                                             │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ UI Layout                                           │   │
-│  │ ┌─────────────────────────────────────────────────┐ │   │
-│  │ │ 🟢 Connected              [VR] [AR]             │ │   │
-│  │ ├─────────────────────────────────────────────────┤ │   │
-│  │ │              [  W  ]                            │ │   │
-│  │ │         [←]  [  ↑  ]  [→]                      │ │   │
-│  │ │              [  ↓  ]                            │ │   │
-│  │ │              [  S  ]                            │ │   │
-│  │ ├─────────────────────────────────────────────────┤ │   │
-│  │ │      [🔴 R]   [🟢 G]   [🔵 B]                   │ │   │
-│  │ └─────────────────────────────────────────────────┘ │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ Event Handlers                                      │   │
-│  │ • mousedown/mouseup → visual feedback               │   │
-│  │ • touchstart/touchend → mobile support              │   │
-│  │ • keydown → keyboard shortcuts                      │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ Action Map                                          │   │
-│  │ z-forward  → { type: "move", axis: "z", value: -0.1}│   │
-│  │ z-backward → { type: "move", axis: "z", value: 0.1} │   │
-│  │ x-left     → { type: "move", axis: "x", value: -0.1}│   │
-│  │ x-right    → { type: "move", axis: "x", value: 0.1} │   │
-│  │ y-up       → { type: "move", axis: "y", value: 0.1} │   │
-│  │ y-down     → { type: "move", axis: "y", value: -0.1}│   │
-│  │ color-*    → { type: "color", color: "*" }          │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
+- **Chunk size**: 128×128 units, 32 segments (visible facets)
+- **View radius**: 2 chunks in each direction
+- **Object pool**: max 30 recycled chunks (prevents GC pressure)
+- **Seeded random**: chunk coordinates → deterministic placement
+- **Per-chunk data**: terrain mesh + InstancedMesh trees/rocks + torus rings
 
 ## WebSocket Protocol
 
-### Message Types
-
 ```typescript
-// Movement command - adjusts cube position
-interface MoveCommand {
-  type: "move";
-  axis: "x" | "y" | "z";
-  value: number;  // Typically ±0.1
-}
+// Controller → VR (60Hz)
+{ type: "orientation", pitch: number, roll: number, timestamp: number }
 
-// Color command - changes cube material color
-interface ColorCommand {
-  type: "color";
-  color: "red" | "green" | "blue";
-}
+// Controller → VR (on press/release)
+{ type: "speed", action: "accelerate" | "brake", active: boolean, timestamp: number }
 
-// Union type for all commands
-type Command = MoveCommand | ColorCommand;
+// Controller → VR (settings change)
+{ type: "settings", settings: Record<string, number | boolean | string>, timestamp: number }
 ```
 
-### Color Mapping
+Server broadcasts each message to all connected clients except the sender.
 
-```typescript
-const COLOR_MAP: Record<string, number> = {
-  red:   0xff0000,
-  green: 0x00ff00,
-  blue:  0x0000ff,
-};
-```
+## Performance Budget (Quest 72fps)
 
-### Broadcast Pattern
+| Metric | Budget | Current |
+|--------|--------|---------|
+| Draw calls | < 100 | ~8 |
+| Triangles | < 500k | ~200k |
+| JS frame time | < 11ms | ~4ms |
+| VRAM | < 256MB | ~40MB |
 
-The server implements a **broadcast-to-others** pattern:
+### Optimizations
 
-```typescript
-function broadcast(data: string, sender?: ServerWebSocket): void {
-  for (const client of clients) {
-    if (client !== sender) {  // Skip sender
-      client.send(data);
-    }
-  }
-}
-```
-
-This prevents:
-- Echo loops (sender receiving their own message)
-- Duplicate processing on the controller
-
----
-
-## Critical Implementation Details
-
-### 1. HTTPS Requirement
-
-WebXR API requires secure context:
-- `https://` in production
-- `localhost` works without HTTPS in development
-
-```typescript
-Bun.serve({
-  tls: {
-    key: Bun.file("localhost-key.pem"),
-    cert: Bun.file("localhost.pem"),
-  },
-  // ...
-});
-```
-
-Generate certificates with mkcert:
-```bash
-bunx mkcert localhost
-```
-
-### 2. TypeScript Transpilation
-
-Browsers cannot execute TypeScript. The server transpiles on-the-fly:
-
-```typescript
-const transpiler = new Bun.Transpiler({ loader: "ts" });
-
-if (path.endsWith(".ts")) {
-  const source = await file.text();
-  const js = transpiler.transformSync(source);
-  return new Response(js, {
-    headers: { "Content-Type": "application/javascript" },
-  });
-}
-```
-
-### 3. WebXR Animation Loop
-
-Must use `setAnimationLoop` instead of `requestAnimationFrame`:
-
-```typescript
-// ❌ Wrong - doesn't work with WebXR
-function animate() {
-  requestAnimationFrame(animate);
-  renderer.render(scene, camera);
-}
-
-// ✅ Correct - WebXR compatible
-renderer.setAnimationLoop(() => {
-  renderer.render(scene, camera);
-});
-```
-
-### 4. AR Mode Configuration
-
-AR requires transparent renderer and no background:
-
-```typescript
-// Renderer with alpha
-const renderer = new THREE.WebGLRenderer({
-  antialias: true,
-  alpha: mode === "ar",  // Enable transparency
-});
-
-// No scene background for AR
-if (mode !== "ar") {
-  scene.background = new THREE.Color(0x1a1a2e);
-}
-
-// Position cube at chest height for AR
-cube.position.set(0, mode === "ar" ? 1.0 : 0, -2);
-```
-
----
-
-## File Dependencies
-
-```mermaid
-graph LR
-    subgraph Entry Points
-        I[index.html]
-        C[controller.html]
-    end
-
-    subgraph Server
-        S[server.ts]
-    end
-
-    subgraph Source
-        M[src/main.ts]
-    end
-
-    subgraph Dependencies
-        T[three]
-        VR[VRButton.js]
-        AR[ARButton.js]
-    end
-
-    I -->|loads| M
-    M -->|imports| T
-    M -->|imports| VR
-    M -->|imports| AR
-
-    S -->|serves| I
-    S -->|serves| C
-    S -->|transpiles| M
-```
-
----
-
-## Port Configuration
-
-| Port | Protocol | Purpose |
-|------|----------|---------|
-| 3000 | HTTPS | Web server |
-| 3000 | WSS | WebSocket server |
-
-ADB port forwarding:
-```bash
-adb reverse tcp:3000 tcp:3000
-```
-
-This maps Quest's `localhost:3000` to Mac's `localhost:3000`.
+- **InstancedMesh** for trees + rocks (2 draw calls per chunk)
+- **Chunked terrain** with load/unload based on distance
+- **Object pooling** for chunk recycling
+- **Frustum culling** (Three.js default)
+- **Fog** hides far terrain (100–500 range)
+- **FlatShading** reduces normal computation

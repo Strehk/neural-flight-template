@@ -1,79 +1,94 @@
-# 📋 SESSION HANDOVER
+# Session Handover
 
-## 📅 Session Info
+## Session Info
 
-**Date:** 2026-01-27
-**Focus:** Low-Poly Landscape Optimization — Chunk-basierte Deko, Sky, Clouds, Farbpalette
-
----
-
-## ✅ Completed This Session
-
-### Chunk-basierte Decorations + Rings
-- **Problem:** Bäume/Rocks/Rings waren global platziert (einmal beim Start), regenerierten NICHT bei neuen Terrain-Chunks
-- **Lösung:** Decorations + Rings werden pro Chunk gespawnt/entfernt via `TerrainManager`
-- Seeded Random per Chunk-Koordinate → deterministisch (gleicher Chunk = gleiche Bäume)
-- InstancedMesh pro Chunk für Trees + Rocks (2 Draw Calls pro Chunk für Deko)
-- Rings: `PER_CHUNK: 2` statt global 80
-
-### Low-Poly Terrain
-- `SEGMENTS: 128` → `32` → sichtbare Facetten auf Bergen (echter Low-Poly Look)
-
-### Farbpalette + Beleuchtung
-- Terrain-Vertex-Colors: sattere Grüntöne, wärmeres Gelb/Orange
-- Baumfarben: 10 Farben (Reds, Oranges, Purples, Pinks, Greens) statt 4
-- Sonnenlicht: `SUN_COLOR: 0xfff4e0`, `SUN_INTENSITY: 3.0`, `AMBIENT: 0.3` → hartes Licht mit starkem Kontrast
-
-### Low-Poly Sky Dome
-- `src/lib/three/sky.ts` — Inverted IcosahedronGeometry mit Vertex-Color-Gradient
-- Blau oben → warm am Horizont → hellblau unten
-
-### Low-Poly Wolken
-- `src/lib/three/clouds.ts` — 40 Wolkengruppen aus DodecahedronGeometry-Blobs
-- Leicht transparent, flatShading, zufällig verteilt
+**Date:** 2026-01-28 (Session 2)
+**Focus:** Sidebar Debug & Polish — Collapsible Fix, Design-Refresh (Lila), Header Toggle, Slider Rework, Settings → VR Pipeline
 
 ---
 
-## 🔧 Open: Visuelles Finetuning
+## Completed This Session
 
-- Wolken bewegen sich nicht (statisch) — optional: langsame Drift
-- Score zeigt nur Zahl (kein Max, da Ringe jetzt endlos spawnen)
-- Sky Dome könnte bei Fog-Distanz zu abrupt abgeschnitten werden
+### Sidebar Fixes
+- **Collapsible CSS-Fix**: `:global([data-collapsible-content][data-state="closed"]) { display: none }` — bits-ui v2 rendert Content immer, braucht explizites CSS
+- **All sections default `open=true`** — Flight, Scene, Terrain alle expanded
+- **Design-Refresh**: Accent Gold → Lila `#8b7ec8` durchgaengig (Slider, Switch, Values, Presets)
+- **Slider Rework**: bits-ui hat keinen automatischen Track — manueller `<span class="slider-track">` Wrapper um `Slider.Range`. Track 1px grau, Range lila, Thumb 10px quadratisch lila
+- **X-Button** im Sidebar-Header zum Schliessen (`onClose` Prop)
+- **Header Toggle**: `position: fixed` Toggle-Button entfernt, stattdessen ⚙️ Settings-Icon als drittes Element in `header-bar` (`ICAROS | STATUS | ⚙️`)
+- **Color Inputs**: `border: none`, volle Breite
+- **Section Gap**: 1rem zwischen Setting-Rows
 
-## 🔧 Open: ICAROS Preview Ausrichtung
+### SpeedButtons
+- **Icon-Spacing**: `gap: 0.4rem` + `display: inline-flex; align-items: center`
 
-**Problem:** GLB-Modell zeigt nicht die korrekte Frontansicht im Default.
-**Datei:** `src/lib/components/IcarosPreview.svelte`
+### Settings → VR Pipeline (teilweise)
+- `player.ts` liest jetzt `runtimeConfig.lerpAlpha`, `runtimeConfig.rollYawMultiplier`, `runtimeConfig.baseSpeed` statt statische `FLIGHT.*` Konstanten
+- Accel/Brake Speed: relativ zu `runtimeConfig.baseSpeed` (×2 / ×0.25)
 
-## 🔧 Open: VR Score Overlay
-
-Score-Overlay ist nur im 2D-Modus sichtbar (HTML). Für VR braucht man `THREE.Sprite` oder Text-Mesh.
+### Quality
+- 0 errors, 0 warnings (`bunx svelte-check --threshold warning`)
+- 0 lint issues (`bunx biome check --write .`)
 
 ---
 
-## 📁 Changed Files (This Session)
+## OPEN ISSUES (Naechste Session!)
+
+### Issue 1: Farbwerte werden nicht an VR-Szene weitergeleitet
+**Problem:** Color Picker Aenderungen (Sky Top/Horizon/Bottom, Ring Color) haben keinen sichtbaren Effekt in der VR-Szene.
+**Ursache:** `vr/+page.svelte` Render-Loop reagiert auf `isSettingsUpdate()`, ruft `applySettings()` auf — aber die Sky-Farben und Ring-Farbe werden danach nicht auf die Three.js-Objekte angewendet. Aktuell werden nur `fog.near`, `fog.far` und `sun.intensity` aktualisiert.
+**Fix:** Im Animation-Loop nach `applySettings()`:
+- Sky Mesh Material Uniforms updaten (vertex colors aus `runtimeConfig.skyColorTop/Horizon/Bottom`)
+- Ring Material Color updaten aus `runtimeConfig.ringColor`
+**Dateien:** `vr/+page.svelte` (Render-Loop), `three/sky.ts` (braucht Update-Funktion), `three/terrain/manager.ts` (Ring-Farbe)
+
+### Issue 2: Terrain-Einstellungen (View Radius) haben keinen Effekt
+**Problem:** View Radius Slider aendert den Wert, aber die Terrain-Generierung reagiert nicht.
+**Ursache:** `TerrainManager` liest `TERRAIN.VIEW_RADIUS` einmalig im Constructor. `runtimeConfig.viewRadius` wird zwar via `applySettings()` gesetzt, aber der Manager liest es nicht.
+**Fix:** `TerrainManager.update()` soll `runtimeConfig.viewRadius` nutzen statt `TERRAIN.VIEW_RADIUS`.
+**Datei:** `src/lib/three/terrain/manager.ts`
+
+### Issue 3: Neue Settings — Sonnenposition + Ringe + Prototyping-Parameter
+**Gewuenscht von David:**
+1. **Sonnenposition** — Slider von Mittagssonne (hoch) bis Tiefstand (Horizontnah). Vorschlag: `sunElevation` Slider (10°–90°), Position wird berechnet aus Elevation + fester Azimut-Richtung
+2. **Anzahl Ringe** — Slider in Terrain-Section (z.B. 0–6 pro Chunk)
+3. **Weitere Prototyping-Parameter** (Vorschlaege):
+   - **Terrain Amplitude** — wie hoch die Berge (flach bis dramatisch)
+   - **Terrain Frequency** — wie eng/weit die Huegel (sanft rollend bis zerklüftet)
+   - **Fog Color** — passend zur Sky-Aenderung
+   - **Cloud Count** — mehr/weniger Wolken
+   - **Cloud Height** — Wolkenhoehe anpassen
+   - **Water Level** — Wasserstand variieren
+   - **Tree Density** — Baeume pro Chunk
+   - **Flight Min Clearance** — wie nah am Boden darf man fliegen
+
+**Kontext:** Das System soll zeigen, wie man generativ Landschaften aufbaut und Parameter live veraendert. Jeder Slider demonstriert einen anderen Aspekt prozeduraler Generierung.
+
+---
+
+## Changed Files (This Session)
 
 | File | Change |
 |------|--------|
-| `src/lib/config/flight.ts` | Per-chunk counts, 10 Baumfarben, SKY/CLOUDS config, SEGMENTS 32, härteres Licht |
-| `src/lib/three/terrain/decorations.ts` | Komplett refactored → `createChunkDecorations()` per Chunk |
-| `src/lib/three/rings.ts` | Komplett refactored → `createChunkRings()` per Chunk |
-| `src/lib/three/terrain/manager.ts` | Managed Decorations + Rings pro Chunk, `ringGroup`, `update()` returns collected |
-| `src/lib/three/sky.ts` | **Neu** — Low-Poly Sky Dome |
-| `src/lib/three/clouds.ts` | **Neu** — Low-Poly Wolken |
-| `src/lib/three/scene.ts` | Wärmere Sun-Color, höhere Intensity |
-| `src/lib/index.ts` | Exports aktualisiert |
-| `src/routes/vr/+page.svelte` | Sky, Clouds integriert, chunk-basierte Ring-Collection |
+| `src/lib/components/SettingsSidebar.svelte` | Design-Refresh, Slider-Track, X-Button, onClose Prop |
+| `src/routes/controller/+page.svelte` | Header ⚙️ Button, onClose Prop |
+| `src/lib/components/SpeedButtons.svelte` | Icon gap + inline-flex |
+| `src/lib/three/player.ts` | runtimeConfig statt FLIGHT.* |
+| `src/lib/config/flight.ts` | Keine Aenderungen, aber runtimeConfig wird jetzt von player.ts importiert |
+
+## Dev Server
+
+Port 5175 (5173/5174 waren belegt). `bun run dev` laeuft evtl. noch im Hintergrund.
 
 ---
 
-## 🧠 Context for Next Session
+## Fix-Reihenfolge (Empfehlung)
 
-- Terrain-Chunks spawnen jetzt automatisch Decorations + Rings → endlose Welt mit Deko
-- `TerrainManager.update()` gibt collected ring count zurück (kein separater `updateRings`-Call nötig)
-- Config ist zentral in `src/lib/config/flight.ts` — alle visuellen Tuning-Werte dort
-- Alle Lint/Type-Checks bestanden (0 errors, 0 warnings)
+1. **Issue 1** (Farben → VR) — Sky + Ring Color Update-Funktionen, im Render-Loop aufrufen
+2. **Issue 2** (Terrain View Radius) — Manager auf runtimeConfig umstellen
+3. **Issue 3** (Neue Settings) — Sonnenposition, Ringe, Prototyping-Parameter
+4. Danach: Cloud Drift ordentlich an Settings anbinden (Count, Height, Speed)
 
 ---
 
-*Updated: 2026-01-27*
+*Updated: 2026-01-28*

@@ -1,42 +1,79 @@
-# sv
+# ✈️ ICAROS VR Flight Sim
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+VR flight simulation for **Meta Quest 3** controlled by the **ICAROS** fitness device. Fly through procedural low-poly landscapes using body-based pitch and roll input.
 
-## Creating a project
+<!-- TODO: Screenshot/GIF here -->
 
-If you're seeing this, you've probably already done this step. Congrats!
+## Quick Start
 
-```sh
-# create a new project
-npx sv create my-app
+```bash
+bun install
+bun run dev
 ```
 
-To recreate this project with the same configuration:
+### Quest via USB (recommended)
 
-```sh
-# recreate this project
-bun x sv create --template minimal --types ts --install bun .
+```bash
+adb devices
+adb reverse tcp:5173 tcp:5173
+# Quest Browser → https://localhost:5173/vr
+# Phone/Laptop → https://localhost:5173/controller
 ```
 
-## Developing
+## Routes
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+| Route | Purpose |
+|-------|---------|
+| `/vr` | 🥽 WebXR flight scene (Three.js + VR) |
+| `/controller` | 🎮 ICAROS controller UI (D-Pad, speed, 3D preview) |
 
-```sh
-npm run dev
+## Architecture
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+```
+Phone/ICAROS ──→ Controller UI ──→ WebSocket ──→ VR Scene (Quest)
+               (pitch + roll)    (SvelteKit)   (Three.js + WebXR)
 ```
 
-## Building
+The controller captures orientation input and sends it via WebSocket to the VR scene running on the Quest. All flight physics, terrain generation, and rendering happen client-side.
 
-To create a production version of your app:
+→ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full system design.
 
-```sh
-npm run build
+## Project Structure
+
+```
+src/
+├── routes/vr/              # WebXR flight scene
+├── routes/controller/      # ICAROS controller UI
+├── lib/three/              # Three.js modules (scene, player, sky, clouds, terrain/)
+├── lib/ws/                 # WebSocket client + server + protocol
+├── lib/components/         # Svelte UI components
+├── lib/config/             # All tuning constants
+└── lib/types/              # TypeScript interfaces
 ```
 
-You can preview the production build with `npm run preview`.
+## Tech Stack
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+| Component | Tool |
+|-----------|------|
+| Framework | SvelteKit |
+| Runtime | Bun |
+| 3D Engine | Three.js |
+| VR/AR | WebXR API |
+| UI | bits-ui |
+| Linting | Biome |
+
+## Scripts
+
+```bash
+bun run dev                          # Dev server (HTTPS)
+bunx biome check --write .           # Lint + format
+bunx svelte-check --threshold warning  # Type check
+```
+
+## ICAROS Concept
+
+The ICAROS fitness device provides body-based input:
+- **Pitch** (forward/back lean) → altitude / speed
+- **Roll** (left/right lean) → banking / turning
+
+Data flow: ICAROS → Phone (Device Orientation API) → WebSocket → Quest (flight controls)
