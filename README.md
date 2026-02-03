@@ -12,15 +12,17 @@ Fly through procedural low-poly landscapes using body-based pitch and roll input
 |-------|--------|---------|
 | `/vr` | Quest | 🥽 WebXR flight scene (Three.js + VR) |
 | `/controller` | Laptop/Tablet | 🎮 D-Pad controls + Settings sidebar |
+| `/gyro` | Phone | 📱 Gyroscope controls (real ICAROS) |
 
 ## ✅ What's Included
 
-- **WebSocket Pipeline** — Controller → Server → Quest (60Hz orientation data)
+- **WebSocket Pipeline** — Controller → Server → Quest (30Hz orientation data)
 - **WebXR Setup** — Meta Quest-optimized Three.js renderer
 - **Procedural Terrain** — Chunked heightmap with trees, rocks, water
 - **Flight Physics** — Arcade-style pitch/roll controls with speed modes
 - **Settings Sidebar** — Live parameter tuning (fog, clouds, terrain, etc.)
 - **Ring Collectibles** — Scoring system with per-chunk spawning
+- **Gyroscope Controller** — Device Orientation API with calibration
 
 ## 🎨 What You Customize
 
@@ -47,7 +49,8 @@ adb reverse tcp:5173 tcp:5173      # Tunnel local server to Quest
 
 Then open on Quest Browser:
 - **VR Scene**: `https://localhost:5173/vr` → Enter VR
-- **Controller**: `https://localhost:5173/controller` (on laptop/phone)
+- **Controller**: `https://localhost:5173/controller` (on laptop)
+- **Gyro Controller**: `https://<network-ip>:5173/gyro` (on phone, same WiFi)
 
 > 📖 **Full setup guide**: [docs/SETUP.md](docs/SETUP.md)
 
@@ -57,7 +60,8 @@ Then open on Quest Browser:
 src/
 ├── routes/
 │   ├── vr/+page.svelte          # WebXR flight scene
-│   └── controller/+page.svelte  # Controller UI
+│   ├── controller/+page.svelte  # Touch controller UI
+│   └── gyro/+page.svelte        # Gyroscope controller UI
 ├── lib/
 │   ├── three/                   # Three.js modules
 │   │   ├── scene.ts             # Scene factory (lights, fog)
@@ -66,6 +70,9 @@ src/
 │   │   ├── clouds.ts            # Procedural cloud groups
 │   │   ├── rings.ts             # Collectible rings
 │   │   └── terrain/             # Chunked terrain system
+│   ├── gyro/                    # Device Orientation API
+│   │   ├── orientation.svelte.ts # Gyro hook (Svelte 5 runes)
+│   │   └── calibration.ts       # Calibration + localStorage
 │   ├── ws/                      # WebSocket (client + server + protocol)
 │   ├── config/                  # All tuning constants
 │   ├── components/              # Svelte UI (bits-ui)
@@ -98,9 +105,21 @@ The ICAROS fitness device provides body-based input:
 - **Pitch** (forward/back lean) → altitude / speed
 - **Roll** (left/right lean) → banking / turning
 
+### Input Options
+
+**Option 1: Touch Controller** (`/controller`)
 ```
-ICAROS Device → Phone (Device Orientation API) → WebSocket → Quest (flight controls)
+D-Pad / Arrow Keys → WebSocket → Quest (flight controls)
 ```
+
+**Option 2: Gyroscope Controller** (`/gyro`)
+```
+Phone on ICAROS → Device Orientation API → Calibration → WebSocket → Quest
+```
+
+The gyro controller maps:
+- `beta` (device tilt forward/back) → pitch
+- `gamma` (device tilt left/right) → roll
 
 ## 📜 Scripts
 
