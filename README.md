@@ -1,57 +1,79 @@
-# ✈️ ICAROS VR Flight Sim
+# ✈️ ICAROS VR Starter
 
-VR flight simulation for **Meta Quest 3** controlled by the **ICAROS** fitness device. Fly through procedural low-poly landscapes using body-based pitch and roll input.
+> WebXR flight simulation template for **Meta Quest** + **ICAROS** fitness device
+
+Fly through procedural low-poly landscapes using body-based pitch and roll input. This starter provides a complete WebSocket pipeline, terrain generation, and flight physics — ready to customize.
 
 <!-- TODO: Screenshot/GIF here -->
 
-## Quick Start
+## 📍 Routes
+
+| Route | Device | Purpose |
+|-------|--------|---------|
+| `/vr` | Quest | 🥽 WebXR flight scene (Three.js + VR) |
+| `/controller` | Laptop/Tablet | 🎮 D-Pad controls + Settings sidebar |
+
+## ✅ What's Included
+
+- **WebSocket Pipeline** — Controller → Server → Quest (60Hz orientation data)
+- **WebXR Setup** — Meta Quest-optimized Three.js renderer
+- **Procedural Terrain** — Chunked heightmap with trees, rocks, water
+- **Flight Physics** — Arcade-style pitch/roll controls with speed modes
+- **Settings Sidebar** — Live parameter tuning (fog, clouds, terrain, etc.)
+- **Ring Collectibles** — Scoring system with per-chunk spawning
+
+## 🎨 What You Customize
+
+| File | Purpose |
+|------|---------|
+| `src/lib/config/flight.ts` | Tuning parameters (speed, terrain, colors, etc.) |
+| `src/lib/three/` | VR world components (sky, clouds, terrain, player) |
+| `src/lib/three/terrain/` | Heightmap generation, decorations, water |
+| `src/routes/vr/+page.svelte` | Main VR scene composition |
+
+## 🚀 Quick Start
 
 ```bash
 bun install
 bun run dev
 ```
 
-### Quest via USB (recommended)
+### Connect Quest via USB (Recommended)
 
 ```bash
-adb devices
-adb reverse tcp:5173 tcp:5173
-# Quest Browser → https://localhost:5173/vr
-# Phone/Laptop → https://localhost:5173/controller
+adb devices                        # Verify Quest connected
+adb reverse tcp:5173 tcp:5173      # Tunnel local server to Quest
 ```
 
-## Routes
+Then open on Quest Browser:
+- **VR Scene**: `https://localhost:5173/vr` → Enter VR
+- **Controller**: `https://localhost:5173/controller` (on laptop/phone)
 
-| Route | Purpose |
-|-------|---------|
-| `/vr` | 🥽 WebXR flight scene (Three.js + VR) |
-| `/controller` | 🎮 ICAROS controller UI (D-Pad, speed, 3D preview) |
+> 📖 **Full setup guide**: [docs/SETUP.md](docs/SETUP.md)
 
-## Architecture
-
-```
-Phone/ICAROS ──→ Controller UI ──→ WebSocket ──→ VR Scene (Quest)
-               (pitch + roll)    (SvelteKit)   (Three.js + WebXR)
-```
-
-The controller captures orientation input and sends it via WebSocket to the VR scene running on the Quest. All flight physics, terrain generation, and rendering happen client-side.
-
-→ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full system design.
-
-## Project Structure
+## 📁 Project Structure
 
 ```
 src/
-├── routes/vr/              # WebXR flight scene
-├── routes/controller/      # ICAROS controller UI
-├── lib/three/              # Three.js modules (scene, player, sky, clouds, terrain/)
-├── lib/ws/                 # WebSocket client + server + protocol
-├── lib/components/         # Svelte UI components
-├── lib/config/             # All tuning constants
-└── lib/types/              # TypeScript interfaces
+├── routes/
+│   ├── vr/+page.svelte          # WebXR flight scene
+│   └── controller/+page.svelte  # Controller UI
+├── lib/
+│   ├── three/                   # Three.js modules
+│   │   ├── scene.ts             # Scene factory (lights, fog)
+│   │   ├── player.ts            # FlightPlayer (camera rig + physics)
+│   │   ├── sky.ts               # Low-poly sky dome
+│   │   ├── clouds.ts            # Procedural cloud groups
+│   │   ├── rings.ts             # Collectible rings
+│   │   └── terrain/             # Chunked terrain system
+│   ├── ws/                      # WebSocket (client + server + protocol)
+│   ├── config/                  # All tuning constants
+│   ├── components/              # Svelte UI (bits-ui)
+│   └── types/                   # TypeScript interfaces
+└── hooks.server.ts              # WebSocket upgrade handler
 ```
 
-## Tech Stack
+## 🛠️ Tech Stack
 
 | Component | Tool |
 |-----------|------|
@@ -62,18 +84,32 @@ src/
 | UI | bits-ui |
 | Linting | Biome |
 
-## Scripts
+## 📚 Documentation
 
-```bash
-bun run dev                          # Dev server (HTTPS)
-bunx biome check --write .           # Lint + format
-bunx svelte-check --threshold warning  # Type check
-```
+- [**SETUP.md**](docs/SETUP.md) — Prerequisites, HTTPS certs, ADB, troubleshooting
+- [**CUSTOMIZATION.md**](docs/CUSTOMIZATION.md) — How to modify the VR world
+- [**ARCHITECTURE.md**](docs/ARCHITECTURE.md) — System design and data flow
+- [**AGENTS.md**](AGENTS.md) — AI-assisted development guide
 
-## ICAROS Concept
+## 🎮 ICAROS Concept
 
 The ICAROS fitness device provides body-based input:
+
 - **Pitch** (forward/back lean) → altitude / speed
 - **Roll** (left/right lean) → banking / turning
 
-Data flow: ICAROS → Phone (Device Orientation API) → WebSocket → Quest (flight controls)
+```
+ICAROS Device → Phone (Device Orientation API) → WebSocket → Quest (flight controls)
+```
+
+## 📜 Scripts
+
+```bash
+bun run dev                            # Dev server (HTTPS)
+bunx biome check --write .             # Lint + format
+bunx svelte-check --threshold warning  # Type check
+```
+
+## 📄 License
+
+MIT
