@@ -84,14 +84,33 @@ export const DECORATIONS = {
 	TREES_PER_CHUNK: 25,
 	ROCKS_PER_CHUNK: 10,
 	CROWN_COLORS: [
-		0xc0392b, 0xe74c3c, // reds
-		0xe67e22, 0xf39c12, // oranges
-		0x8e44ad, 0x9b59b6, // purples
-		0xd63384, 0xff6b9d, // pinks
-		0x27ae60, 0x2ecc71, // greens
+		0xc0392b,
+		0xe74c3c, // reds
+		0xe67e22,
+		0xf39c12, // oranges
+		0x8e44ad,
+		0x9b59b6, // purples
+		0xd63384,
+		0xff6b9d, // pinks
+		0x27ae60,
+		0x2ecc71, // greens
 	],
 	TRUNK_COLOR: 0x5d4037,
 	ROCK_COLOR: 0x7f8c8d,
+} as const;
+
+// ── Clouds ──
+export const CLOUDS = {
+	COUNT: 40,
+	SPREAD: 500,
+	HEIGHT_MIN: 150,
+	HEIGHT_MAX: 280,
+	BLOB_COUNT: [4, 8] as [number, number],
+	BLOB_RADIUS: [10, 25] as [number, number],
+	COLOR: 0xffffff,
+	OPACITY: 0.9,
+	DRIFT_SPEED: 8,
+	DRIFT_DIRECTION: { x: 1, z: 0.3 },
 } as const;
 
 // ── Sky ──
@@ -119,6 +138,15 @@ export interface RuntimeConfig {
 	skyColorHorizon: string;
 	skyColorBottom: string;
 	ringColor: string;
+	sunElevation: number;
+	ringCountPerChunk: number;
+	terrainAmplitude: number;
+	terrainFrequency: number;
+	fogColor: string;
+	cloudHeight: number;
+	waterLevel: number;
+	treeDensity: number;
+	minClearance: number;
 }
 
 function createDefaults(): RuntimeConfig {
@@ -128,7 +156,7 @@ function createDefaults(): RuntimeConfig {
 		lerpAlpha: FLIGHT.LERP_ALPHA,
 		fogNear: SCENE.FOG_NEAR,
 		fogFar: SCENE.FOG_FAR,
-		cloudCount: 40,
+		cloudCount: CLOUDS.COUNT,
 		cloudDriftEnabled: true,
 		viewRadius: TERRAIN.VIEW_RADIUS,
 		sunIntensity: SCENE.SUN_INTENSITY,
@@ -136,15 +164,28 @@ function createDefaults(): RuntimeConfig {
 		skyColorHorizon: "#ffeebb",
 		skyColorBottom: "#87ceeb",
 		ringColor: "#f1c40f",
+		sunElevation: 65,
+		ringCountPerChunk: RINGS.PER_CHUNK,
+		terrainAmplitude: TERRAIN.NOISE.amplitude,
+		terrainFrequency: TERRAIN.NOISE.frequency,
+		fogColor: "#87ceeb",
+		cloudHeight: 200,
+		waterLevel: TERRAIN.WATER_Y,
+		treeDensity: DECORATIONS.TREES_PER_CHUNK,
+		minClearance: FLIGHT.MIN_CLEARANCE,
 	};
 }
 
 export let runtimeConfig: RuntimeConfig = createDefaults();
 
-export function applySettings(settings: Record<string, number | boolean | string>): void {
+export function applySettings(
+	settings: Record<string, number | boolean | string>,
+): void {
 	for (const [key, value] of Object.entries(settings)) {
 		if (key in runtimeConfig) {
-			(runtimeConfig as unknown as Record<string, number | boolean | string>)[key] = value;
+			(runtimeConfig as unknown as Record<string, number | boolean | string>)[
+				key
+			] = value;
 		}
 	}
 }
@@ -152,17 +193,3 @@ export function applySettings(settings: Record<string, number | boolean | string
 export function resetRuntimeConfig(): void {
 	runtimeConfig = createDefaults();
 }
-
-// ── Clouds ──
-export const CLOUDS = {
-	COUNT: 40,
-	SPREAD: 500,
-	HEIGHT_MIN: 150,
-	HEIGHT_MAX: 280,
-	BLOB_COUNT: [4, 8] as [number, number],
-	BLOB_RADIUS: [10, 25] as [number, number],
-	COLOR: 0xffffff,
-	OPACITY: 0.9,
-	DRIFT_SPEED: 8,
-	DRIFT_DIRECTION: { x: 1, z: 0.3 },
-} as const;

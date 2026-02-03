@@ -17,7 +17,11 @@ export const DEFAULT_HEIGHTMAP: HeightmapConfig = { ...TERRAIN.NOISE };
 const noise2D = createNoise2D();
 
 /** Sample terrain height at world coordinates (x, z) using fractal Brownian motion. */
-export function getHeight(x: number, z: number, config: HeightmapConfig): number {
+export function getHeight(
+	x: number,
+	z: number,
+	config: HeightmapConfig,
+): number {
 	let value = 0;
 	let amp = config.amplitude;
 	let freq = config.frequency;

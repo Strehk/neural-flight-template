@@ -11,7 +11,19 @@ export function createFlightScene(): THREE.Scene {
 	scene.add(ambient);
 
 	const sun = new THREE.DirectionalLight(SCENE.SUN_COLOR, SCENE.SUN_INTENSITY);
-	sun.position.set(SCENE.SUN_POSITION.x, SCENE.SUN_POSITION.y, SCENE.SUN_POSITION.z);
+	sun.position.set(
+		SCENE.SUN_POSITION.x,
+		SCENE.SUN_POSITION.y,
+		SCENE.SUN_POSITION.z,
+	);
+	sun.castShadow = true;
+	sun.shadow.mapSize.set(1024, 1024);
+	sun.shadow.camera.left = -150;
+	sun.shadow.camera.right = 150;
+	sun.shadow.camera.top = 150;
+	sun.shadow.camera.bottom = -150;
+	sun.shadow.camera.near = 0.5;
+	sun.shadow.camera.far = 500;
 	scene.add(sun);
 
 	return scene;

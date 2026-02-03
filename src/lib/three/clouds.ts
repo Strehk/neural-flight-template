@@ -9,8 +9,20 @@ function seededRandom(seed: number): number {
 	return (h & 0x7fffffff) / 0x7fffffff;
 }
 
+/** Dispose all geometries in a cloud group. */
+export function disposeClouds(group: THREE.Group): void {
+	for (const cloudGroup of group.children) {
+		if (cloudGroup instanceof THREE.Group) {
+			for (const blob of cloudGroup.children) {
+				if (blob instanceof THREE.Mesh) blob.geometry.dispose();
+			}
+		}
+	}
+	group.clear();
+}
+
 /** Create low-poly cloud groups as a single merged mesh. */
-export function createClouds(): THREE.Group {
+export function createClouds(count: number = CLOUDS.COUNT, height = 0): THREE.Group {
 	const group = new THREE.Group();
 	const mat = new THREE.MeshStandardMaterial({
 		color: CLOUDS.COLOR,
@@ -19,14 +31,20 @@ export function createClouds(): THREE.Group {
 		opacity: CLOUDS.OPACITY,
 	});
 
-	for (let c = 0; c < CLOUDS.COUNT; c++) {
+	const heightMin = height > 0 ? height - 50 : CLOUDS.HEIGHT_MIN;
+	const heightMax = height > 0 ? height + 50 : CLOUDS.HEIGHT_MAX;
+
+	for (let c = 0; c < count; c++) {
 		const cx = (seededRandom(c * 7) - 0.5) * CLOUDS.SPREAD * 2;
 		const cz = (seededRandom(c * 7 + 1) - 0.5) * CLOUDS.SPREAD * 2;
-		const cy = CLOUDS.HEIGHT_MIN + seededRandom(c * 7 + 2) * (CLOUDS.HEIGHT_MAX - CLOUDS.HEIGHT_MIN);
+		const cy = heightMin + seededRandom(c * 7 + 2) * (heightMax - heightMin);
 
 		const blobCount =
 			CLOUDS.BLOB_COUNT[0] +
-			Math.floor(seededRandom(c * 7 + 3) * (CLOUDS.BLOB_COUNT[1] - CLOUDS.BLOB_COUNT[0] + 1));
+			Math.floor(
+				seededRandom(c * 7 + 3) *
+					(CLOUDS.BLOB_COUNT[1] - CLOUDS.BLOB_COUNT[0] + 1),
+			);
 
 		const cloudGroup = new THREE.Group();
 		cloudGroup.position.set(cx, cy, cz);
@@ -34,7 +52,8 @@ export function createClouds(): THREE.Group {
 		for (let b = 0; b < blobCount; b++) {
 			const radius =
 				CLOUDS.BLOB_RADIUS[0] +
-				seededRandom(c * 100 + b) * (CLOUDS.BLOB_RADIUS[1] - CLOUDS.BLOB_RADIUS[0]);
+				seededRandom(c * 100 + b) *
+					(CLOUDS.BLOB_RADIUS[1] - CLOUDS.BLOB_RADIUS[0]);
 			const geo = new THREE.DodecahedronGeometry(radius, 1);
 			const blob = new THREE.Mesh(geo, mat);
 

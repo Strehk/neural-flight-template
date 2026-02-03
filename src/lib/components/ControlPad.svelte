@@ -1,7 +1,7 @@
 <script lang="ts">
 import { Button } from "bits-ui";
-import type { OrientationData } from "$lib/types/orientation";
 import { CONTROLS } from "$lib/config/flight";
+import type { OrientationData } from "$lib/types/orientation";
 
 interface Props {
 	onOrientationChange: (data: OrientationData) => void;
@@ -26,8 +26,14 @@ function press(button: keyof typeof CONTROLS.BUTTONS): void {
 	const [minPitch, maxPitch] = CONTROLS.PITCH_RANGE;
 	const [minRoll, maxRoll] = CONTROLS.ROLL_RANGE;
 
-	pitch = Math.max(minPitch, Math.min(maxPitch, pitch + dir.pitch * CONTROLS.STEP_DEGREES));
-	roll = Math.max(minRoll, Math.min(maxRoll, roll + dir.roll * CONTROLS.STEP_DEGREES));
+	pitch = Math.max(
+		minPitch,
+		Math.min(maxPitch, pitch + dir.pitch * CONTROLS.STEP_DEGREES),
+	);
+	roll = Math.max(
+		minRoll,
+		Math.min(maxRoll, roll + dir.roll * CONTROLS.STEP_DEGREES),
+	);
 	emit();
 }
 

@@ -1,6 +1,13 @@
 <script lang="ts">
 import { Collapsible, Slider, Switch } from "bits-ui";
-import { Settings, X, ChevronDown, ChevronRight, Save, RotateCcw } from "lucide-svelte";
+import {
+	ChevronDown,
+	ChevronRight,
+	RotateCcw,
+	Save,
+	Settings,
+	X,
+} from "lucide-svelte";
 import type { SettingsUpdate } from "$lib/types/orientation";
 
 interface Props {
@@ -9,7 +16,7 @@ interface Props {
 	onSettingsChange: (update: SettingsUpdate) => void;
 }
 
-let { open, onClose, onSettingsChange }: Props = $props();
+const { open, onClose, onSettingsChange }: Props = $props();
 
 // ── Local state for all settings ──
 let baseSpeed = $state(20);
@@ -24,6 +31,15 @@ let skyColorTop = $state("#1a6fc4");
 let skyColorHorizon = $state("#ffeebb");
 let skyColorBottom = $state("#87ceeb");
 let ringColor = $state("#f1c40f");
+let sunElevation = $state(65);
+let ringCountPerChunk = $state(2);
+let terrainAmplitude = $state(60);
+let terrainFrequency = $state(0.005);
+let fogColor = $state("#87ceeb");
+let cloudHeight = $state(200);
+let waterLevel = $state(5);
+let treeDensity = $state(25);
+let minClearance = $state(8);
 
 // ── Section open states ──
 let flightOpen = $state(true);
@@ -32,14 +48,33 @@ let terrainOpen = $state(true);
 
 // ── Preset system ──
 let presetName = $state("");
-let presets = $state<Record<string, Record<string, number | boolean | string>>>({});
+let presets = $state<Record<string, Record<string, number | boolean | string>>>(
+	{},
+);
 
 function getCurrentSettings(): Record<string, number | boolean | string> {
 	return {
-		baseSpeed, rollYawMultiplier, lerpAlpha,
-		fogNear, fogFar, cloudDriftEnabled,
-		viewRadius, sunIntensity,
-		skyColorTop, skyColorHorizon, skyColorBottom, ringColor,
+		baseSpeed,
+		rollYawMultiplier,
+		lerpAlpha,
+		fogNear,
+		fogFar,
+		cloudDriftEnabled,
+		viewRadius,
+		sunIntensity,
+		skyColorTop,
+		skyColorHorizon,
+		skyColorBottom,
+		ringColor,
+		sunElevation,
+		ringCountPerChunk,
+		terrainAmplitude,
+		terrainFrequency,
+		fogColor,
+		cloudHeight,
+		waterLevel,
+		treeDensity,
+		minClearance,
 	};
 }
 
@@ -77,6 +112,15 @@ function loadPreset(name: string): void {
 	skyColorHorizon = preset.skyColorHorizon as string;
 	skyColorBottom = preset.skyColorBottom as string;
 	ringColor = preset.ringColor as string;
+	sunElevation = (preset.sunElevation as number) ?? 65;
+	ringCountPerChunk = (preset.ringCountPerChunk as number) ?? 2;
+	terrainAmplitude = (preset.terrainAmplitude as number) ?? 60;
+	terrainFrequency = (preset.terrainFrequency as number) ?? 0.005;
+	fogColor = (preset.fogColor as string) ?? "#87ceeb";
+	cloudHeight = (preset.cloudHeight as number) ?? 200;
+	waterLevel = (preset.waterLevel as number) ?? 5;
+	treeDensity = (preset.treeDensity as number) ?? 25;
+	minClearance = (preset.minClearance as number) ?? 8;
 	onSettingsChange({
 		type: "settings",
 		settings: getCurrentSettings(),
@@ -97,6 +141,15 @@ function resetDefaults(): void {
 	skyColorHorizon = "#ffeebb";
 	skyColorBottom = "#87ceeb";
 	ringColor = "#f1c40f";
+	sunElevation = 65;
+	ringCountPerChunk = 2;
+	terrainAmplitude = 60;
+	terrainFrequency = 0.005;
+	fogColor = "#87ceeb";
+	cloudHeight = 200;
+	waterLevel = 5;
+	treeDensity = 25;
+	minClearance = 8;
 	onSettingsChange({
 		type: "settings",
 		settings: getCurrentSettings(),
@@ -161,6 +214,14 @@ if (typeof localStorage !== "undefined") {
 							<Slider.Thumb class="slider-thumb" index={0} />
 						</Slider.Root>
 					</label>
+
+					<label class="setting-row">
+						<span class="setting-label">Min Clearance <span class="setting-value">{minClearance}</span></span>
+						<Slider.Root type="single" min={1} max={30} step={1} value={minClearance} onValueChange={(v: number) => { minClearance = v; emit("minClearance", v); }} class="slider-root">
+							<span class="slider-track"><Slider.Range class="slider-range" /></span>
+							<Slider.Thumb class="slider-thumb" index={0} />
+						</Slider.Root>
+					</label>
 				</Collapsible.Content>
 			</Collapsible.Root>
 
@@ -192,6 +253,27 @@ if (typeof localStorage !== "undefined") {
 					<label class="setting-row">
 						<span class="setting-label">Sun Intensity <span class="setting-value">{sunIntensity.toFixed(1)}</span></span>
 						<Slider.Root type="single" min={0.5} max={6} step={0.1} value={sunIntensity} onValueChange={(v: number) => { sunIntensity = v; emit("sunIntensity", v); }} class="slider-root">
+							<span class="slider-track"><Slider.Range class="slider-range" /></span>
+							<Slider.Thumb class="slider-thumb" index={0} />
+						</Slider.Root>
+					</label>
+
+					<label class="setting-row">
+						<span class="setting-label">Sun Elevation <span class="setting-value">{sunElevation}°</span></span>
+						<Slider.Root type="single" min={5} max={90} step={1} value={sunElevation} onValueChange={(v: number) => { sunElevation = v; emit("sunElevation", v); }} class="slider-root">
+							<span class="slider-track"><Slider.Range class="slider-range" /></span>
+							<Slider.Thumb class="slider-thumb" index={0} />
+						</Slider.Root>
+					</label>
+
+					<label class="setting-row">
+						<span class="setting-label">Fog Color</span>
+						<input type="color" value={fogColor} oninput={(e) => { fogColor = e.currentTarget.value; emit("fogColor", fogColor); }} />
+					</label>
+
+					<label class="setting-row">
+						<span class="setting-label">Cloud Height <span class="setting-value">{cloudHeight}</span></span>
+						<Slider.Root type="single" min={80} max={400} step={10} value={cloudHeight} onValueChange={(v: number) => { cloudHeight = v; emit("cloudHeight", v); }} class="slider-root">
 							<span class="slider-track"><Slider.Range class="slider-range" /></span>
 							<Slider.Thumb class="slider-thumb" index={0} />
 						</Slider.Root>
@@ -238,6 +320,46 @@ if (typeof localStorage !== "undefined") {
 					<label class="setting-row">
 						<span class="setting-label">View Radius <span class="setting-value">{viewRadius}</span></span>
 						<Slider.Root type="single" min={1} max={4} step={1} value={viewRadius} onValueChange={(v: number) => { viewRadius = v; emit("viewRadius", v); }} class="slider-root">
+							<span class="slider-track"><Slider.Range class="slider-range" /></span>
+							<Slider.Thumb class="slider-thumb" index={0} />
+						</Slider.Root>
+					</label>
+
+					<label class="setting-row">
+						<span class="setting-label">Ring Count <span class="setting-value">{ringCountPerChunk}</span></span>
+						<Slider.Root type="single" min={0} max={8} step={1} value={ringCountPerChunk} onValueChange={(v: number) => { ringCountPerChunk = v; emit("ringCountPerChunk", v); }} class="slider-root">
+							<span class="slider-track"><Slider.Range class="slider-range" /></span>
+							<Slider.Thumb class="slider-thumb" index={0} />
+						</Slider.Root>
+					</label>
+
+					<label class="setting-row">
+						<span class="setting-label">Amplitude <span class="setting-value">{terrainAmplitude}</span></span>
+						<Slider.Root type="single" min={10} max={150} step={5} value={terrainAmplitude} onValueChange={(v: number) => { terrainAmplitude = v; emit("terrainAmplitude", v); }} class="slider-root">
+							<span class="slider-track"><Slider.Range class="slider-range" /></span>
+							<Slider.Thumb class="slider-thumb" index={0} />
+						</Slider.Root>
+					</label>
+
+					<label class="setting-row">
+						<span class="setting-label">Frequency <span class="setting-value">{terrainFrequency.toFixed(4)}</span></span>
+						<Slider.Root type="single" min={0.001} max={0.02} step={0.001} value={terrainFrequency} onValueChange={(v: number) => { terrainFrequency = v; emit("terrainFrequency", v); }} class="slider-root">
+							<span class="slider-track"><Slider.Range class="slider-range" /></span>
+							<Slider.Thumb class="slider-thumb" index={0} />
+						</Slider.Root>
+					</label>
+
+					<label class="setting-row">
+						<span class="setting-label">Water Level <span class="setting-value">{waterLevel}</span></span>
+						<Slider.Root type="single" min={-5} max={30} step={1} value={waterLevel} onValueChange={(v: number) => { waterLevel = v; emit("waterLevel", v); }} class="slider-root">
+							<span class="slider-track"><Slider.Range class="slider-range" /></span>
+							<Slider.Thumb class="slider-thumb" index={0} />
+						</Slider.Root>
+					</label>
+
+					<label class="setting-row">
+						<span class="setting-label">Tree Density <span class="setting-value">{treeDensity}</span></span>
+						<Slider.Root type="single" min={0} max={60} step={5} value={treeDensity} onValueChange={(v: number) => { treeDensity = v; emit("treeDensity", v); }} class="slider-root">
 							<span class="slider-track"><Slider.Range class="slider-range" /></span>
 							<Slider.Thumb class="slider-thumb" index={0} />
 						</Slider.Root>

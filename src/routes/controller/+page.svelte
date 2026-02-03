@@ -1,12 +1,16 @@
 <script lang="ts">
+import { Plane, Settings } from "lucide-svelte";
 import { onDestroy } from "svelte";
 import ControlPad from "$lib/components/ControlPad.svelte";
 import IcarosPreview from "$lib/components/IcarosPreview.svelte";
-import SpeedButtons from "$lib/components/SpeedButtons.svelte";
 import SettingsSidebar from "$lib/components/SettingsSidebar.svelte";
-import type { OrientationData, SettingsUpdate, SpeedCommand } from "$lib/types/orientation";
+import SpeedButtons from "$lib/components/SpeedButtons.svelte";
+import type {
+	OrientationData,
+	SettingsUpdate,
+	SpeedCommand,
+} from "$lib/types/orientation";
 import { createWebSocketClient } from "$lib/ws/client.svelte";
-import { Plane, Settings } from "lucide-svelte";
 
 const ws = createWebSocketClient();
 

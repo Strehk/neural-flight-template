@@ -1,6 +1,10 @@
 import * as THREE from "three";
-import { getHeight, DEFAULT_HEIGHTMAP, type HeightmapConfig } from "./heightmap";
 import { DECORATIONS, TERRAIN } from "$lib/config/flight";
+import {
+	DEFAULT_HEIGHTMAP,
+	getHeight,
+	type HeightmapConfig,
+} from "./heightmap";
 
 /** Seeded pseudo-random from two integers (chunk-stable placement). */
 function seededRandom(a: number, b: number): number {
@@ -21,14 +25,20 @@ const trunkGeo = new THREE.CylinderGeometry(0.3, 0.5, 2, 5);
 const rockGeo = new THREE.DodecahedronGeometry(1.5, 0);
 
 const crownMat = new THREE.MeshStandardMaterial({ flatShading: true });
-const trunkMat = new THREE.MeshStandardMaterial({ color: DECORATIONS.TRUNK_COLOR });
-const rockMat = new THREE.MeshStandardMaterial({ color: DECORATIONS.ROCK_COLOR, flatShading: true });
+const trunkMat = new THREE.MeshStandardMaterial({
+	color: DECORATIONS.TRUNK_COLOR,
+});
+const rockMat = new THREE.MeshStandardMaterial({
+	color: DECORATIONS.ROCK_COLOR,
+	flatShading: true,
+});
 
 /** Create instanced decorations (trees + rocks) for a single terrain chunk. */
 export function createChunkDecorations(
 	chunkX: number,
 	chunkZ: number,
 	config: HeightmapConfig = DEFAULT_HEIGHTMAP,
+	treesPerChunk: number = DECORATIONS.TREES_PER_CHUNK,
 ): ChunkDecorations {
 	const group = new THREE.Group();
 	const dummy = new THREE.Object3D();
@@ -41,11 +51,11 @@ export function createChunkDecorations(
 	const seed = chunkX * 73856093 + chunkZ * 19349663;
 
 	// ── Trees ──
-	const crownMesh = new THREE.InstancedMesh(crownGeo, crownMat, DECORATIONS.TREES_PER_CHUNK);
-	const trunkMesh = new THREE.InstancedMesh(trunkGeo, trunkMat, DECORATIONS.TREES_PER_CHUNK);
+	const crownMesh = new THREE.InstancedMesh(crownGeo, crownMat, treesPerChunk);
+	const trunkMesh = new THREE.InstancedMesh(trunkGeo, trunkMat, treesPerChunk);
 	let treeIdx = 0;
 
-	for (let i = 0; i < DECORATIONS.TREES_PER_CHUNK * 2 && treeIdx < DECORATIONS.TREES_PER_CHUNK; i++) {
+	for (let i = 0; i < treesPerChunk * 2 && treeIdx < treesPerChunk; i++) {
 		const lx = (seededRandom(seed + i, 0) - 0.5) * size;
 		const lz = (seededRandom(seed + i, 1) - 0.5) * size;
 		const wx = lx + worldX;
@@ -62,7 +72,9 @@ export function createChunkDecorations(
 		crownMesh.setMatrixAt(treeIdx, dummy.matrix);
 		crownMesh.setColorAt(
 			treeIdx,
-			color.setHex(DECORATIONS.CROWN_COLORS[(seed + i) % DECORATIONS.CROWN_COLORS.length]),
+			color.setHex(
+				DECORATIONS.CROWN_COLORS[(seed + i) % DECORATIONS.CROWN_COLORS.length],
+			),
 		);
 
 		dummy.position.set(lx, h + 0.5 * scale, lz);
@@ -79,10 +91,19 @@ export function createChunkDecorations(
 	if (crownMesh.instanceColor) crownMesh.instanceColor.needsUpdate = true;
 
 	// ── Rocks ──
-	const rockMesh = new THREE.InstancedMesh(rockGeo, rockMat, DECORATIONS.ROCKS_PER_CHUNK);
+	const rockMesh = new THREE.InstancedMesh(
+		rockGeo,
+		rockMat,
+		DECORATIONS.ROCKS_PER_CHUNK,
+	);
 	let rockIdx = 0;
 
-	for (let i = 0; i < DECORATIONS.ROCKS_PER_CHUNK * 2 && rockIdx < DECORATIONS.ROCKS_PER_CHUNK; i++) {
+	for (
+		let i = 0;
+		i < DECORATIONS.ROCKS_PER_CHUNK * 2 &&
+		rockIdx < DECORATIONS.ROCKS_PER_CHUNK;
+		i++
+	) {
 		const lx = (seededRandom(seed + i + 5000, 0) - 0.5) * size;
 		const lz = (seededRandom(seed + i + 5000, 1) - 0.5) * size;
 		const wx = lx + worldX;
@@ -106,6 +127,10 @@ export function createChunkDecorations(
 
 	rockMesh.count = rockIdx;
 	rockMesh.instanceMatrix.needsUpdate = true;
+
+	crownMesh.castShadow = true;
+	trunkMesh.castShadow = true;
+	rockMesh.castShadow = true;
 
 	// Position group at chunk world offset
 	group.position.set(worldX, 0, worldZ);

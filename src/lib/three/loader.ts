@@ -1,4 +1,7 @@
-import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
+import {
+	type GLTF,
+	GLTFLoader,
+} from "three/examples/jsm/loaders/GLTFLoader.js";
 
 const loader = new GLTFLoader();
 

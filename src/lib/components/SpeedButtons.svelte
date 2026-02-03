@@ -1,6 +1,6 @@
 <script lang="ts">
 import { Button } from "bits-ui";
-import { Zap, CircleStop } from "lucide-svelte";
+import { CircleStop, Zap } from "lucide-svelte";
 import type { SpeedCommand } from "$lib/types/orientation";
 
 interface Props {

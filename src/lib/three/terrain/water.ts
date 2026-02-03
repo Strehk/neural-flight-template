@@ -11,6 +11,7 @@ export function createWater(): THREE.Mesh {
 		side: THREE.DoubleSide,
 	});
 	const mesh = new THREE.Mesh(geo, mat);
+	mesh.receiveShadow = true;
 	mesh.rotation.x = -Math.PI / 2;
 	mesh.position.y = TERRAIN.WATER_Y;
 	return mesh;

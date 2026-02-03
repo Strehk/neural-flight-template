@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { getHeight, type HeightmapConfig } from "./heightmap";
 import { TERRAIN, TERRAIN_COLORS } from "$lib/config/flight";
+import { getHeight, type HeightmapConfig } from "./heightmap";
 
 const COLOR_GRASS = new THREE.Color(TERRAIN_COLORS.GRASS);
 const COLOR_YELLOW = new THREE.Color(TERRAIN_COLORS.YELLOW);
@@ -12,9 +12,18 @@ const [BAND_1, BAND_2, BAND_3, BAND_4] = TERRAIN_COLORS.BANDS;
 
 function heightColor(y: number, temp: THREE.Color): THREE.Color {
 	if (y < BAND_1) return temp.copy(COLOR_GRASS);
-	if (y < BAND_2) return temp.copy(COLOR_GRASS).lerp(COLOR_YELLOW, (y - BAND_1) / (BAND_2 - BAND_1));
-	if (y < BAND_3) return temp.copy(COLOR_YELLOW).lerp(COLOR_ORANGE, (y - BAND_2) / (BAND_3 - BAND_2));
-	if (y < BAND_4) return temp.copy(COLOR_ORANGE).lerp(COLOR_ROCK, (y - BAND_3) / (BAND_4 - BAND_3));
+	if (y < BAND_2)
+		return temp
+			.copy(COLOR_GRASS)
+			.lerp(COLOR_YELLOW, (y - BAND_1) / (BAND_2 - BAND_1));
+	if (y < BAND_3)
+		return temp
+			.copy(COLOR_YELLOW)
+			.lerp(COLOR_ORANGE, (y - BAND_2) / (BAND_3 - BAND_2));
+	if (y < BAND_4)
+		return temp
+			.copy(COLOR_ORANGE)
+			.lerp(COLOR_ROCK, (y - BAND_3) / (BAND_4 - BAND_3));
 	return temp.copy(COLOR_ROCK).lerp(COLOR_SNOW, Math.min((y - BAND_4) / 15, 1));
 }
 
@@ -32,7 +41,12 @@ export function createTerrainGeometry(
 	size: number,
 	config: HeightmapConfig,
 ): THREE.BufferGeometry {
-	const geo = new THREE.PlaneGeometry(size, size, TERRAIN.SEGMENTS, TERRAIN.SEGMENTS);
+	const geo = new THREE.PlaneGeometry(
+		size,
+		size,
+		TERRAIN.SEGMENTS,
+		TERRAIN.SEGMENTS,
+	);
 	geo.rotateX(-Math.PI / 2);
 
 	const pos = geo.attributes.position;

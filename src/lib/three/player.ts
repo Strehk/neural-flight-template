@@ -1,7 +1,7 @@
 import * as THREE from "three";
+import { CAMERA, FLIGHT, runtimeConfig } from "$lib/config/flight";
+import { DEFAULT_HEIGHTMAP, getHeight } from "$lib/three/terrain/heightmap";
 import type { OrientationData, SpeedCommand } from "$lib/types/orientation";
-import { getHeight, DEFAULT_HEIGHTMAP } from "$lib/three/terrain/heightmap";
-import { FLIGHT, CAMERA, runtimeConfig } from "$lib/config/flight";
 
 const DEG2RAD = Math.PI / 180;
 
@@ -20,7 +20,12 @@ export class FlightPlayer {
 	private braking = false;
 
 	constructor() {
-		this.camera = new THREE.PerspectiveCamera(CAMERA.FOV, 1, CAMERA.NEAR, CAMERA.FAR);
+		this.camera = new THREE.PerspectiveCamera(
+			CAMERA.FOV,
+			1,
+			CAMERA.NEAR,
+			CAMERA.FAR,
+		);
 		this.rig = new THREE.Group();
 		this.rig.position.set(
 			FLIGHT.SPAWN_POSITION.x,
@@ -41,8 +46,10 @@ export class FlightPlayer {
 	}
 
 	tick(delta: number): void {
-		this.currentPitch += (this.targetPitch - this.currentPitch) * runtimeConfig.lerpAlpha;
-		this.currentRoll += (this.targetRoll - this.currentRoll) * runtimeConfig.lerpAlpha;
+		this.currentPitch +=
+			(this.targetPitch - this.currentPitch) * runtimeConfig.lerpAlpha;
+		this.currentRoll +=
+			(this.targetRoll - this.currentRoll) * runtimeConfig.lerpAlpha;
 
 		this.updateVelocity();
 
@@ -85,7 +92,7 @@ export class FlightPlayer {
 			this.rig.position.z,
 			DEFAULT_HEIGHTMAP,
 		);
-		const minY = terrainY + FLIGHT.MIN_CLEARANCE;
+		const minY = terrainY + runtimeConfig.minClearance;
 		if (this.rig.position.y < minY) {
 			this.rig.position.y = minY;
 			this.velocity *= FLIGHT.TERRAIN_SLOWDOWN;

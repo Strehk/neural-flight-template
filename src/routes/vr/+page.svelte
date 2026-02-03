@@ -1,17 +1,21 @@
 <script lang="ts">
+import { Trophy } from "lucide-svelte";
 import { onDestroy, onMount } from "svelte";
 import * as THREE from "three";
 import { VRButton } from "three/examples/jsm/webxr/VRButton.js";
+import { applySettings, runtimeConfig } from "$lib/config/flight";
+import { createClouds, disposeClouds, updateClouds } from "$lib/three/clouds";
 import { FlightPlayer } from "$lib/three/player";
 import { createFlightScene } from "$lib/three/scene";
+import { createSky, updateSkyColors } from "$lib/three/sky";
 import { TerrainManager } from "$lib/three/terrain/manager";
 import { createWater } from "$lib/three/terrain/water";
-import { createSky } from "$lib/three/sky";
-import { createClouds, updateClouds } from "$lib/three/clouds";
-import { Trophy } from "lucide-svelte";
 import { createWebSocketClient } from "$lib/ws/client.svelte";
-import { isOrientationData, isSettingsUpdate, isSpeedCommand } from "$lib/ws/protocol";
-import { applySettings, runtimeConfig } from "$lib/config/flight";
+import {
+	isOrientationData,
+	isSettingsUpdate,
+	isSpeedCommand,
+} from "$lib/ws/protocol";
 
 let canvas: HTMLCanvasElement;
 let renderer: THREE.WebGLRenderer;
@@ -30,15 +34,21 @@ onMount(() => {
 	scene.add(terrainManager.ringGroup);
 	terrainManager.update(player.rig.position);
 
-	scene.add(createWater());
-	scene.add(createSky());
-	const clouds = createClouds();
+	const water = createWater();
+	scene.add(water);
+	const skyMesh = createSky();
+	scene.add(skyMesh);
+	let clouds = createClouds();
 	scene.add(clouds);
+
+	let cloudRebuildTimer: ReturnType<typeof setTimeout> | null = null;
 
 	renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 	renderer.setPixelRatio(window.devicePixelRatio);
 	renderer.setSize(window.innerWidth, window.innerHeight);
 	renderer.xr.enabled = true;
+	renderer.shadowMap.enabled = true;
+	renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 	document.body.appendChild(VRButton.createButton(renderer));
 
@@ -49,7 +59,9 @@ onMount(() => {
 	}
 	window.addEventListener("resize", onResize);
 
-	const sun = scene.children.find((c): c is THREE.DirectionalLight => c instanceof THREE.DirectionalLight);
+	const sun = scene.children.find(
+		(c): c is THREE.DirectionalLight => c instanceof THREE.DirectionalLight,
+	);
 
 	renderer.setAnimationLoop(() => {
 		const delta = clock.getDelta();
@@ -60,11 +72,68 @@ onMount(() => {
 			if (isSpeedCommand(msg)) player.updateSpeed(msg);
 			if (isSettingsUpdate(msg)) {
 				applySettings(msg.settings);
+				const s = msg.settings;
+
+				// Fog
 				if (scene.fog instanceof THREE.Fog) {
 					scene.fog.near = runtimeConfig.fogNear;
 					scene.fog.far = runtimeConfig.fogFar;
+					if (s.fogColor !== undefined)
+						scene.fog.color.set(runtimeConfig.fogColor);
 				}
-				if (sun) sun.intensity = runtimeConfig.sunIntensity;
+
+				// Sun
+				if (sun) {
+					sun.intensity = runtimeConfig.sunIntensity;
+					if (s.sunElevation !== undefined) {
+						const elevRad = (runtimeConfig.sunElevation * Math.PI) / 180;
+						const dist = 170;
+						sun.position.set(
+							80,
+							Math.sin(elevRad) * dist,
+							Math.cos(elevRad) * dist,
+						);
+					}
+				}
+
+				// Sky colors
+				if (
+					s.skyColorTop !== undefined ||
+					s.skyColorHorizon !== undefined ||
+					s.skyColorBottom !== undefined
+				) {
+					updateSkyColors(
+						skyMesh,
+						runtimeConfig.skyColorTop,
+						runtimeConfig.skyColorHorizon,
+						runtimeConfig.skyColorBottom,
+					);
+				}
+
+				// Ring colors
+				if (s.ringColor !== undefined) {
+					terrainManager.updateRingColors(runtimeConfig.ringColor);
+				}
+
+				// Water level
+				if (s.waterLevel !== undefined) {
+					water.position.y = runtimeConfig.waterLevel;
+				}
+
+				// Cloud rebuild (debounced)
+				if (s.cloudCount !== undefined || s.cloudHeight !== undefined) {
+					if (cloudRebuildTimer) clearTimeout(cloudRebuildTimer);
+					cloudRebuildTimer = setTimeout(() => {
+						disposeClouds(clouds);
+						scene.remove(clouds);
+						clouds = createClouds(
+							runtimeConfig.cloudCount,
+							runtimeConfig.cloudHeight,
+						);
+						scene.add(clouds);
+						cloudRebuildTimer = null;
+					}, 500);
+				}
 			}
 		}
 

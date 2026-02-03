@@ -1,9 +1,15 @@
 import * as THREE from "three";
+import { runtimeConfig, TERRAIN } from "$lib/config/flight";
+import {
+	type ChunkRings,
+	createChunkRings,
+	type RingState,
+	recolorRings,
+	updateRings,
+} from "../rings";
 import { TerrainChunk } from "./chunk";
+import { type ChunkDecorations, createChunkDecorations } from "./decorations";
 import { DEFAULT_HEIGHTMAP, type HeightmapConfig } from "./heightmap";
-import { createChunkDecorations, type ChunkDecorations } from "./decorations";
-import { createChunkRings, updateRings, type ChunkRings, type RingState } from "../rings";
-import { TERRAIN } from "$lib/config/flight";
 
 interface ChunkEntry {
 	terrain: TerrainChunk;
@@ -31,8 +37,9 @@ export class TerrainManager {
 
 		const needed = new Set<string>();
 
-		for (let dx = -TERRAIN.VIEW_RADIUS; dx <= TERRAIN.VIEW_RADIUS; dx++) {
-			for (let dz = -TERRAIN.VIEW_RADIUS; dz <= TERRAIN.VIEW_RADIUS; dz++) {
+		const viewRadius = runtimeConfig.viewRadius;
+		for (let dx = -viewRadius; dx <= viewRadius; dx++) {
+			for (let dz = -viewRadius; dz <= viewRadius; dz++) {
 				const gx = cx + dx;
 				const gz = cz + dz;
 				const key = `${gx},${gz}`;
@@ -40,8 +47,18 @@ export class TerrainManager {
 
 				if (!this.active.has(key)) {
 					const terrain = this.acquireTerrain(gx, gz);
-					const decorations = createChunkDecorations(gx, gz, this.config);
-					const rings = createChunkRings(gx, gz, this.config);
+					const decorations = createChunkDecorations(
+						gx,
+						gz,
+						this.config,
+						runtimeConfig.treeDensity,
+					);
+					const rings = createChunkRings(
+						gx,
+						gz,
+						this.config,
+						runtimeConfig.ringCountPerChunk,
+					);
 
 					this.group.add(terrain.mesh);
 					this.group.add(decorations.group);
@@ -73,6 +90,13 @@ export class TerrainManager {
 			collected += updateRings(entry.rings.rings, position);
 		}
 		return collected;
+	}
+
+	/** Update color of all uncollected rings across active chunks. */
+	updateRingColors(hexColor: string): void {
+		for (const entry of this.active.values()) {
+			recolorRings(entry.rings.rings, hexColor);
+		}
 	}
 
 	/** Get all active ring states (for score display). */

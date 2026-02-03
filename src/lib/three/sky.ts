@@ -45,3 +45,39 @@ export function createSky(): THREE.Mesh {
 
 	return new THREE.Mesh(geo, mat);
 }
+
+/** Update sky dome vertex colors live from hex color strings. */
+export function updateSkyColors(
+	mesh: THREE.Mesh,
+	top: string,
+	horizon: string,
+	bottom: string,
+): void {
+	const geo = mesh.geometry;
+	const pos = geo.attributes.position;
+	const colors = geo.attributes.color as THREE.BufferAttribute | undefined;
+
+	if (!colors) return;
+
+	const colorTop = new THREE.Color(top);
+	const colorHorizon = new THREE.Color(horizon);
+	const colorBottom = new THREE.Color(bottom);
+	const temp = new THREE.Color();
+
+	for (let i = 0; i < pos.count; i++) {
+		const y = pos.getY(i);
+		const t = (y / SKY.RADIUS + 1) * 0.5;
+
+		if (t > 0.5) {
+			const u = (t - 0.5) * 2;
+			temp.copy(colorHorizon).lerp(colorTop, u);
+		} else {
+			const u = t * 2;
+			temp.copy(colorBottom).lerp(colorHorizon, u);
+		}
+
+		colors.setXYZ(i, temp.r, temp.g, temp.b);
+	}
+
+	colors.needsUpdate = true;
+}
