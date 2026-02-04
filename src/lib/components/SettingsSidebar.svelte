@@ -394,196 +394,13 @@ if (typeof localStorage !== "undefined") {
 {/if}
 
 <style>
-	/* ── Collapsible fix ── */
-	:global([data-collapsible-content][data-state="closed"]) {
-		display: none;
-	}
+	/*
+	 * SettingsSidebar Styles
+	 * Most base styles (sidebar, slider, switch, collapsible) are in app.css
+	 * Only component-specific overrides and presets section here
+	 */
 
-	.sidebar {
-		position: fixed;
-		top: 0;
-		right: 0;
-		bottom: 0;
-		width: 280px;
-		z-index: 99;
-		background: var(--bg);
-		border-left: 1px solid var(--border);
-		display: flex;
-		flex-direction: column;
-		overflow: hidden;
-	}
-
-	.sidebar-header {
-		height: 3.5rem;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 0 1rem;
-		border-bottom: 1px solid var(--border);
-		flex-shrink: 0;
-	}
-
-	.sidebar-title {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		color: var(--text-muted);
-	}
-
-	.sidebar-close {
-		background: none;
-		border: none;
-		color: var(--text-muted);
-		cursor: pointer;
-		padding: 0.25rem;
-		display: flex;
-		align-items: center;
-	}
-
-	.sidebar-close:hover {
-		color: var(--text);
-	}
-
-	.sidebar-content {
-		flex: 1;
-		overflow-y: auto;
-		padding: 0.5rem 0;
-	}
-
-	:global(.section-trigger) {
-		width: 100%;
-		background: none;
-		border: none;
-		border-bottom: 1px solid var(--border);
-		color: var(--text);
-		font-family: var(--font-mono);
-		font-size: 0.75rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		padding: 0.75rem 1rem;
-		cursor: pointer;
-		text-align: left;
-	}
-
-	:global(.section-trigger:hover) {
-		background: var(--surface);
-	}
-
-	.section-trigger-inner {
-		display: flex;
-		align-items: center;
-		gap: 0.4rem;
-	}
-
-	:global(.section-content) {
-		padding: 0.75rem 1rem;
-		display: flex;
-		flex-direction: column;
-		gap: 1rem;
-	}
-
-	.setting-row {
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
-	}
-
-	.setting-label {
-		font-family: var(--font-mono);
-		font-size: 0.7rem;
-		color: var(--text-muted);
-		text-transform: uppercase;
-		letter-spacing: 0.03em;
-		display: flex;
-		justify-content: space-between;
-	}
-
-	.setting-value {
-		color: #8b7ec8;
-	}
-
-	/* ── Slider ── */
-	:global(.slider-root) {
-		position: relative;
-		display: flex;
-		align-items: center;
-		width: 100%;
-		height: 20px;
-		touch-action: none;
-	}
-
-	.slider-track {
-		position: relative;
-		height: 1px;
-		width: 100%;
-		flex-grow: 1;
-		background: var(--border);
-		overflow: hidden;
-		cursor: pointer;
-	}
-
-	:global(.slider-range) {
-		position: absolute;
-		height: 100%;
-		background: #8b7ec8;
-	}
-
-	:global(.slider-thumb) {
-		display: block;
-		width: 10px;
-		height: 10px;
-		background: #8b7ec8;
-		border: none;
-		border-radius: 0;
-		cursor: grab;
-		flex-shrink: 0;
-	}
-
-	:global(.slider-thumb:active) {
-		cursor: grabbing;
-		background: #a598d8;
-	}
-
-	/* ── Switch ── */
-	:global(.switch-root) {
-		width: 40px;
-		height: 22px;
-		background: var(--border);
-		border: none;
-		padding: 2px;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-	}
-
-	:global(.switch-root[data-state="checked"]) {
-		background: #8b7ec8;
-	}
-
-	:global(.switch-thumb) {
-		display: block;
-		width: 18px;
-		height: 18px;
-		background: var(--text);
-		transition: transform 0.15s;
-	}
-
-	:global(.switch-root[data-state="checked"] .switch-thumb) {
-		transform: translateX(18px);
-	}
-
-	/* ── Color Input ── */
-	input[type="color"] {
-		width: 100%;
-		height: 28px;
-		border: none;
-		background: var(--surface);
-		cursor: pointer;
-		padding: 0;
-	}
-
-	/* ── Presets ── */
+	/* ── Presets Section ── */
 	.preset-section {
 		padding: 0.75rem 1rem;
 		border-top: 1px solid var(--border);
@@ -599,12 +416,6 @@ if (typeof localStorage !== "undefined") {
 
 	.preset-input {
 		flex: 1;
-		background: var(--surface);
-		border: 1px solid var(--border);
-		color: var(--text);
-		font-family: var(--font-mono);
-		font-size: 0.75rem;
-		padding: 0.4rem 0.5rem;
 	}
 
 	.preset-btn {
@@ -631,8 +442,8 @@ if (typeof localStorage !== "undefined") {
 
 	.preset-tag {
 		background: var(--surface);
-		border: 1px solid #8b7ec8;
-		color: #8b7ec8;
+		border: 1px solid var(--accent-muted);
+		color: var(--accent-muted);
 		font-family: var(--font-mono);
 		font-size: 0.65rem;
 		padding: 0.25rem 0.5rem;
@@ -640,14 +451,14 @@ if (typeof localStorage !== "undefined") {
 	}
 
 	.preset-tag:hover {
-		background: #8b7ec8;
+		background: var(--accent-muted);
 		color: var(--bg);
 	}
 
 	.reset-btn {
 		background: var(--surface);
-		border: 1px solid #f87171;
-		color: #f87171;
+		border: 1px solid var(--error);
+		color: var(--error);
 		font-family: var(--font-mono);
 		font-size: 0.7rem;
 		font-weight: 700;
@@ -661,7 +472,7 @@ if (typeof localStorage !== "undefined") {
 	}
 
 	.reset-btn:hover {
-		background: #f87171;
+		background: var(--error);
 		color: var(--bg);
 	}
 </style>

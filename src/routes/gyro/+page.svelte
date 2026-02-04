@@ -122,7 +122,7 @@ onDestroy(() => {
 
 			<section class="calibration-prompt">
 				<p class="calibration-hint pulse">⚠️ Place phone flat on ICAROS, then calibrate</p>
-				<button class="btn btn-primary btn-large" onclick={() => gyro.calibrate()}>
+				<button class="btn btn-cta btn-lg" onclick={() => gyro.calibrate()}>
 					<Crosshair size={20} />
 					CALIBRATE NOW
 				</button>
@@ -287,67 +287,5 @@ onDestroy(() => {
 		justify-content: center;
 	}
 
-	/* Buttons */
-	.btn {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.5rem;
-		padding: 0.75rem 1.25rem;
-		border-radius: 0.5rem;
-		font-size: 0.9rem;
-		font-weight: 500;
-		cursor: pointer;
-		border: none;
-		transition: all 0.15s ease;
-		text-decoration: none;
-	}
-
-	.btn-primary {
-		background: var(--primary, #a78bfa);
-		color: var(--bg, #09090b);
-	}
-
-	.btn-primary:hover {
-		background: var(--primary-hover, #c4b5fd);
-	}
-
-	.btn-secondary {
-		background: var(--surface, #27272a);
-		color: var(--text);
-		border: 1px solid var(--border);
-	}
-
-	.btn-secondary:hover {
-		background: var(--surface-hover, #3f3f46);
-	}
-
-	.btn-ghost {
-		background: transparent;
-		color: var(--text-muted);
-	}
-
-	.btn-ghost:hover {
-		color: var(--text);
-		background: var(--surface, #27272a);
-	}
-
-	.btn-large {
-		padding: 1rem 2rem;
-		font-size: 1rem;
-	}
-
-	/* Spinner */
-	.spinner {
-		width: 32px;
-		height: 32px;
-		border: 3px solid var(--border);
-		border-top-color: var(--primary, #a78bfa);
-		border-radius: 50%;
-		animation: spin 0.8s linear infinite;
-	}
-
-	@keyframes spin {
-		to { transform: rotate(360deg); }
-	}
+	/* Buttons use global styles from app.css */
 </style>

@@ -1,25 +1,109 @@
-/* ═══════════════════════════════════════════════
-   ICAROS VR Flight Sim — Brutalist Dark Theme
-   ═══════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+   ICAROS VR Flight Sim — Design System
+   ═══════════════════════════════════════════════════════════════════════════
 
-/* 1. Fonts */
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap");
+   A brutalist dark theme for the ICAROS VR flight simulation project.
+   All styles are centralized here for consistency across routes.
 
-/* 2. Custom Properties */
+   TABLE OF CONTENTS
+   ─────────────────
+   1. Fonts
+   2. Design Tokens (CSS Custom Properties)
+   3. Reset & Base
+   4. Typography
+   5. Layout Utilities
+   6. Cards & Panels
+   7. Buttons (bits-ui compatible)
+   8. Form Controls (Slider, Switch, Input)
+   9. Status Indicators
+   10. Navigation & Header
+   11. Animations
+   12. Responsive Utilities
+
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   1. FONTS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap");
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   2. DESIGN TOKENS
+   ═══════════════════════════════════════════════════════════════════════════
+
+   All colors, spacing, and typography scales are defined here.
+   Use these variables throughout the app for consistency.
+
+   ─────────────────────────────────────────────────────────────────────────── */
+
 :root {
-	--bg: #09090b;
-	--surface: #18181b;
-	--surface-hover: #27272a;
-	--border: #3f3f46;
-	--text: #ffffff;
-	--text-muted: #a1a1aa;
-	--accent: #a78bfa;
-	--accent-hover: #c4b5fd;
-	--font-sans: "Inter", system-ui, sans-serif;
-	--font-mono: "JetBrains Mono", ui-monospace, monospace;
+	/* ── Background & Surface ── */
+	--bg: #09090b;                    /* Main background (near black) */
+	--surface: #18181b;               /* Card/panel background */
+	--surface-hover: #27272a;         /* Surface hover state */
+	--surface-active: #3f3f46;        /* Surface pressed/active state */
+
+	/* ── Border ── */
+	--border: #3f3f46;                /* Default border color */
+	--border-subtle: #27272a;         /* Subtle borders */
+
+	/* ── Text ── */
+	--text: #ffffff;                  /* Primary text */
+	--text-muted: #a1a1aa;            /* Secondary/muted text */
+	--text-subtle: #71717a;           /* Tertiary/subtle text */
+
+	/* ── Accent (Purple) ── */
+	--accent: #a78bfa;                /* Primary accent color */
+	--accent-hover: #c4b5fd;          /* Accent hover */
+	--accent-muted: #8b7ec8;          /* Muted accent (sliders, etc.) */
+
+	/* ── Semantic Colors ── */
+	--success: #4ade80;               /* Success/connected/positive */
+	--success-muted: #22c55e;         /* Darker success */
+	--warning: #facc15;               /* Warning/calibration needed */
+	--warning-muted: #f59e0b;         /* Darker warning */
+	--error: #f87171;                 /* Error/disconnected/danger */
+	--error-muted: #ef4444;           /* Darker error */
+
+	/* ── Typography ── */
+	--font-main: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+	--font-mono: var(--font-main); /* Alias for backwards compatibility */
+
+	/* ── Spacing Scale ── */
+	--space-xs: 0.25rem;              /* 4px */
+	--space-sm: 0.5rem;               /* 8px */
+	--space-md: 1rem;                 /* 16px */
+	--space-lg: 1.5rem;               /* 24px */
+	--space-xl: 2rem;                 /* 32px */
+	--space-2xl: 3rem;                /* 48px */
+
+	/* ── Border Radius ── */
+	--radius-none: 0;                 /* Brutalist: no radius */
+	--radius-sm: 2px;                 /* Subtle radius for badges */
+
+	/* ── Transitions ── */
+	--transition-fast: 0.1s ease;
+	--transition-normal: 0.15s ease;
+	--transition-slow: 0.3s ease;
+
+	/* ── Z-Index Scale ── */
+	--z-base: 0;
+	--z-dropdown: 50;
+	--z-sticky: 60;
+	--z-overlay: 70;
+	--z-modal: 80;
+	--z-sidebar: 90;
+	--z-toast: 100;
 }
 
-/* 3. Reset + Base */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   3. RESET & BASE
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 *,
 *::before,
 *::after {
@@ -30,34 +114,219 @@
 
 html {
 	color-scheme: dark;
+	-webkit-text-size-adjust: 100%;
 }
 
 body {
-	font-family: var(--font-sans);
+	font-family: var(--font-main);
+	font-size: 1rem;
+	line-height: 1.5;
 	background: var(--bg);
 	color: var(--text);
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 }
 
-/* 4. Scrollbar */
+/* Scrollbar */
 ::-webkit-scrollbar {
 	width: 6px;
+	height: 6px;
 }
+
 ::-webkit-scrollbar-track {
 	background: var(--bg);
 }
+
 ::-webkit-scrollbar-thumb {
 	background: var(--border);
 }
 
-/* 5. bits-ui component styles */
+::-webkit-scrollbar-thumb:hover {
+	background: var(--text-subtle);
+}
+
+/* Focus visible for accessibility */
+:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+
+/* Remove default focus outline (use :focus-visible instead) */
+:focus:not(:focus-visible) {
+	outline: none;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   4. TYPOGRAPHY
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Mono Label — Used for section titles, status text, labels */
+.mono-label {
+	font-family: var(--font-mono);
+	font-size: 0.75rem;
+	font-weight: 500;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--text-muted);
+}
+
+/* Data Label — Smaller, for metrics */
+.data-label {
+	font-family: var(--font-mono);
+	font-size: 0.75rem;
+	letter-spacing: 0.05em;
+	color: var(--text-muted);
+}
+
+/* Data Value — Large numeric display */
+.data-value {
+	font-family: var(--font-mono);
+	font-size: 1.5rem;
+	font-weight: 600;
+	min-width: 5ch;
+	text-align: center;
+}
+
+.data-value--positive {
+	color: var(--success);
+}
+
+.data-value--negative {
+	color: var(--warning-muted);
+}
+
+/* Section Title — Used in landing page */
+.section-title {
+	font-family: var(--font-mono);
+	font-size: 0.75rem;
+	font-weight: 500;
+	text-transform: uppercase;
+	letter-spacing: 0.1em;
+	color: var(--text-muted);
+	margin-bottom: var(--space-md);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   5. LAYOUT UTILITIES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Page Container */
+.page {
+	min-height: 100dvh;
+	display: flex;
+	flex-direction: column;
+}
+
+/* Main Content Area */
+.page-main {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-lg);
+	padding: var(--space-lg) var(--space-md);
+}
+
+/* Centered Container */
+.container {
+	width: 100%;
+	max-width: 800px;
+	margin: 0 auto;
+	padding: 0 var(--space-md);
+}
+
+/* Flex Utilities */
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.flex-center { align-items: center; justify-content: center; }
+.flex-between { justify-content: space-between; }
+.gap-xs { gap: var(--space-xs); }
+.gap-sm { gap: var(--space-sm); }
+.gap-md { gap: var(--space-md); }
+.gap-lg { gap: var(--space-lg); }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   6. CARDS & PANELS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Surface Panel — Basic card with border */
+.surface-panel {
+	background: var(--surface);
+	border: 1px solid var(--border);
+}
+
+/* Card — Centered content card (for status messages, etc.) */
+.card {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	padding: var(--space-xl);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-md);
+	text-align: center;
+	max-width: 320px;
+}
+
+.card h2 {
+	font-size: 1.25rem;
+	font-weight: 600;
+	margin: 0;
+}
+
+.card p {
+	color: var(--text-muted);
+	font-size: 0.9rem;
+	margin: 0;
+}
+
+.card--error {
+	border-color: var(--error);
+}
+
+/* Code Block / Diagram */
+.code-block {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	padding: var(--space-lg);
+	overflow-x: auto;
+}
+
+.code-block code {
+	font-family: var(--font-mono);
+	font-size: 0.75rem;
+	line-height: 1.4;
+	color: var(--text);
+	white-space: pre;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   7. BUTTONS
+   ═══════════════════════════════════════════════════════════════════════════
+
+   Compatible with bits-ui Button component via [data-button-root].
+   Also provides standalone .btn classes for non-bits-ui usage.
+
+   Usage with bits-ui:
+     <Button.Root class="btn-primary">Click me</Button.Root>
+
+   Usage standalone:
+     <button class="btn btn-primary">Click me</button>
+
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Base Button Styles (bits-ui) */
 [data-button-root] {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
+	gap: var(--space-sm);
 	border: 1px solid var(--border);
-	border-radius: 0;
+	border-radius: var(--radius-none);
 	background: var(--surface);
 	color: var(--text);
 	font-family: var(--font-mono);
@@ -67,14 +336,16 @@ body {
 	letter-spacing: 0.05em;
 	cursor: pointer;
 	transition:
-		border-color 0.15s,
-		box-shadow 0.15s,
-		transform 0.1s;
+		border-color var(--transition-normal),
+		background var(--transition-normal),
+		box-shadow var(--transition-normal),
+		transform var(--transition-fast);
 	user-select: none;
 	-webkit-user-select: none;
 	touch-action: manipulation;
 	min-height: 44px;
 	min-width: 44px;
+	padding: 0.75rem 1rem;
 }
 
 [data-button-root]:hover {
@@ -85,74 +356,536 @@ body {
 	transform: translate(1px, 1px);
 }
 
-/* 6. Utility classes */
-.btn-primary {
-	background: var(--surface);
-	border-color: var(--border);
+[data-button-root]:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
 }
 
-.btn-primary:hover {
+/* Standalone Button Base */
+.btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-sm);
+	padding: 0.75rem 1.25rem;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-none);
+	font-family: var(--font-mono);
+	font-size: 0.8rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	cursor: pointer;
+	text-decoration: none;
+	transition:
+		border-color var(--transition-normal),
+		background var(--transition-normal),
+		box-shadow var(--transition-normal),
+		color var(--transition-normal);
+}
+
+/* ── Button Variants ── */
+
+/* Primary — Default action button */
+.btn-primary,
+[data-button-root].btn-primary {
+	background: var(--surface);
+	border-color: var(--border);
+	color: var(--text);
+}
+
+.btn-primary:hover,
+[data-button-root].btn-primary:hover {
 	border-color: var(--text);
 	box-shadow: 2px 2px 0 var(--accent);
 }
 
-.btn-accent {
+/* Accent — Highlighted/important actions */
+.btn-accent,
+[data-button-root].btn-accent {
+	background: var(--surface);
 	border-color: var(--accent);
 	color: var(--accent);
 }
 
-.btn-accent:hover {
+.btn-accent:hover,
+[data-button-root].btn-accent:hover {
 	border-color: var(--accent-hover);
 	box-shadow: 2px 2px 0 var(--accent);
 }
 
-.btn-accent[data-active="true"] {
+.btn-accent[data-active="true"],
+[data-button-root].btn-accent[data-active="true"] {
 	background: var(--accent);
 	color: var(--bg);
 	box-shadow: 0 0 12px rgba(167, 139, 250, 0.4);
 }
 
-.surface-panel {
+/* CTA — Call to action (filled accent) */
+.btn-cta,
+[data-button-root].btn-cta {
+	background: var(--accent);
+	border-color: var(--accent);
+	color: var(--bg);
+}
+
+.btn-cta:hover,
+[data-button-root].btn-cta:hover {
+	background: var(--accent-hover);
+	border-color: var(--accent-hover);
+}
+
+/* Secondary — Less prominent actions */
+.btn-secondary,
+[data-button-root].btn-secondary {
 	background: var(--surface);
-	border: 1px solid var(--border);
+	border-color: var(--border);
+	color: var(--text);
 }
 
-.header-bar {
-	height: 3.5rem;
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 0 1rem;
-	border-bottom: 1px solid var(--border);
-	background: var(--bg);
+.btn-secondary:hover,
+[data-button-root].btn-secondary:hover {
+	background: var(--surface-hover);
 }
 
-.mono-label {
-	font-family: var(--font-mono);
-	font-size: 0.75rem;
-	text-transform: uppercase;
-	letter-spacing: 0.05em;
+/* Ghost — Minimal style */
+.btn-ghost,
+[data-button-root].btn-ghost {
+	background: transparent;
+	border-color: transparent;
 	color: var(--text-muted);
 }
 
+.btn-ghost:hover,
+[data-button-root].btn-ghost:hover {
+	color: var(--text);
+	background: var(--surface);
+}
+
+/* Danger — Destructive actions */
+.btn-danger,
+[data-button-root].btn-danger {
+	background: var(--surface);
+	border-color: var(--error);
+	color: var(--error);
+}
+
+.btn-danger:hover,
+[data-button-root].btn-danger:hover {
+	background: var(--error);
+	color: var(--bg);
+}
+
+/* ── Button Sizes ── */
+
+.btn-sm,
+[data-button-root].btn-sm {
+	padding: 0.4rem 0.75rem;
+	font-size: 0.7rem;
+	min-height: 32px;
+	min-width: 32px;
+}
+
+.btn-lg,
+[data-button-root].btn-lg {
+	padding: 1rem 2rem;
+	font-size: 0.9rem;
+}
+
+/* ── Icon-only Button ── */
+.btn-icon,
+[data-button-root].btn-icon {
+	padding: 0.5rem;
+	min-width: 44px;
+	min-height: 44px;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   8. FORM CONTROLS
+   ═══════════════════════════════════════════════════════════════════════════
+
+   Styles for bits-ui Slider, Switch, and native inputs.
+
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* ── Slider (bits-ui) ── */
+[data-slider-root],
+.slider-root {
+	position: relative;
+	display: flex;
+	align-items: center;
+	width: 100%;
+	height: 20px;
+	touch-action: none;
+}
+
+.slider-track {
+	position: relative;
+	height: 1px;
+	width: 100%;
+	flex-grow: 1;
+	background: var(--border);
+	overflow: hidden;
+	cursor: pointer;
+}
+
+[data-slider-range],
+.slider-range {
+	position: absolute;
+	height: 100%;
+	background: var(--accent-muted);
+}
+
+[data-slider-thumb],
+.slider-thumb {
+	display: block;
+	width: 10px;
+	height: 10px;
+	background: var(--accent-muted);
+	border: none;
+	border-radius: var(--radius-none);
+	cursor: grab;
+	flex-shrink: 0;
+}
+
+[data-slider-thumb]:active,
+.slider-thumb:active {
+	cursor: grabbing;
+	background: var(--accent);
+}
+
+/* ── Switch (bits-ui) ── */
+[data-switch-root],
+.switch-root {
+	width: 40px;
+	height: 22px;
+	background: var(--border);
+	border: none;
+	border-radius: var(--radius-none);
+	padding: 2px;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+}
+
+[data-switch-root][data-state="checked"],
+.switch-root[data-state="checked"] {
+	background: var(--accent-muted);
+}
+
+[data-switch-thumb],
+.switch-thumb {
+	display: block;
+	width: 18px;
+	height: 18px;
+	background: var(--text);
+	transition: transform var(--transition-normal);
+}
+
+[data-switch-root][data-state="checked"] [data-switch-thumb],
+.switch-root[data-state="checked"] .switch-thumb {
+	transform: translateX(18px);
+}
+
+/* ── Collapsible (bits-ui) ── */
+[data-collapsible-content][data-state="closed"] {
+	display: none;
+}
+
+[data-collapsible-trigger],
+.section-trigger {
+	width: 100%;
+	background: none;
+	border: none;
+	border-bottom: 1px solid var(--border);
+	color: var(--text);
+	font-family: var(--font-mono);
+	font-size: 0.75rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	padding: 0.75rem 1rem;
+	cursor: pointer;
+	text-align: left;
+}
+
+[data-collapsible-trigger]:hover,
+.section-trigger:hover {
+	background: var(--surface);
+}
+
+.section-trigger-inner {
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
+}
+
+[data-collapsible-content],
+.section-content {
+	padding: 0.75rem 1rem;
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+/* ── Text Input ── */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+.input {
+	width: 100%;
+	padding: 0.5rem 0.75rem;
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-none);
+	color: var(--text);
+	font-family: var(--font-mono);
+	font-size: 0.8rem;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+.input:focus {
+	border-color: var(--accent);
+	outline: none;
+}
+
+/* ── Color Input ── */
+input[type="color"] {
+	width: 100%;
+	height: 28px;
+	border: none;
+	background: var(--surface);
+	cursor: pointer;
+	padding: 0;
+}
+
+/* ── Setting Row (label + control) ── */
+.setting-row {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+}
+
+.setting-label {
+	font-family: var(--font-mono);
+	font-size: 0.7rem;
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	display: flex;
+	justify-content: space-between;
+}
+
+.setting-value {
+	color: var(--accent-muted);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   9. STATUS INDICATORS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Status Dot — Connection indicator */
 .status-dot {
 	display: inline-block;
 	width: 8px;
 	height: 8px;
 	border-radius: 50%;
-	margin-right: 0.5rem;
+	margin-right: var(--space-sm);
 }
 
 .status-dot[data-status="connected"] {
-	background: #4ade80;
+	background: var(--success);
 	box-shadow: 0 0 6px rgba(74, 222, 128, 0.5);
 }
 
 .status-dot[data-status="connecting"] {
-	background: #facc15;
+	background: var(--warning);
 }
 
 .status-dot[data-status="disconnected"],
 .status-dot[data-status="error"] {
-	background: #f87171;
+	background: var(--error);
 }
+
+/* Badge — Small tag/label */
+.badge {
+	display: inline-block;
+	font-family: var(--font-mono);
+	font-size: 0.625rem;
+	font-weight: 500;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	background: var(--border);
+	color: var(--text-muted);
+	padding: 0.125rem 0.375rem;
+	border-radius: var(--radius-sm);
+}
+
+.badge--accent {
+	background: var(--accent);
+	color: var(--bg);
+}
+
+.badge--success {
+	background: var(--success);
+	color: var(--bg);
+}
+
+.badge--warning {
+	background: var(--warning);
+	color: var(--bg);
+}
+
+.badge--error {
+	background: var(--error);
+	color: var(--bg);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   10. NAVIGATION & HEADER
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Header Bar — Top navigation */
+.header-bar {
+	height: 3.5rem;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 var(--space-md);
+	border-bottom: 1px solid var(--border);
+	background: var(--bg);
+	flex-shrink: 0;
+}
+
+/* Header Button (icon button in header) */
+.header-btn {
+	background: none;
+	border: none;
+	color: var(--text-muted);
+	cursor: pointer;
+	padding: var(--space-xs);
+	display: flex;
+	align-items: center;
+}
+
+.header-btn:hover {
+	color: var(--text);
+}
+
+/* Sidebar */
+.sidebar {
+	position: fixed;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	width: 280px;
+	z-index: var(--z-sidebar);
+	background: var(--bg);
+	border-left: 1px solid var(--border);
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.sidebar-header {
+	height: 3.5rem;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 var(--space-md);
+	border-bottom: 1px solid var(--border);
+	flex-shrink: 0;
+}
+
+.sidebar-title {
+	display: flex;
+	align-items: center;
+	gap: var(--space-sm);
+	color: var(--text-muted);
+}
+
+.sidebar-close {
+	background: none;
+	border: none;
+	color: var(--text-muted);
+	cursor: pointer;
+	padding: var(--space-xs);
+	display: flex;
+	align-items: center;
+}
+
+.sidebar-close:hover {
+	color: var(--text);
+}
+
+.sidebar-content {
+	flex: 1;
+	overflow-y: auto;
+	padding: var(--space-sm) 0;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   11. ANIMATIONS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Pulse — For attention-getting elements */
+@keyframes pulse {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.6; }
+}
+
+.pulse {
+	animation: pulse 2s ease-in-out infinite;
+}
+
+/* Spin — For loading spinners */
+@keyframes spin {
+	to { transform: rotate(360deg); }
+}
+
+.spin {
+	animation: spin 0.8s linear infinite;
+}
+
+/* Spinner */
+.spinner {
+	width: 32px;
+	height: 32px;
+	border: 3px solid var(--border);
+	border-top-color: var(--accent);
+	border-radius: 50%;
+	animation: spin 0.8s linear infinite;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   12. RESPONSIVE UTILITIES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Hide on mobile */
+@media (max-width: 640px) {
+	.hide-mobile { display: none !important; }
+}
+
+/* Hide on desktop */
+@media (min-width: 641px) {
+	.hide-desktop { display: none !important; }
+}
+
+/* Text alignment */
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   END OF DESIGN SYSTEM
+   ═══════════════════════════════════════════════════════════════════════════ */
