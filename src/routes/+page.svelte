@@ -1,4 +1,6 @@
 <script lang="ts">
+	import ArchitectureDiagram from '$lib/components/ArchitectureDiagram.svelte';
+
 	// Route definitions for the landing page
 	const routes = [
 		{
@@ -30,6 +32,45 @@
 			status: 'planned' as const,
 		},
 	];
+
+	// Tech stack with links and descriptions
+	const techStack = [
+		{
+			name: 'SvelteKit',
+			description: 'Full-stack web framework',
+			url: 'https://svelte.dev',
+		},
+		{
+			name: 'Bun',
+			description: 'JavaScript runtime',
+			url: 'https://bun.sh',
+		},
+		{
+			name: 'Three.js',
+			description: '3D graphics library',
+			url: 'https://threejs.org',
+		},
+		{
+			name: 'WebXR',
+			description: 'VR/AR browser API',
+			url: 'https://immersiveweb.dev',
+		},
+		{
+			name: 'bits-ui',
+			description: 'Svelte UI components',
+			url: 'https://bits-ui.com',
+		},
+		{
+			name: 'ESP32',
+			description: 'Microcontroller',
+			url: 'https://espressif.com',
+		},
+		{
+			name: 'BNO055',
+			description: '9-DOF IMU sensor',
+			url: 'https://www.adafruit.com/product/2472',
+		},
+	];
 </script>
 
 <main class="landing">
@@ -39,48 +80,21 @@
 			<span class="logo-icon">🛩️</span>
 			<span class="logo-text">ICAROS VR Flight Sim</span>
 		</div>
-		<a
-			href="https://github.com/dweigend/neural-flight"
-			target="_blank"
-			rel="noopener noreferrer"
-			class="github-link"
-		>
-			Hardware Docs →
-		</a>
 	</header>
 
-	<!-- Hero Section -->
-	<section class="hero">
-		<h1>Immersive VR Flight</h1>
-		<p class="subtitle">Meta Quest + ICAROS fitness device + custom ESP32 sensor</p>
+	<!-- Intro -->
+	<section class="intro">
+		<p>
+			VR flight simulation for Meta Quest, controlled by body movement on an ICAROS fitness device.
+			Pitch and roll translate directly into flight controls via WebSocket.
+		</p>
 	</section>
 
 	<!-- Architecture Diagram -->
 	<section class="architecture">
 		<h2 class="section-title">🕸️ Architecture</h2>
+		<ArchitectureDiagram />
 		<p class="architecture-motto">"The server sits in the center — like a spider in its web."</p>
-
-		<pre class="code-block" aria-label="System architecture diagram showing server as central hub"><code
-				>                    ┌─────────────┐
-                    │             │
-  ┌────────────────▶│   SERVER    │◀────────────────┐
-  │                 │    (Hub)    │                 │
-  │                 │             │                 │
-  │                 └──────┬──────┘                 │
-  │                        │                        │
-  │           ┌────────────┼────────────┐           │
-  │           │            │            │           │
-  ▼           ▼            ▼            ▼           ▼
-┌───────┐ ┌───────┐ ┌───────┐ ┌───────┐ ┌───────┐
-│ ESP32 │ │ /gyro │ │  /vr  │ │/spect │ │/lights│
-│Sensor │ │ Phone │ │ Quest │ │Monitor│ │DMX/Hue│
-└───────┘ └───────┘ └───────┘ └───────┘ └───────┘
-  INPUT     INPUT    OUTPUT    OUTPUT    OUTPUT</code
-			></pre>
-
-		<p class="diagram-caption">
-			All data flows through the server. No direct client-to-client communication.
-		</p>
 	</section>
 
 	<!-- Routes Grid -->
@@ -117,18 +131,25 @@
 	<!-- Tech Stack -->
 	<section class="tech">
 		<h2 class="section-title">🔧 Tech Stack</h2>
-		<div class="tech-list">
-			<span class="tech-item">SvelteKit</span>
-			<span class="tech-separator">•</span>
-			<span class="tech-item">Bun</span>
-			<span class="tech-separator">•</span>
-			<span class="tech-item">Three.js</span>
-			<span class="tech-separator">•</span>
-			<span class="tech-item">WebXR</span>
-			<span class="tech-separator">•</span>
-			<span class="tech-item">ESP32</span>
-			<span class="tech-separator">•</span>
-			<span class="tech-item">BNO055 IMU</span>
+		<div class="tech-table-wrapper">
+			<table class="tech-table">
+				<thead>
+					<tr>
+						<th>Tech</th>
+						<th>Description</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each techStack as tech}
+						<tr>
+							<td>
+								<a href={tech.url} target="_blank" rel="noopener noreferrer">{tech.name}</a>
+							</td>
+							<td>{tech.description}</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
 		</div>
 	</section>
 
@@ -143,228 +164,3 @@
 		</p>
 	</footer>
 </main>
-
-<style>
-	.landing {
-		min-height: 100vh;
-		max-width: 800px;
-		margin: 0 auto;
-		padding: 1rem;
-	}
-
-	/* Header */
-	.header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: 1rem 0;
-		border-bottom: 1px solid var(--border);
-		margin-bottom: 2rem;
-	}
-
-	.logo {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-	}
-
-	.logo-icon {
-		font-size: 1.5rem;
-	}
-
-	.logo-text {
-		font-family: var(--font-mono);
-		font-weight: 700;
-		font-size: 0.875rem;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-	}
-
-	.github-link {
-		font-family: var(--font-mono);
-		font-size: 0.75rem;
-		color: var(--text-muted);
-		text-decoration: none;
-		border: 1px solid var(--border);
-		padding: 0.5rem 1rem;
-		transition:
-			border-color 0.15s,
-			color 0.15s;
-	}
-
-	.github-link:hover {
-		border-color: var(--accent);
-		color: var(--accent);
-	}
-
-	/* Hero */
-	.hero {
-		text-align: center;
-		padding: 2rem 0 3rem;
-	}
-
-	.hero h1 {
-		font-size: clamp(1.75rem, 5vw, 2.5rem);
-		font-weight: 700;
-		margin-bottom: 0.5rem;
-	}
-
-	.subtitle {
-		color: var(--text-muted);
-		font-size: 1rem;
-	}
-
-	/* Architecture */
-	.architecture {
-		margin-bottom: 3rem;
-	}
-
-	.architecture-motto {
-		font-style: italic;
-		color: var(--accent);
-		margin-bottom: 1.5rem;
-		text-align: center;
-	}
-
-	.architecture :global(.code-block) {
-		margin-bottom: 1rem;
-	}
-
-	/* Responsive font size for diagram */
-	.architecture :global(code) {
-		font-size: clamp(0.5rem, 2vw, 0.75rem);
-	}
-
-	.diagram-caption {
-		font-size: 0.875rem;
-		color: var(--text-muted);
-		text-align: center;
-	}
-
-	/* Routes Grid */
-	.routes {
-		margin-bottom: 3rem;
-	}
-
-	.routes-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-		gap: 1rem;
-	}
-
-	.route-card {
-		display: flex;
-		align-items: flex-start;
-		gap: 1rem;
-		padding: 1rem;
-		background: var(--surface);
-		border: 1px solid var(--border);
-		text-decoration: none;
-		color: var(--text);
-		transition:
-			border-color 0.15s,
-			box-shadow 0.15s;
-	}
-
-	.route-card:hover {
-		border-color: var(--accent);
-		box-shadow: 2px 2px 0 var(--accent);
-	}
-
-	.route-card--planned {
-		opacity: 0.6;
-		cursor: default;
-	}
-
-	.route-card--planned:hover {
-		border-color: var(--border);
-		box-shadow: none;
-	}
-
-	.route-icon {
-		font-size: 1.5rem;
-		flex-shrink: 0;
-	}
-
-	.route-info {
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
-	}
-
-	.route-path {
-		font-family: var(--font-mono);
-		font-size: 0.875rem;
-		font-weight: 600;
-		color: var(--accent);
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
-
-	.route-title {
-		font-weight: 500;
-		font-size: 0.9375rem;
-	}
-
-	.route-description {
-		font-size: 0.8125rem;
-		color: var(--text-muted);
-	}
-
-	/* Tech Stack */
-	.tech {
-		margin-bottom: 3rem;
-	}
-
-	.tech-list {
-		display: flex;
-		flex-wrap: wrap;
-		justify-content: center;
-		gap: 0.5rem 1rem;
-		font-family: var(--font-mono);
-		font-size: 0.875rem;
-	}
-
-	.tech-item {
-		color: var(--text);
-	}
-
-	.tech-separator {
-		color: var(--border);
-	}
-
-	/* Footer */
-	.footer {
-		border-top: 1px solid var(--border);
-		padding: 1.5rem 0;
-		text-align: center;
-	}
-
-	.footer p {
-		font-size: 0.875rem;
-		color: var(--text-muted);
-	}
-
-	.footer a {
-		color: var(--accent);
-		text-decoration: none;
-	}
-
-	.footer a:hover {
-		text-decoration: underline;
-	}
-
-	/* Mobile Adjustments */
-	@media (max-width: 480px) {
-		.header {
-			flex-direction: column;
-			gap: 1rem;
-			text-align: center;
-		}
-
-		:global(.code-block) {
-			padding: 1rem 0.5rem;
-		}
-	}
-</style>
