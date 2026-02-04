@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import {
 		Plane,
 		Glasses,
@@ -14,6 +15,13 @@
 	import DataTable from '$lib/components/DataTable.svelte';
 	import LinkCard from '$lib/components/LinkCard.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
+	import { createWebSocketClient } from '$lib/ws/client.svelte';
+
+	const ws = createWebSocketClient();
+
+	onDestroy(() => {
+		ws.disconnect();
+	});
 
 	// Route definitions
 	const routes = [
@@ -59,49 +67,42 @@
 	];
 </script>
 
-<main class="landing">
-	<PageHeader icon={Plane} label="ICAROS VR Flight Sim" />
+<div class="landing-page">
+	<PageHeader icon={Plane} label="ICAROS VR Flight Sim" status={ws.status} />
 
-	<section class="intro">
-		<p>
-			VR flight simulation for Meta Quest, controlled by body movement on an ICAROS fitness device.
-			Pitch and roll translate directly into flight controls via WebSocket.
-		</p>
-	</section>
+	<main class="landing-main">
+		<section class="intro">
+			<p>
+				VR flight simulation for Meta Quest, controlled by body movement on an ICAROS fitness device.
+				Pitch and roll translate directly into flight controls via WebSocket.
+			</p>
+		</section>
 
-	<section class="section">
-		<h2 class="section-title"><Network size={14} /> Architecture</h2>
-		<ArchitectureDiagram />
-		<p class="architecture-motto">"The server sits in the center — like a spider in its web."</p>
-	</section>
+		<section class="section">
+			<h2 class="section-title"><Network size={14} /> Architecture</h2>
+			<ArchitectureDiagram />
+			<p class="architecture-motto">"The server sits in the center — like a spider in its web."</p>
+		</section>
 
-	<section class="section">
-		<h2 class="section-title"><MapPin size={14} /> Routes</h2>
-		<div class="routes-grid">
-			{#each routes as route}
-				<LinkCard
-					href={route.path}
-					icon={route.icon}
-					path={route.path}
-					title={route.title}
-					description={route.description}
-					planned={route.planned}
-				/>
-			{/each}
-		</div>
-	</section>
+		<section class="section">
+			<h2 class="section-title"><MapPin size={14} /> Routes</h2>
+			<div class="routes-grid">
+				{#each routes as route}
+					<LinkCard
+						href={route.path}
+						icon={route.icon}
+						path={route.path}
+						title={route.title}
+						description={route.description}
+						planned={route.planned}
+					/>
+				{/each}
+			</div>
+		</section>
 
-	<section class="section">
-		<h2 class="section-title"><Wrench size={14} /> Tech Stack</h2>
-		<DataTable items={techStack} />
-	</section>
-
-	<footer class="footer">
-		<p>
-			<BookOpen size={14} style="display: inline; vertical-align: middle;" />
-			See <a href="https://github.com/dweigend/neural-flight" target="_blank" rel="noopener noreferrer">
-				neural-flight
-			</a> for hardware specs & protocol documentation
-		</p>
-	</footer>
-</main>
+		<section class="section">
+			<h2 class="section-title"><Wrench size={14} /> Tech Stack</h2>
+			<DataTable items={techStack} />
+		</section>
+	</main>
+</div>

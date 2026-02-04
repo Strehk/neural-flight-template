@@ -905,18 +905,25 @@ input[type="color"] {
    13. LANDING PAGE
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.landing {
-	min-height: 100vh;
+.landing-page {
+	min-height: 100dvh;
+	display: flex;
+	flex-direction: column;
+}
+
+.landing-main {
+	flex: 1;
 	max-width: 800px;
+	width: 100%;
 	margin: 0 auto;
 	padding: 0 1rem 1rem;
 }
 
-.landing .section {
+.landing-main .section {
 	margin-bottom: 3rem;
 }
 
-.landing .section-title {
+.landing-main .section-title {
 	display: flex;
 	align-items: center;
 	gap: 0.5rem;
@@ -953,13 +960,13 @@ input[type="color"] {
 }
 
 /* Landing Footer */
-.landing .footer {
+.landing-main .footer {
 	border-top: 1px solid var(--border);
 	padding: 1.5rem 0;
 	text-align: center;
 }
 
-.landing .footer p {
+.landing-main .footer p {
 	font-size: 0.875rem;
 	color: var(--text-muted);
 	display: flex;
@@ -968,12 +975,12 @@ input[type="color"] {
 	gap: 0.5rem;
 }
 
-.landing .footer a {
+.landing-main .footer a {
 	color: var(--accent);
 	text-decoration: none;
 }
 
-.landing .footer a:hover {
+.landing-main .footer a:hover {
 	text-decoration: underline;
 }
 
