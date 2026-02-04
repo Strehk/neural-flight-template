@@ -122,6 +122,11 @@ onMount(() => {
 					water.position.y = runtimeConfig.waterLevel;
 				}
 
+				// Terrain rebuild (amplitude/frequency changed)
+				if (s.terrainAmplitude !== undefined || s.terrainFrequency !== undefined) {
+					terrainManager.rebuildAllChunks();
+				}
+
 				// Cloud rebuild (debounced)
 				if (s.cloudCount !== undefined || s.cloudHeight !== undefined) {
 					if (cloudRebuildTimer) clearTimeout(cloudRebuildTimer);

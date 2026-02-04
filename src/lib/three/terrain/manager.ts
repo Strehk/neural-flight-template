@@ -99,6 +99,23 @@ export class TerrainManager {
 		}
 	}
 
+	/** Clear all active chunks so they regenerate with updated config (amplitude, frequency). */
+	rebuildAllChunks(): void {
+		for (const entry of this.active.values()) {
+			this.group.remove(entry.terrain.mesh);
+			this.group.remove(entry.decorations.group);
+			for (const ring of entry.rings.rings) this.ringGroup.remove(ring.mesh);
+
+			entry.terrain.dispose();
+			entry.decorations.dispose();
+			entry.rings.dispose();
+		}
+		this.active.clear();
+		// Pool is also stale — clear it
+		for (const chunk of this.pool) chunk.dispose();
+		this.pool.length = 0;
+	}
+
 	/** Get all active ring states (for score display). */
 	getAllRings(): RingState[] {
 		const all: RingState[] = [];

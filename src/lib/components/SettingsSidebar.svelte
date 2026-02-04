@@ -25,6 +25,7 @@ let lerpAlpha = $state(0.15);
 let fogNear = $state(100);
 let fogFar = $state(500);
 let cloudDriftEnabled = $state(true);
+let cloudCount = $state(40);
 let viewRadius = $state(2);
 let sunIntensity = $state(3.0);
 let skyColorTop = $state("#1a6fc4");
@@ -60,6 +61,7 @@ function getCurrentSettings(): Record<string, number | boolean | string> {
 		fogNear,
 		fogFar,
 		cloudDriftEnabled,
+		cloudCount,
 		viewRadius,
 		sunIntensity,
 		skyColorTop,
@@ -106,6 +108,7 @@ function loadPreset(name: string): void {
 	fogNear = preset.fogNear as number;
 	fogFar = preset.fogFar as number;
 	cloudDriftEnabled = preset.cloudDriftEnabled as boolean;
+	cloudCount = (preset.cloudCount as number) ?? 40;
 	viewRadius = preset.viewRadius as number;
 	sunIntensity = preset.sunIntensity as number;
 	skyColorTop = preset.skyColorTop as string;
@@ -135,6 +138,7 @@ function resetDefaults(): void {
 	fogNear = 100;
 	fogFar = 500;
 	cloudDriftEnabled = true;
+	cloudCount = 40;
 	viewRadius = 2;
 	sunIntensity = 3.0;
 	skyColorTop = "#1a6fc4";
@@ -274,6 +278,14 @@ if (typeof localStorage !== "undefined") {
 					<label class="setting-row">
 						<span class="setting-label">Cloud Height <span class="setting-value">{cloudHeight}</span></span>
 						<Slider.Root type="single" min={80} max={400} step={10} value={cloudHeight} onValueChange={(v: number) => { cloudHeight = v; emit("cloudHeight", v); }} class="slider-root">
+							<span class="slider-track"><Slider.Range class="slider-range" /></span>
+							<Slider.Thumb class="slider-thumb" index={0} />
+						</Slider.Root>
+					</label>
+
+					<label class="setting-row">
+						<span class="setting-label">Cloud Count <span class="setting-value">{cloudCount}</span></span>
+						<Slider.Root type="single" min={10} max={100} step={5} value={cloudCount} onValueChange={(v: number) => { cloudCount = v; emit("cloudCount", v); }} class="slider-root">
 							<span class="slider-track"><Slider.Range class="slider-range" /></span>
 							<Slider.Thumb class="slider-thumb" index={0} />
 						</Slider.Root>
