@@ -1,8 +1,9 @@
 <script lang="ts">
-import { Plane, Settings } from "lucide-svelte";
+import { Gamepad2, Settings } from "lucide-svelte";
 import { onDestroy } from "svelte";
 import ControlPad from "$lib/components/ControlPad.svelte";
 import IcarosPreview from "$lib/components/IcarosPreview.svelte";
+import PageHeader from "$lib/components/PageHeader.svelte";
 import SettingsSidebar from "$lib/components/SettingsSidebar.svelte";
 import SpeedButtons from "$lib/components/SpeedButtons.svelte";
 import type {
@@ -46,19 +47,13 @@ onDestroy(() => ws.disconnect());
 <SettingsSidebar open={sidebarOpen} onClose={toggleSidebar} onSettingsChange={handleSettings} />
 
 <div class="controller-page">
-	<header class="header-bar">
-		<span class="mono-label" style="font-size: 0.85rem; color: var(--text); display: flex; align-items: center; gap: 0.4rem;">
-			<Plane size={16} />
-			ICAROS
-		</span>
-		<span class="mono-label">
-			<span class="status-dot" data-status={ws.status}></span>
-			{ws.status}
-		</span>
-		<button class="header-settings-btn" onclick={toggleSidebar} aria-label="Toggle settings">
-			<Settings size={16} />
-		</button>
-	</header>
+	<PageHeader icon={Gamepad2} label="ICAROS" status={ws.status}>
+		{#snippet actions()}
+			<button class="header-settings-btn" onclick={toggleSidebar} aria-label="Toggle settings">
+				<Settings size={16} />
+			</button>
+		{/snippet}
+	</PageHeader>
 
 	<main class="controller-main">
 		<section class="preview-section surface-panel">
@@ -74,39 +69,3 @@ onDestroy(() => ws.disconnect());
 		</section>
 	</main>
 </div>
-
-<style>
-	.controller-page {
-		min-height: 100dvh;
-		display: flex;
-		flex-direction: column;
-	}
-	.controller-main {
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 1.5rem;
-		padding: 1.5rem 1rem;
-	}
-	.preview-section {
-		padding: 1rem;
-	}
-	.header-settings-btn {
-		background: none;
-		border: none;
-		color: var(--text-muted);
-		cursor: pointer;
-		padding: 0.25rem;
-		display: flex;
-		align-items: center;
-	}
-	.header-settings-btn:hover {
-		color: var(--text);
-	}
-	.pad-section,
-	.speed-section {
-		width: 100%;
-		max-width: 320px;
-	}
-</style>

@@ -1,7 +1,8 @@
 <script lang="ts">
-import { Crosshair, Plane, RotateCcw, Smartphone } from "lucide-svelte";
+import { Crosshair, RotateCcw, Smartphone } from "lucide-svelte";
 import { onDestroy } from "svelte";
 import IcarosPreview from "$lib/components/IcarosPreview.svelte";
+import PageHeader from "$lib/components/PageHeader.svelte";
 import { createGyroClient } from "$lib/gyro/orientation.svelte";
 import type { OrientationData } from "$lib/types/orientation";
 import { createWebSocketClient } from "$lib/ws/client.svelte";
@@ -61,16 +62,7 @@ onDestroy(() => {
 </svelte:head>
 
 <div class="gyro-page">
-	<header class="header-bar">
-		<span class="mono-label" style="font-size: 0.85rem; color: var(--text); display: flex; align-items: center; gap: 0.4rem;">
-			<Smartphone size={16} />
-			ICAROS GYRO
-		</span>
-		<span class="mono-label">
-			<span class="status-dot" data-status={ws.status}></span>
-			{ws.status}
-		</span>
-	</header>
+	<PageHeader icon={Smartphone} label="ICAROS GYRO" status={ws.status} />
 
 	<main class="gyro-main">
 		{#if gyro.status === "not-supported"}
@@ -169,123 +161,3 @@ onDestroy(() => {
 		{/if}
 	</main>
 </div>
-
-<style>
-	.gyro-page {
-		min-height: 100dvh;
-		display: flex;
-		flex-direction: column;
-		touch-action: none;
-		user-select: none;
-		-webkit-user-select: none;
-	}
-
-	.gyro-main {
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 1.5rem;
-		padding: 1.5rem 1rem;
-	}
-
-	/* Status cards for error/permission states */
-	.status-card {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 1rem;
-		padding: 2rem;
-		text-align: center;
-		max-width: 320px;
-	}
-
-	.status-card h2 {
-		margin: 0;
-		font-size: 1.25rem;
-		font-weight: 600;
-	}
-
-	.status-card p {
-		margin: 0;
-		color: var(--text-muted);
-		font-size: 0.9rem;
-	}
-
-	.status-card.error {
-		border-color: var(--error, #ef4444);
-	}
-
-	/* Preview section */
-	.preview-section {
-		padding: 1rem;
-	}
-
-	/* Data display */
-	.data-section {
-		display: flex;
-		gap: 2rem;
-		font-family: var(--font-mono, monospace);
-	}
-
-	.data-row {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 0.25rem;
-	}
-
-	.data-label {
-		font-size: 0.75rem;
-		color: var(--text-muted);
-		letter-spacing: 0.05em;
-	}
-
-	.data-value {
-		font-size: 1.5rem;
-		font-weight: 600;
-		min-width: 5ch;
-		text-align: center;
-	}
-
-	.data-value.positive {
-		color: var(--success, #22c55e);
-	}
-
-	.data-value.negative {
-		color: var(--warning, #f59e0b);
-	}
-
-	/* Calibration prompt */
-	.calibration-prompt {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 1rem;
-	}
-
-	.calibration-hint {
-		color: var(--warning, #f59e0b);
-		font-size: 0.9rem;
-		text-align: center;
-	}
-
-	.calibration-hint.pulse {
-		animation: pulse 2s ease-in-out infinite;
-	}
-
-	@keyframes pulse {
-		0%, 100% { opacity: 1; }
-		50% { opacity: 0.6; }
-	}
-
-	/* Controls */
-	.controls-section {
-		display: flex;
-		gap: 1rem;
-		flex-wrap: wrap;
-		justify-content: center;
-	}
-
-	/* Buttons use global styles from app.css */
-</style>
