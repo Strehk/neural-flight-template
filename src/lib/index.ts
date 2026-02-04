@@ -37,3 +37,11 @@ export {
 } from "./gyro/calibration";
 export type { GyroState, GyroStatus } from "./gyro/orientation.svelte";
 export { createGyroClient } from "./gyro/orientation.svelte";
+
+// Flow (Svelte Flow diagrams)
+export {
+	createArchitectureEdges,
+	createArchitectureNodes,
+} from "./flow/architecture";
+export { FLOW_READONLY_PROPS } from "./flow/config";
+export type { ArchitectureNodeData, NodeClass } from "./flow/types";

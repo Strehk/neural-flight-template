@@ -33,4 +33,8 @@ export default defineConfig({
 		},
 		host: true,
 	},
+	ssr: {
+		// @xyflow has directory imports that don't work with ESM resolution
+		noExternal: ["@xyflow/svelte", "@xyflow/system"],
+	},
 });
