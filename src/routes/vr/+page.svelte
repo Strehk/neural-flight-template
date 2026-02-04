@@ -20,6 +20,7 @@ import {
 let canvas: HTMLCanvasElement;
 let renderer: THREE.WebGLRenderer;
 let terrainManager: TerrainManager;
+let vrButton: HTMLElement;
 let score = $state(0);
 const ws = createWebSocketClient();
 const clock = new THREE.Clock();
@@ -50,7 +51,8 @@ onMount(() => {
 	renderer.shadowMap.enabled = true;
 	renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-	document.body.appendChild(VRButton.createButton(renderer));
+	vrButton = VRButton.createButton(renderer);
+	document.body.appendChild(vrButton);
 
 	function onResize(): void {
 		player.camera.aspect = window.innerWidth / window.innerHeight;
@@ -154,6 +156,7 @@ onDestroy(() => {
 	renderer?.setAnimationLoop(null);
 	renderer?.dispose();
 	terrainManager?.dispose();
+	vrButton?.remove();
 	ws.disconnect();
 });
 </script>
