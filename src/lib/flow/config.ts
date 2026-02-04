@@ -14,3 +14,25 @@ export const FLOW_READONLY_PROPS = {
 	deleteKey: null,
 	proOptions: { hideAttribution: true },
 } as const;
+
+/**
+ * Interactive SvelteFlow props for node editor
+ * Enables full interaction: drag, connect, select, delete
+ */
+export const FLOW_EDITOR_PROPS = {
+	panOnDrag: true,
+	panOnScroll: true,
+	zoomOnScroll: true,
+	zoomOnPinch: true,
+	zoomOnDoubleClick: true,
+	elementsSelectable: true,
+	nodesDraggable: true,
+	nodesConnectable: true,
+	deleteKey: "Backspace",
+	snapToGrid: true,
+	snapGrid: [20, 20] as [number, number],
+	minZoom: 0.3,
+	maxZoom: 2,
+	fitViewOptions: { padding: 0.3 },
+	proOptions: { hideAttribution: true },
+} as const;

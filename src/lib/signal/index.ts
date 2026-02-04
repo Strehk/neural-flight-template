@@ -1,0 +1,13 @@
+/**
+ * Signal Layer — Modular signal system (0-1 normalized)
+ *
+ * This module is completely decoupled from UI (SvelteFlow).
+ * It can be used for any signal processing, not just the node editor.
+ */
+
+export * from "./types";
+export * from "./graph";
+
+// Import nodes to register them (side effect)
+import "./nodes";
+export * from "./nodes";

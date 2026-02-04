@@ -43,5 +43,23 @@ export {
 	createArchitectureEdges,
 	createArchitectureNodes,
 } from "./flow/architecture";
-export { FLOW_READONLY_PROPS } from "./flow/config";
+export { FLOW_EDITOR_PROPS, FLOW_READONLY_PROPS } from "./flow/config";
 export type { ArchitectureNodeData, NodeClass } from "./flow/types";
+
+// Node Editor
+export type {
+	Connection,
+	NodeDef,
+	NodeGraph,
+	NodeInstance,
+	PortDef,
+} from "./nodes/types";
+export { createNodeEngine } from "./nodes/engine.svelte";
+export type { NodeEngine } from "./nodes/engine.svelte";
+export {
+	disconnectBridge,
+	getBridgeStatus,
+	initBridge,
+	sendSettings,
+} from "./nodes/bridge";
+export { getNodeDef, listNodeTypes, NODE_REGISTRY } from "./nodes/catalog/registry";

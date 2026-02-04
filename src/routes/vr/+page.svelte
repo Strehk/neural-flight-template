@@ -22,6 +22,7 @@ let renderer: THREE.WebGLRenderer;
 let terrainManager: TerrainManager;
 let vrButton: HTMLElement;
 let score = $state(0);
+let lastProcessedTimestamp = 0;
 const ws = createWebSocketClient();
 const clock = new THREE.Clock();
 
@@ -69,7 +70,9 @@ onMount(() => {
 		const delta = clock.getDelta();
 
 		const msg = ws.lastMessage;
-		if (msg) {
+		if (msg && msg.timestamp > lastProcessedTimestamp) {
+			lastProcessedTimestamp = msg.timestamp;
+
 			if (isOrientationData(msg)) player.updateOrientation(msg);
 			if (isSpeedCommand(msg)) player.updateSpeed(msg);
 			if (isSettingsUpdate(msg)) {

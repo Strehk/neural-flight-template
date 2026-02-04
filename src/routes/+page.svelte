@@ -6,6 +6,7 @@
 		Smartphone,
 		Gamepad2,
 		Eye,
+		Workflow,
 		Network,
 		MapPin,
 		Wrench,
@@ -14,6 +15,7 @@
 	import ArchitectureDiagram from '$lib/components/ArchitectureDiagram.svelte';
 	import DataTable from '$lib/components/DataTable.svelte';
 	import LinkCard from '$lib/components/LinkCard.svelte';
+	import NodeEditorPreview from '$lib/components/NodeEditorPreview.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import { createWebSocketClient } from '$lib/ws/client.svelte';
 
@@ -52,6 +54,13 @@
 			title: 'Spectator Monitor',
 			description: 'External display for viewers',
 			planned: true,
+		},
+		{
+			path: '/editor',
+			icon: Workflow,
+			title: 'Node Editor',
+			description: 'Visual programming for VR scene',
+			planned: false,
 		},
 	];
 
@@ -98,6 +107,15 @@
 					/>
 				{/each}
 			</div>
+		</section>
+
+		<section class="section">
+			<h2 class="section-title"><Workflow size={14} /> Node Editor</h2>
+			<p class="section-intro">
+				Visual programming for real-time VR scene control. Connect LFOs, remaps, and output nodes
+				to animate fog, sun, terrain, and more.
+			</p>
+			<NodeEditorPreview />
 		</section>
 
 		<section class="section">

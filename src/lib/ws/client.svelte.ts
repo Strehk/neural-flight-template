@@ -87,6 +87,11 @@ export function createWebSocketClient(
 	function send(msg: ControllerMessage): void {
 		if (ws?.readyState === WebSocket.OPEN) {
 			ws.send(serializeMessage(msg));
+		} else {
+			console.warn("[WS] Message dropped — socket not open", {
+				readyState: ws?.readyState,
+				type: msg.type,
+			});
 		}
 	}
 

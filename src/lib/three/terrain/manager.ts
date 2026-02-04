@@ -9,7 +9,7 @@ import {
 } from "../rings";
 import { TerrainChunk } from "./chunk";
 import { type ChunkDecorations, createChunkDecorations } from "./decorations";
-import { DEFAULT_HEIGHTMAP, type HeightmapConfig } from "./heightmap";
+import { getHeightmapConfig, type HeightmapConfig } from "./heightmap";
 
 interface ChunkEntry {
 	terrain: TerrainChunk;
@@ -22,13 +22,8 @@ export class TerrainManager {
 	readonly group = new THREE.Group();
 	readonly ringGroup = new THREE.Group();
 
-	private readonly config: HeightmapConfig;
 	private readonly active = new Map<string, ChunkEntry>();
 	private readonly pool: TerrainChunk[] = [];
-
-	constructor(config: HeightmapConfig = DEFAULT_HEIGHTMAP) {
-		this.config = config;
-	}
 
 	/** Call each frame with the player's world position. Returns collected rings count. */
 	update(position: THREE.Vector3): number {
@@ -46,17 +41,18 @@ export class TerrainManager {
 				needed.add(key);
 
 				if (!this.active.has(key)) {
-					const terrain = this.acquireTerrain(gx, gz);
+					const config = getHeightmapConfig();
+					const terrain = this.acquireTerrain(gx, gz, config);
 					const decorations = createChunkDecorations(
 						gx,
 						gz,
-						this.config,
+						config,
 						runtimeConfig.treeDensity,
 					);
 					const rings = createChunkRings(
 						gx,
 						gz,
-						this.config,
+						config,
 						runtimeConfig.ringCountPerChunk,
 					);
 
@@ -125,13 +121,17 @@ export class TerrainManager {
 		return all;
 	}
 
-	private acquireTerrain(gx: number, gz: number): TerrainChunk {
+	private acquireTerrain(
+		gx: number,
+		gz: number,
+		config: HeightmapConfig,
+	): TerrainChunk {
 		const recycled = this.pool.pop();
 		if (recycled) {
-			recycled.rebuild(gx, gz, TERRAIN.CHUNK_SIZE, this.config);
+			recycled.rebuild(gx, gz, TERRAIN.CHUNK_SIZE, config);
 			return recycled;
 		}
-		return new TerrainChunk(gx, gz, TERRAIN.CHUNK_SIZE, this.config);
+		return new TerrainChunk(gx, gz, TERRAIN.CHUNK_SIZE, config);
 	}
 
 	private recycleTerrain(chunk: TerrainChunk): void {

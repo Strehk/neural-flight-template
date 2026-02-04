@@ -1,5 +1,5 @@
 import { createNoise2D } from "simplex-noise";
-import { TERRAIN } from "$lib/config/flight";
+import { TERRAIN, runtimeConfig } from "$lib/config/flight";
 
 export interface HeightmapConfig {
 	/** Number of noise octaves layered together. */
@@ -12,6 +12,17 @@ export interface HeightmapConfig {
 	persistence: number;
 }
 
+/** Get current heightmap config with dynamic amplitude/frequency from runtimeConfig. */
+export function getHeightmapConfig(): HeightmapConfig {
+	return {
+		octaves: TERRAIN.NOISE.octaves,
+		amplitude: runtimeConfig.terrainAmplitude,
+		frequency: runtimeConfig.terrainFrequency,
+		persistence: TERRAIN.NOISE.persistence,
+	};
+}
+
+/** @deprecated Use getHeightmapConfig() for dynamic values */
 export const DEFAULT_HEIGHTMAP: HeightmapConfig = { ...TERRAIN.NOISE };
 
 const noise2D = createNoise2D();
