@@ -1,7 +1,8 @@
 <script lang="ts">
 	/**
-	 * GateButton Control — Trigger button with HIGH/LOW state
+	 * GateButton Control — bits-ui Toggle with HIGH/LOW state
 	 */
+	import { Toggle } from "bits-ui";
 
 	interface Props {
 		open: boolean;
@@ -11,32 +12,10 @@
 	const { open, onclick }: Props = $props();
 </script>
 
-<button class="gate-button" class:open onclick={onclick} type="button">
+<Toggle.Root
+	pressed={open}
+	onPressedChange={() => onclick()}
+	class="gate-button nodrag"
+>
 	{open ? "HIGH" : "LOW"}
-</button>
-
-<style>
-	.gate-button {
-		background: var(--bg);
-		border: 1px solid var(--border);
-		color: var(--text-muted);
-		font-family: var(--font-mono);
-		font-size: 0.8rem;
-		font-weight: 700;
-		padding: 0.5rem;
-		cursor: pointer;
-		text-align: center;
-		transition: all 0.1s ease;
-		width: 100%;
-	}
-
-	.gate-button:hover {
-		border-color: var(--warning);
-	}
-
-	.gate-button.open {
-		background: var(--success);
-		border-color: var(--success);
-		color: var(--bg);
-	}
-</style>
+</Toggle.Root>

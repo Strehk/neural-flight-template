@@ -149,6 +149,40 @@
 	background: var(--success);
 }
 
+/* ── Gate Button (bits-ui Toggle) ── */
+.gate-button[data-toggle-root] {
+	background: var(--bg);
+	border: 1px solid var(--border);
+	color: var(--text-muted);
+	font-family: var(--font-mono);
+	font-size: 0.8rem;
+	font-weight: 700;
+	padding: 0.5rem;
+	cursor: pointer;
+	text-align: center;
+	transition: all 0.1s ease;
+	width: 100%;
+}
+
+.gate-button[data-toggle-root]:hover {
+	border-color: var(--warning);
+}
+
+.gate-button[data-toggle-root][data-state="on"] {
+	background: var(--success);
+	border-color: var(--success);
+	color: var(--bg);
+}
+
+/* ── Node Slider Color Override ── */
+.control-slider [data-slider-range] {
+	background: var(--slider-color, var(--accent-muted));
+}
+
+.control-slider [data-slider-thumb] {
+	background: var(--slider-color, var(--accent-muted));
+}
+
 /* ── RGB Handles (Color Node) ── */
 .handle-r {
 	width: 10px;

@@ -1,7 +1,8 @@
 <script lang="ts">
 	/**
-	 * Slider Control — Range input with label and value display
+	 * Slider Control — bits-ui Slider with label and value display
 	 */
+	import { Slider as BitsSlider } from "bits-ui";
 
 	interface Props {
 		value: number;
@@ -27,33 +28,32 @@
 		onchange,
 	}: Props = $props();
 
-	// Format value based on step precision
 	const displayValue = $derived(() => {
 		if (step < 0.01) return value.toFixed(3);
 		if (step < 1) return value.toFixed(2);
 		return value.toFixed(0);
 	});
-
-	function handleInput(e: Event) {
-		const target = e.target as HTMLInputElement;
-		onchange(Number.parseFloat(target.value));
-	}
 </script>
 
 <div class="control-slider" style="--slider-color: {color}">
 	{#if label}
 		<span class="label">{label}</span>
 	{/if}
-	<input
-		type="range"
+	<BitsSlider.Root
+		type="single"
 		{min}
 		{max}
 		{step}
 		{value}
 		{disabled}
-		oninput={handleInput}
-		class="nodrag slider"
-	/>
+		onValueChange={onchange}
+		class="slider-root nodrag"
+	>
+		<span class="slider-track">
+			<BitsSlider.Range class="slider-range" />
+		</span>
+		<BitsSlider.Thumb class="slider-thumb" index={0} />
+	</BitsSlider.Root>
 	<span class="value">{displayValue()}{unit}</span>
 </div>
 
@@ -69,18 +69,6 @@
 		font-size: 0.65rem;
 		text-transform: uppercase;
 		min-width: 36px;
-	}
-
-	.slider {
-		flex: 1;
-		height: 4px;
-		accent-color: var(--slider-color);
-		cursor: pointer;
-	}
-
-	.slider:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
 	}
 
 	.value {
