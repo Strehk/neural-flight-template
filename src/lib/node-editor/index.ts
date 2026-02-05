@@ -17,6 +17,10 @@ export * from "./controls";
 // Node Components
 export * from "./nodes";
 
+// Module System (auto-registers on import)
+import "./modules";
+export * from "./modules";
+
 // Parameters
 export * from "./parameters/registry";
 

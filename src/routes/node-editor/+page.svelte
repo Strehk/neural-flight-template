@@ -1,10 +1,9 @@
 <script lang="ts">
 	/**
-	 * Node Editor — SvelteFlow Native Implementation
+	 * Node Editor — SvelteFlow + Module System
 	 *
-	 * Pattern: "One Cable, One Function"
-	 * Each VR parameter is its own SliderNode with input handle.
-	 * LFO nodes can drive multiple sliders via connections.
+	 * All nodes use a single nodeType (ModuleRenderer) that reads
+	 * the ModuleDef from registry via data.moduleType.
 	 *
 	 * Engine: Uses Signal Library (src/lib/node-editor/graph) for evaluation.
 	 * UI syncs bidirectionally with SignalGraph.
@@ -23,7 +22,6 @@
 	import PageHeader from "$lib/components/PageHeader.svelte";
 	import { FLOW_EDITOR_PROPS } from "$lib/flow/config";
 
-	// Node Editor imports
 	import {
 		signalGraph,
 		remap,
@@ -33,27 +31,18 @@
 		initBridge,
 		sendSettings,
 		PARAMETER_PRESETS,
-		LfoNode,
-		SliderNode,
-		ColorNode,
-		GateNode,
-		SwitchNode,
 		NodeCatalog,
 		EditorCanvas,
 	} from "$lib/node-editor";
 
-	// Register custom node types
-	const nodeTypes: NodeTypes = {
-		lfo: LfoNode,
-		slider: SliderNode,
-		color: ColorNode,
-		gate: GateNode,
-		switch: SwitchNode,
-	};
+	import { ModuleRenderer, getModule } from "$lib/node-editor/modules";
 
-	// SvelteFlow state
-	let nodes = $state<Node[]>([]);
-	let edges = $state<Edge[]>([]);
+	// Single nodeType — ModuleRenderer handles all module types
+	const nodeTypes: NodeTypes = { module: ModuleRenderer };
+
+	// SvelteFlow state (raw to avoid deep-proxy overhead)
+	let nodes = $state.raw<Node[]>([]);
+	let edges = $state.raw<Edge[]>([]);
 
 	// Engine state
 	let running = $state(false);
@@ -67,49 +56,45 @@
 	let status = $state<"connected" | "disconnected" | "connecting" | "error">("disconnected");
 	let statusInterval: ReturnType<typeof setInterval>;
 
-	// Node ID counter for unique IDs
+	// Node ID counter
 	let nodeIdCounter = 100;
 
 	/** Create initial demo graph */
 	function createDemoGraph(): { nodes: Node[]; edges: Edge[] } {
 		const demoNodes: Node[] = [
-			// LFO Node (source)
 			{
 				id: "lfo-1",
-				type: "lfo",
+				type: "module",
 				position: { x: 50, y: 120 },
-				data: { wave: 0, speed: 0.1 },
+				data: { moduleType: "lfo", wave: 0, speed: 0.1 },
 			},
-
-			// Parameter Slider Nodes (targets)
 			{
 				id: "terrain-amplitude",
-				type: "slider",
+				type: "module",
 				position: { x: 280, y: 50 },
-				data: { ...PARAMETER_PRESETS.terrainAmplitude },
+				data: { moduleType: "slider", ...PARAMETER_PRESETS.terrainAmplitude },
 			},
 			{
 				id: "fog-near",
-				type: "slider",
+				type: "module",
 				position: { x: 280, y: 170 },
-				data: { ...PARAMETER_PRESETS.fogNear },
+				data: { moduleType: "slider", ...PARAMETER_PRESETS.fogNear },
 			},
 			{
 				id: "fog-far",
-				type: "slider",
+				type: "module",
 				position: { x: 280, y: 290 },
-				data: { ...PARAMETER_PRESETS.fogFar },
+				data: { moduleType: "slider", ...PARAMETER_PRESETS.fogFar },
 			},
 			{
 				id: "sun-intensity",
-				type: "slider",
+				type: "module",
 				position: { x: 280, y: 410 },
-				data: { ...PARAMETER_PRESETS.sunIntensity },
+				data: { moduleType: "slider", ...PARAMETER_PRESETS.sunIntensity },
 			},
 		];
 
 		const demoEdges: Edge[] = [
-			// Connect LFO to terrain amplitude (demo connection)
 			{
 				id: "e-lfo-terrain",
 				source: "lfo-1",
@@ -123,23 +108,28 @@
 		return { nodes: demoNodes, edges: demoEdges };
 	}
 
+	/** Resolve the signal graph type from moduleType */
+	function getSignalType(node: Node): string {
+		return (node.data.moduleType as string) ?? "";
+	}
+
 	/**
 	 * Sync SvelteFlow nodes → SignalGraph
-	 * Adds new nodes, removes deleted ones, updates state from UI.
 	 */
 	function syncNodesToGraph(): void {
 		const graphNodeIds = new Set(signalGraph.getAllNodes().map((n) => n.id));
 		const uiNodeIds = new Set(nodes.map((n) => n.id));
 
-		// Add new nodes / sync existing LFO speed
 		for (const node of nodes) {
+			const signalType = getSignalType(node);
+
 			if (!graphNodeIds.has(node.id)) {
-				const instance = signalGraph.addNode(node.id, node.type ?? "");
-				if (instance && node.type === "lfo") {
+				const instance = signalGraph.addNode(node.id, signalType);
+				if (instance && signalType === "lfo") {
 					const speed = (node.data.speed as number) ?? 0.1;
 					instance.state = setLfoSpeed(instance.state as { phase: number; baseSpeed: number }, speed);
 				}
-			} else if (node.type === "lfo") {
+			} else if (signalType === "lfo") {
 				const instance = signalGraph.getNode(node.id);
 				if (instance) {
 					const speed = (node.data.speed as number) ?? 0.1;
@@ -151,7 +141,6 @@
 			}
 		}
 
-		// Remove deleted nodes from graph
 		for (const instance of signalGraph.getAllNodes()) {
 			if (!uiNodeIds.has(instance.id)) {
 				signalGraph.removeNode(instance.id);
@@ -166,7 +155,6 @@
 		const graphEdgeIds = new Set(signalGraph.getAllEdges().map((e) => e.id));
 		const uiEdgeIds = new Set(edges.map((e) => e.id));
 
-		// Add new edges to graph
 		for (const edge of edges) {
 			if (!graphEdgeIds.has(edge.id)) {
 				const signalEdge: SignalEdge = {
@@ -180,7 +168,6 @@
 			}
 		}
 
-		// Remove deleted edges from graph
 		for (const graphEdge of signalGraph.getAllEdges()) {
 			if (!uiEdgeIds.has(graphEdge.id)) {
 				signalGraph.removeEdge(graphEdge.id);
@@ -190,7 +177,6 @@
 
 	/**
 	 * Sync SignalGraph outputs → SvelteFlow UI
-	 * Updates node.data with computed values and sends to VR.
 	 */
 	function syncGraphToUI(): void {
 		let updated = false;
@@ -199,15 +185,16 @@
 			const instance = signalGraph.getNode(node.id);
 			if (!instance) continue;
 
-			if (node.type === "lfo") {
-				// Update wave output for UI display
+			const moduleType = node.data.moduleType as string;
+
+			if (moduleType === "lfo") {
 				const wave = instance.outputs.wave ?? 0.5;
 				const state = instance.state as { phase: number; baseSpeed: number };
 				if (node.data.wave !== wave) {
 					node.data = { ...node.data, wave, phase: state.phase };
 					updated = true;
 				}
-			} else if (node.type === "slider") {
+			} else if (moduleType === "slider") {
 				const normalizedValue = instance.outputs.out ?? 0.5;
 				const min = node.data.min as number;
 				const max = node.data.max as number;
@@ -223,28 +210,25 @@
 						sendSettings({ [param]: value });
 					}
 				}
-			} else if (node.type === "gate") {
+			} else if (moduleType === "gate") {
 				const gateValue = instance.outputs.gate ?? 0;
 				const isOpen = gateValue > 0.5;
 				if (node.data.open !== isOpen) {
 					node.data = { ...node.data, open: isOpen };
 					updated = true;
 				}
-			} else if (node.type === "switch") {
+			} else if (moduleType === "switch") {
 				const out = instance.outputs.out ?? 0.25;
-				const gateInput = edges.some((e) => e.target === node.id && e.targetHandle === "gate");
-				const gateActive = gateInput
-					? (signalGraph.getOutput(
-							edges.find((e) => e.target === node.id && e.targetHandle === "gate")!.source,
-							edges.find((e) => e.target === node.id && e.targetHandle === "gate")!.sourceHandle ?? "gate",
-						) > 0.5)
+				const gateEdge = edges.find((e) => e.target === node.id && e.targetHandle === "gate");
+				const gateActive = gateEdge
+					? signalGraph.getOutput(gateEdge.source, gateEdge.sourceHandle ?? "gate") > 0.5
 					: false;
 
 				if (node.data.out !== out || node.data.gateActive !== gateActive) {
 					node.data = { ...node.data, out, gateActive };
 					updated = true;
 				}
-			} else if (node.type === "color") {
+			} else if (moduleType === "color") {
 				const r = Math.round((instance.outputs.r ?? 0.5) * 255);
 				const g = Math.round((instance.outputs.g ?? 0.5) * 255);
 				const b = Math.round((instance.outputs.b ?? 0.5) * 255);
@@ -260,7 +244,7 @@
 		}
 
 		if (updated) {
-			nodes = [...nodes]; // Trigger reactivity
+			nodes = [...nodes];
 		}
 	}
 
@@ -271,25 +255,18 @@
 		const dt = lastTime === 0 ? 0.016 : (time - lastTime) / 1000;
 		lastTime = time;
 
-		// Sync UI state → Signal Graph (handles additions/removals)
 		syncNodesToGraph();
 		syncEdgesToGraph();
-
-		// Evaluate graph (topological sort + compute all nodes)
 		signalGraph.evaluate(dt);
-
-		// Sync results back to UI
 		syncGraphToUI();
 
 		animationId = requestAnimationFrame(loop);
 	}
 
-	/** Start the engine */
 	function start(): void {
 		if (running) return;
 		initBridge();
 
-		// Initialize signal graph with current nodes/edges
 		signalGraph.clear();
 		syncNodesToGraph();
 		syncEdgesToGraph();
@@ -299,7 +276,6 @@
 		animationId = requestAnimationFrame(loop);
 	}
 
-	/** Stop the engine */
 	function stop(): void {
 		running = false;
 		if (animationId !== null) {
@@ -308,21 +284,13 @@
 		}
 	}
 
-	/** Toggle engine running state */
 	function toggleEngine(): void {
-		if (running) {
-			stop();
-		} else {
-			start();
-		}
+		running ? stop() : start();
 	}
 
-	/** Handle new connections (allows multiple inputs for signal mixing) */
 	function handleConnect(connection: Connection) {
 		const edgeId = `e-${connection.source}-${connection.sourceHandle}-${connection.target}-${connection.targetHandle}`;
-
-		const duplicate = edges.some((e) => e.id === edgeId);
-		if (duplicate) return;
+		if (edges.some((e) => e.id === edgeId)) return;
 
 		const newEdge: Edge = {
 			id: edgeId,
@@ -336,50 +304,32 @@
 		edges = [...edges, newEdge];
 	}
 
-	/** Toggle sidebar */
 	function toggleSidebar(): void {
 		sidebarOpen = !sidebarOpen;
 	}
 
-	/** Handle drop on canvas — create new node at flow position */
+	/** Handle drop on canvas — create new node from module registry */
 	function handleNodeDrop(nodeType: string, position: { x: number; y: number }): void {
+		const moduleDef = getModule(nodeType);
+		if (!moduleDef) return;
+
 		const newId = `${nodeType}-${nodeIdCounter++}`;
-
-		let newNode: Node;
-
-		switch (nodeType) {
-			case "lfo":
-				newNode = { id: newId, type: "lfo", position, data: { wave: 0, speed: 0.1 } };
-				break;
-			case "slider":
-				newNode = { id: newId, type: "slider", position, data: { ...PARAMETER_PRESETS.terrainAmplitude } };
-				break;
-			case "color":
-				newNode = { id: newId, type: "color", position, data: { label: "Color", param: "ringColor", value: "#f1c40f" } };
-				break;
-			case "gate":
-				newNode = { id: newId, type: "gate", position, data: { open: false, duration: 0.5, eventType: "ring-pass" } };
-				break;
-			case "switch":
-				newNode = { id: newId, type: "switch", position, data: { a: 0.25, b: 0.75, out: 0.25 } };
-				break;
-			default:
-				return;
-		}
+		const newNode: Node = {
+			id: newId,
+			type: "module",
+			position,
+			data: { moduleType: nodeType, ...moduleDef.defaultData },
+		};
 
 		nodes = [...nodes, newNode];
 	}
 
 	onMount(() => {
-		// Load demo graph
 		const demo = createDemoGraph();
 		nodes = demo.nodes;
 		edges = demo.edges;
-
-		// Start engine
 		start();
 
-		// Update connection status
 		statusInterval = setInterval(() => {
 			status = getBridgeStatus();
 		}, 500);
@@ -449,7 +399,6 @@
 		overflow: hidden;
 	}
 
-	/* Active sidebar toggle button */
 	:global(.header-settings-btn.active) {
 		background: var(--accent-muted);
 		color: var(--bg);
