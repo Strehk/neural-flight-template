@@ -8,3 +8,4 @@ export { default as GateNode } from "./GateNode.svelte";
 export { default as SwitchNode } from "./SwitchNode.svelte";
 export { default as ColorNode } from "./ColorNode.svelte";
 export { default as NodeCatalog } from "./NodeCatalog.svelte";
+export { default as EditorCanvas } from "./EditorCanvas.svelte";

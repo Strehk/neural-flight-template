@@ -56,7 +56,7 @@
 			planned: true,
 		},
 		{
-			path: '/editor',
+			path: '/node-editor',
 			icon: Workflow,
 			title: 'Node Editor',
 			description: 'Visual programming for VR scene',

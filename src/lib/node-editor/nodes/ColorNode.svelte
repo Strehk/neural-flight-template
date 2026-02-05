@@ -1,15 +1,14 @@
 <script lang="ts">
 	/**
-	 * Color Node — Color Picker with Input Handle
+	 * Color Node — RGB mixer with 3 input handles
 	 *
-	 * For controlling sky color and other color-based parameters.
-	 * Input handle can receive a hue value from LFO (0-1 mapped to hue).
+	 * Each channel (R, G, B) can be driven by a signal source.
+	 * Manual color picker as fallback when not connected.
 	 */
 
-	import { Handle, Position, useSvelteFlow, useNodeConnections } from "@xyflow/svelte";
+	import { Handle, Position, useSvelteFlow } from "@xyflow/svelte";
 	import { Palette } from "lucide-svelte";
 	import { ColorPicker } from "../controls";
-	import { sendSettings } from "../bridge";
 
 	interface ColorNodeData {
 		label: string;
@@ -25,22 +24,15 @@
 	const { id, data }: Props = $props();
 	const { updateNodeData } = useSvelteFlow();
 
-	// Check if input is connected
-	const connections = useNodeConnections({ handleType: "target", handleId: "hue" });
-	const isConnected = $derived(connections.current.length > 0);
-
 	function handleColorChange(color: string) {
 		updateNodeData(id, { value: color });
 	}
-
-	// Send color to VR scene
-	$effect(() => {
-		sendSettings({ [data.param]: data.value });
-	});
 </script>
 
-<div class="node node--output" class:connected={isConnected}>
-	<Handle type="target" position={Position.Left} id="hue" class="handle-input" />
+<div class="node node--output">
+	<Handle type="target" position={Position.Left} id="r" class="handle-r" style="top: 30%;" />
+	<Handle type="target" position={Position.Left} id="g" class="handle-g" style="top: 55%;" />
+	<Handle type="target" position={Position.Left} id="b" class="handle-b" style="top: 80%;" />
 
 	<header>
 		<Palette size={14} />
@@ -48,8 +40,18 @@
 	</header>
 
 	<div class="content">
-		<ColorPicker value={data.value} disabled={isConnected} onchange={handleColorChange} />
+		<div class="color-preview" style="background: {data.value};" />
+		<ColorPicker value={data.value} onchange={handleColorChange} />
+		<div class="port-labels">
+			<span class="port-label" style="color: #e74c3c;">R</span>
+			<span class="port-label" style="color: #2ecc71;">G</span>
+			<span class="port-label" style="color: #3498db;">B</span>
+		</div>
 	</div>
+
+	<Handle type="source" position={Position.Right} id="r" class="handle-r" style="top: 30%;" />
+	<Handle type="source" position={Position.Right} id="g" class="handle-g" style="top: 55%;" />
+	<Handle type="source" position={Position.Right} id="b" class="handle-b" style="top: 80%;" />
 </div>
 
 <style>
@@ -63,10 +65,6 @@
 
 	.node--output {
 		border: 1px solid var(--border);
-	}
-
-	.node--output.connected {
-		border-color: var(--accent-muted);
 	}
 
 	header {
@@ -88,16 +86,45 @@
 		gap: 0.25rem;
 	}
 
+	.color-preview {
+		width: 100%;
+		height: 20px;
+		border: 1px solid var(--border);
+	}
+
+	.port-labels {
+		display: flex;
+		justify-content: space-around;
+		font-size: 0.6rem;
+		font-weight: 700;
+	}
+
+	.port-label {
+		opacity: 0.8;
+	}
+
 	/* Handle styling */
-	:global(.node--output .handle-input) {
+	:global(.node--output .handle-r) {
 		width: 10px;
 		height: 10px;
-		background: var(--border);
+		background: #e74c3c;
 		border: none;
 		border-radius: 0;
 	}
 
-	:global(.node--output.connected .handle-input) {
-		background: var(--accent-muted);
+	:global(.node--output .handle-g) {
+		width: 10px;
+		height: 10px;
+		background: #2ecc71;
+		border: none;
+		border-radius: 0;
+	}
+
+	:global(.node--output .handle-b) {
+		width: 10px;
+		height: 10px;
+		background: #3498db;
+		border: none;
+		border-radius: 0;
 	}
 </style>

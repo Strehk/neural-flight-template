@@ -1,0 +1,175 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Node Editor — Shared Node Styles
+   ═══════════════════════════════════════════════════════════════════════════
+
+   Centralized styles for all signal nodes.
+   Each variant sets --node-color for border + header + handle theming.
+
+   Import in every node component: import "./nodes.css";
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Base ── */
+.node {
+	background: var(--surface);
+	padding: 0.5rem;
+	font-family: var(--font-mono);
+	font-size: 0.7rem;
+}
+
+/* ── Variants (set --node-color per type) ── */
+.node--input {
+	--node-color: var(--success);
+	border: 1px solid var(--node-color);
+	min-width: 140px;
+}
+
+.node--process {
+	--node-color: var(--border);
+	border: 1px solid var(--node-color);
+	min-width: 160px;
+}
+
+.node--trigger {
+	--node-color: var(--warning);
+	border: 1px solid var(--node-color);
+	min-width: 120px;
+	transition: border-color 0.15s ease;
+}
+
+.node--logic {
+	--node-color: var(--info, #3b82f6);
+	border: 1px solid var(--node-color);
+	min-width: 130px;
+}
+
+.node--output {
+	--node-color: var(--border);
+	border: 1px solid var(--node-color);
+	min-width: 120px;
+}
+
+/* ── Active / Connected states ── */
+.node.active {
+	border-color: var(--success);
+	box-shadow: 0 0 8px var(--success);
+}
+
+.node.connected {
+	--node-color: var(--accent-muted);
+	border-color: var(--accent-muted);
+}
+
+/* ── Header ── */
+.node header {
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+	color: var(--node-color);
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	margin-bottom: 0.5rem;
+	padding-bottom: 0.25rem;
+	border-bottom: 1px solid var(--border);
+}
+
+.node-title {
+	flex: 1;
+}
+
+.node-delete {
+	background: none;
+	border: none;
+	color: var(--text-subtle);
+	cursor: pointer;
+	font-size: 0.9rem;
+	line-height: 1;
+	padding: 0 0.15rem;
+	opacity: 0;
+	transition: opacity 0.15s;
+}
+
+.node:hover .node-delete {
+	opacity: 1;
+}
+
+.node-delete:hover {
+	color: var(--error, #e74c3c);
+}
+
+/* ── Content ── */
+.node .content {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+/* ── Handles (global — SvelteFlow renders these outside scoped styles) ── */
+.handle-input {
+	width: 10px;
+	height: 10px;
+	background: var(--border);
+	border: none;
+	border-radius: 0;
+}
+
+.handle-output {
+	width: 10px;
+	height: 10px;
+	background: var(--node-color);
+	border: none;
+	border-radius: 0;
+}
+
+.handle-gate {
+	width: 10px;
+	height: 10px;
+	background: var(--warning);
+	border: none;
+	border-radius: 0;
+}
+
+/* Connected input handles get accent color */
+.node.connected .handle-input {
+	background: var(--accent-muted);
+}
+
+/* Active trigger/gate output turns green */
+.node.active .handle-output {
+	background: var(--success);
+}
+
+/* LFO input handle (speed mod) uses warning color */
+.node--input .handle-input {
+	background: var(--warning);
+}
+
+/* LFO output handle uses success (--node-color) */
+.node--input .handle-output {
+	background: var(--success);
+}
+
+/* ── RGB Handles (Color Node) ── */
+.handle-r {
+	width: 10px;
+	height: 10px;
+	background: #e74c3c;
+	border: none;
+	border-radius: 0;
+}
+
+.handle-g {
+	width: 10px;
+	height: 10px;
+	background: #2ecc71;
+	border: none;
+	border-radius: 0;
+}
+
+.handle-b {
+	width: 10px;
+	height: 10px;
+	background: #3498db;
+	border: none;
+	border-radius: 0;
+}

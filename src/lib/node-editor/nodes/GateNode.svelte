@@ -22,7 +22,11 @@
 	}
 
 	const { id, data }: Props = $props();
-	const { updateNodeData } = useSvelteFlow();
+	const { updateNodeData, deleteElements } = useSvelteFlow();
+
+	function deleteNode() {
+		deleteElements({ nodes: [{ id }] });
+	}
 
 	function handleDurationChange(value: number) {
 		updateNodeData(id, { duration: value });
@@ -41,7 +45,8 @@
 
 	<header>
 		<Zap size={14} />
-		<span>GATE</span>
+		<span class="node-title">GATE</span>
+		<button class="node-delete" onclick={deleteNode} type="button">×</button>
 	</header>
 
 	<div class="content">
@@ -94,6 +99,30 @@
 		margin-bottom: 0.5rem;
 		padding-bottom: 0.25rem;
 		border-bottom: 1px solid var(--border);
+	}
+
+	.node-title {
+		flex: 1;
+	}
+
+	.node-delete {
+		background: none;
+		border: none;
+		color: var(--text-subtle);
+		cursor: pointer;
+		font-size: 0.9rem;
+		line-height: 1;
+		padding: 0 0.15rem;
+		opacity: 0;
+		transition: opacity 0.15s;
+	}
+
+	.node:hover .node-delete {
+		opacity: 1;
+	}
+
+	.node-delete:hover {
+		color: var(--error, #e74c3c);
 	}
 
 	.content {

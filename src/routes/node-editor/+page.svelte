@@ -12,10 +12,7 @@
 
 	import { onMount, onDestroy } from "svelte";
 	import {
-		SvelteFlow,
 		SvelteFlowProvider,
-		Background,
-		Controls,
 		type Node,
 		type Edge,
 		type Connection,
@@ -42,6 +39,7 @@
 		GateNode,
 		SwitchNode,
 		NodeCatalog,
+		EditorCanvas,
 	} from "$lib/node-editor";
 
 	// Register custom node types
@@ -56,9 +54,6 @@
 	// SvelteFlow state
 	let nodes = $state<Node[]>([]);
 	let edges = $state<Edge[]>([]);
-
-	// Canvas wrapper ref for drop coordinate calculation
-	let canvasWrapper: HTMLDivElement;
 
 	// Engine state
 	let running = $state(false);
@@ -136,14 +131,22 @@
 		const graphNodeIds = new Set(signalGraph.getAllNodes().map((n) => n.id));
 		const uiNodeIds = new Set(nodes.map((n) => n.id));
 
-		// Add new nodes to graph
+		// Add new nodes / sync existing LFO speed
 		for (const node of nodes) {
 			if (!graphNodeIds.has(node.id)) {
 				const instance = signalGraph.addNode(node.id, node.type ?? "");
 				if (instance && node.type === "lfo") {
-					// Sync initial speed from UI
 					const speed = (node.data.speed as number) ?? 0.1;
 					instance.state = setLfoSpeed(instance.state as { phase: number; baseSpeed: number }, speed);
+				}
+			} else if (node.type === "lfo") {
+				const instance = signalGraph.getNode(node.id);
+				if (instance) {
+					const speed = (node.data.speed as number) ?? 0.1;
+					instance.state = setLfoSpeed(
+						instance.state as { phase: number; baseSpeed: number },
+						speed,
+					);
 				}
 			}
 		}
@@ -205,26 +208,53 @@
 					updated = true;
 				}
 			} else if (node.type === "slider") {
-				// Get normalized value (0-1) from graph
 				const normalizedValue = instance.outputs.out ?? 0.5;
 				const min = node.data.min as number;
 				const max = node.data.max as number;
-
-				// Remap to actual parameter range
 				const value = remap(normalizedValue, min, max);
-
-				// Check if driven by a connection
 				const hasInput = edges.some((e) => e.target === node.id && e.targetHandle === "value");
 
 				if (node.data.value !== value || node.data.driven !== hasInput) {
 					node.data = { ...node.data, value, driven: hasInput };
 					updated = true;
 
-					// Send to VR scene
 					const param = node.data.param as string;
 					if (param) {
 						sendSettings({ [param]: value });
 					}
+				}
+			} else if (node.type === "gate") {
+				const gateValue = instance.outputs.gate ?? 0;
+				const isOpen = gateValue > 0.5;
+				if (node.data.open !== isOpen) {
+					node.data = { ...node.data, open: isOpen };
+					updated = true;
+				}
+			} else if (node.type === "switch") {
+				const out = instance.outputs.out ?? 0.25;
+				const gateInput = edges.some((e) => e.target === node.id && e.targetHandle === "gate");
+				const gateActive = gateInput
+					? (signalGraph.getOutput(
+							edges.find((e) => e.target === node.id && e.targetHandle === "gate")!.source,
+							edges.find((e) => e.target === node.id && e.targetHandle === "gate")!.sourceHandle ?? "gate",
+						) > 0.5)
+					: false;
+
+				if (node.data.out !== out || node.data.gateActive !== gateActive) {
+					node.data = { ...node.data, out, gateActive };
+					updated = true;
+				}
+			} else if (node.type === "color") {
+				const r = Math.round((instance.outputs.r ?? 0.5) * 255);
+				const g = Math.round((instance.outputs.g ?? 0.5) * 255);
+				const b = Math.round((instance.outputs.b ?? 0.5) * 255);
+				const hex = `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+				const hasInput = edges.some((e) => e.target === node.id);
+
+				if (hasInput && node.data.value !== hex) {
+					node.data = { ...node.data, value: hex };
+					sendSettings({ [node.data.param as string]: hex });
+					updated = true;
 				}
 			}
 		}
@@ -287,10 +317,15 @@
 		}
 	}
 
-	/** Handle new connections */
+	/** Handle new connections (allows multiple inputs for signal mixing) */
 	function handleConnect(connection: Connection) {
+		const edgeId = `e-${connection.source}-${connection.sourceHandle}-${connection.target}-${connection.targetHandle}`;
+
+		const duplicate = edges.some((e) => e.id === edgeId);
+		if (duplicate) return;
+
 		const newEdge: Edge = {
-			id: `e-${connection.source}-${connection.sourceHandle}-${connection.target}-${connection.targetHandle}`,
+			id: edgeId,
 			source: connection.source,
 			target: connection.target,
 			sourceHandle: connection.sourceHandle,
@@ -298,10 +333,6 @@
 			animated: true,
 		};
 
-		// Remove existing edge to same target handle (one connection per input)
-		edges = edges.filter(
-			(e) => !(e.target === connection.target && e.targetHandle === connection.targetHandle),
-		);
 		edges = [...edges, newEdge];
 	}
 
@@ -310,76 +341,29 @@
 		sidebarOpen = !sidebarOpen;
 	}
 
-	/** Handle drag over canvas (required for drop to work) */
-	function handleDragOver(e: DragEvent): void {
-		e.preventDefault();
-		if (e.dataTransfer) {
-			e.dataTransfer.dropEffect = "move";
-		}
-	}
-
-	/** Handle drop on canvas — create new node */
-	function handleDrop(e: DragEvent): void {
-		e.preventDefault();
-		if (!e.dataTransfer || !canvasWrapper) return;
-
-		const nodeType = e.dataTransfer.getData("application/reactflow");
-		if (!nodeType) return;
-
-		// Calculate position relative to canvas wrapper
-		const bounds = canvasWrapper.getBoundingClientRect();
-		const position = {
-			x: e.clientX - bounds.left,
-			y: e.clientY - bounds.top,
-		};
+	/** Handle drop on canvas — create new node at flow position */
+	function handleNodeDrop(nodeType: string, position: { x: number; y: number }): void {
 		const newId = `${nodeType}-${nodeIdCounter++}`;
 
 		let newNode: Node;
 
 		switch (nodeType) {
 			case "lfo":
-				newNode = {
-					id: newId,
-					type: "lfo",
-					position,
-					data: { wave: 0, speed: 0.1 },
-				};
+				newNode = { id: newId, type: "lfo", position, data: { wave: 0, speed: 0.1 } };
 				break;
 			case "slider":
-				// Default to terrain amplitude preset
-				newNode = {
-					id: newId,
-					type: "slider",
-					position,
-					data: { ...PARAMETER_PRESETS.terrainAmplitude },
-				};
+				newNode = { id: newId, type: "slider", position, data: { ...PARAMETER_PRESETS.terrainAmplitude } };
 				break;
 			case "color":
-				newNode = {
-					id: newId,
-					type: "color",
-					position,
-					data: { label: "Color", param: "ringColor", value: "#f1c40f" },
-				};
+				newNode = { id: newId, type: "color", position, data: { label: "Color", param: "ringColor", value: "#f1c40f" } };
 				break;
 			case "gate":
-				newNode = {
-					id: newId,
-					type: "gate",
-					position,
-					data: { open: false, duration: 0.5, eventType: "ring-pass" },
-				};
+				newNode = { id: newId, type: "gate", position, data: { open: false, duration: 0.5, eventType: "ring-pass" } };
 				break;
 			case "switch":
-				newNode = {
-					id: newId,
-					type: "switch",
-					position,
-					data: { a: 0.25, b: 0.75, out: 0.25 },
-				};
+				newNode = { id: newId, type: "switch", position, data: { a: 0.25, b: 0.75, out: 0.25 } };
 				break;
 			default:
-				// Unknown type — skip
 				return;
 		}
 
@@ -439,23 +423,16 @@
 	</PageHeader>
 
 	<main class="editor-main">
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
-		<div class="editor-canvas" bind:this={canvasWrapper} ondragover={handleDragOver} ondrop={handleDrop}>
-			<SvelteFlowProvider>
-			<SvelteFlow
+		<SvelteFlowProvider>
+			<EditorCanvas
 				bind:nodes
 				bind:edges
 				{nodeTypes}
-				colorMode="dark"
-				fitView
+				flowProps={FLOW_EDITOR_PROPS}
 				onconnect={handleConnect}
-				{...FLOW_EDITOR_PROPS}
-			>
-				<Background />
-				<Controls />
-			</SvelteFlow>
-			</SvelteFlowProvider>
-		</div>
+				ondrop={handleNodeDrop}
+			/>
+		</SvelteFlowProvider>
 	</main>
 </div>
 
@@ -470,11 +447,6 @@
 	.editor-main {
 		flex: 1;
 		overflow: hidden;
-	}
-
-	.editor-canvas {
-		width: 100%;
-		height: 100%;
 	}
 
 	/* Active sidebar toggle button */

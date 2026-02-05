@@ -84,12 +84,16 @@ export class SignalGraph {
 		return Array.from(this.nodes.values());
 	}
 
-	/** Add an edge between two ports */
+	/** Add an edge between two ports (allows multiple inputs for signal mixing) */
 	addEdge(edge: SignalEdge): void {
-		// Remove existing edge to same target port (single connection per input)
-		this.edges = this.edges.filter(
-			(e) => !(e.targetId === edge.targetId && e.targetPort === edge.targetPort),
+		const duplicate = this.edges.some(
+			(e) =>
+				e.sourceId === edge.sourceId &&
+				e.sourcePort === edge.sourcePort &&
+				e.targetId === edge.targetId &&
+				e.targetPort === edge.targetPort,
 		);
+		if (duplicate) return;
 		this.edges.push(edge);
 		this.dirty = true;
 	}
@@ -122,7 +126,7 @@ export class SignalGraph {
 			const def = nodeRegistry.get(instance.type);
 			if (!def) continue;
 
-			// Collect inputs from connected edges
+			// Collect inputs from connected edges (average multiple connections)
 			const inputs: Record<string, SignalValue> = {};
 
 			// Start with default values
@@ -130,15 +134,21 @@ export class SignalGraph {
 				inputs[port.id] = port.default;
 			}
 
-			// Override with connected values
+			// Collect all connected values per port and average them
+			const portSums: Record<string, number> = {};
+			const portCounts: Record<string, number> = {};
+
 			for (const edge of this.edges) {
-				if (edge.targetId === nodeId) {
-					const sourceNode = this.nodes.get(edge.sourceId);
-					if (sourceNode) {
-						inputs[edge.targetPort] =
-							sourceNode.outputs[edge.sourcePort] ?? 0;
-					}
-				}
+				if (edge.targetId !== nodeId) continue;
+				const sourceNode = this.nodes.get(edge.sourceId);
+				if (!sourceNode) continue;
+				const value = sourceNode.outputs[edge.sourcePort] ?? 0;
+				portSums[edge.targetPort] = (portSums[edge.targetPort] ?? 0) + value;
+				portCounts[edge.targetPort] = (portCounts[edge.targetPort] ?? 0) + 1;
+			}
+
+			for (const port in portCounts) {
+				inputs[port] = portSums[port] / portCounts[port];
 			}
 
 			// Compute new outputs
