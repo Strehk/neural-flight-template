@@ -1,16 +1,16 @@
 <script lang="ts">
 	/**
-	 * Slider Node — Generic Parameter with Range (Target Node)
+	 * Slider Node — Parameter with Range (Target Node)
 	 *
-	 * Like the SvelteFlow homepage demo:
-	 * - Input handle (left) receives LFO or other source
-	 * - Slider allows manual control when not connected
-	 * - Sends value to VR scene via WebSocket
+	 * Input handle receives LFO or other source.
+	 * Slider allows manual control when not connected.
+	 * Sends value to VR scene via WebSocket.
 	 */
 
 	import { Handle, Position, useSvelteFlow, useNodeConnections } from "@xyflow/svelte";
 	import type { ComponentType } from "svelte";
-	import { sendSettings } from "$lib/nodes/bridge";
+	import { Slider, ValueDisplay } from "../controls";
+	import { sendSettings } from "../bridge";
 
 	interface SliderNodeData {
 		label: string;
@@ -20,7 +20,6 @@
 		max: number;
 		step?: number;
 		value: number;
-		/** When true, an LFO is connected and driving the value */
 		driven?: boolean;
 	}
 
@@ -29,28 +28,26 @@
 		data: SliderNodeData;
 	}
 
-	let { id, data }: Props = $props();
+	const { id, data }: Props = $props();
 	const { updateNodeData } = useSvelteFlow();
 
 	// Check if input is connected
 	const connections = useNodeConnections({ handleType: "target", handleId: "value" });
 	const isConnected = $derived(connections.current.length > 0);
 
-	// Format value for display
-	const displayValue = $derived(() => {
+	// Format value based on step
+	const precision = $derived(() => {
 		const step = data.step ?? 1;
-		if (step < 0.01) return data.value.toFixed(3);
-		if (step < 1) return data.value.toFixed(2);
-		return data.value.toFixed(0);
+		if (step < 0.01) return 3;
+		if (step < 1) return 2;
+		return 0;
 	});
 
-	function handleSliderChange(e: Event) {
-		const target = e.target as HTMLInputElement;
-		const newValue = Number.parseFloat(target.value);
-		updateNodeData(id, { value: newValue });
+	function handleChange(value: number) {
+		updateNodeData(id, { value });
 	}
 
-	// Send settings to VR scene when value changes (only if not driven by LFO)
+	// Send settings to VR scene when value changes (only if not driven)
 	$effect(() => {
 		if (!data.driven) {
 			sendSettings({ [data.param]: data.value });
@@ -58,16 +55,15 @@
 	});
 </script>
 
-<div class="slider-node" class:connected={isConnected}>
-	<!-- Input handle (left side) -->
+<div class="node node--process" class:connected={isConnected}>
 	<Handle type="target" position={Position.Left} id="value" class="handle-input" />
 
-	<div class="node-header">
+	<header>
 		<data.icon size={14} />
 		<span>{data.label}</span>
-	</div>
+	</header>
 
-	<div class="node-content">
+	<div class="content">
 		<div class="slider-row">
 			<span class="range-label">{data.min}</span>
 			<input
@@ -76,34 +72,35 @@
 				max={data.max}
 				step={data.step ?? 1}
 				value={data.value}
-				oninput={handleSliderChange}
+				oninput={(e) => handleChange(Number.parseFloat((e.target as HTMLInputElement).value))}
 				disabled={isConnected}
 				class="nodrag slider"
 			/>
 			<span class="range-label">{data.max}</span>
 		</div>
 
-		<div class="value-display" class:driven={isConnected}>
-			{displayValue()}
-		</div>
+		<ValueDisplay value={data.value} precision={precision()} driven={isConnected} />
 	</div>
 </div>
 
 <style>
-	.slider-node {
+	.node {
 		background: var(--surface);
-		border: 1px solid var(--border);
 		padding: 0.5rem;
 		min-width: 160px;
 		font-family: var(--font-mono);
 		font-size: 0.7rem;
 	}
 
-	.slider-node.connected {
+	.node--process {
+		border: 1px solid var(--border);
+	}
+
+	.node--process.connected {
 		border-color: var(--accent-muted);
 	}
 
-	.node-header {
+	header {
 		display: flex;
 		align-items: center;
 		gap: 0.25rem;
@@ -116,7 +113,7 @@
 		border-bottom: 1px solid var(--border);
 	}
 
-	.node-content {
+	.content {
 		display: flex;
 		flex-direction: column;
 		gap: 0.25rem;
@@ -147,19 +144,8 @@
 		cursor: not-allowed;
 	}
 
-	.value-display {
-		text-align: center;
-		color: var(--text);
-		font-size: 0.9rem;
-		font-weight: 600;
-	}
-
-	.value-display.driven {
-		color: var(--accent);
-	}
-
 	/* Handle styling */
-	:global(.slider-node .handle-input) {
+	:global(.node--process .handle-input) {
 		width: 10px;
 		height: 10px;
 		background: var(--border);
@@ -167,7 +153,7 @@
 		border-radius: 0;
 	}
 
-	:global(.slider-node.connected .handle-input) {
+	:global(.node--process.connected .handle-input) {
 		background: var(--accent-muted);
 	}
 </style>

@@ -4,9 +4,9 @@
  * Outputs a 0-1 sine wave. Speed can be modulated by another LFO.
  */
 
-import type { SignalNodeDef, ComputeResult, SignalValue } from "../types";
-import { clamp01 } from "../types";
-import { registerNodeType } from "../graph";
+import type { SignalNodeDef, ComputeResult, SignalValue } from "../graph/types";
+import { clamp01 } from "../graph/types";
+import { registerNodeType } from "../graph/engine";
 
 interface LfoState {
 	/** Current phase (0-1) */

@@ -5,9 +5,9 @@
  * UI layer handles remapping to actual parameter ranges.
  */
 
-import type { SignalNodeDef, ComputeResult, SignalValue } from "../types";
-import { clamp01 } from "../types";
-import { registerNodeType } from "../graph";
+import type { SignalNodeDef, ComputeResult, SignalValue } from "../graph/types";
+import { clamp01 } from "../graph/types";
+import { registerNodeType } from "../graph/engine";
 
 interface SliderState {
 	/** Whether input is connected (for UI styling) */

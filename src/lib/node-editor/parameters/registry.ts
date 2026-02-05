@@ -1,5 +1,5 @@
 /**
- * Parameter Presets
+ * Parameter Registry
  * Configuration for SliderNode instances — data-driven node catalog
  */
 
@@ -12,7 +12,6 @@ import {
 	Cloud,
 	CloudFog,
 	Maximize,
-	Palette,
 	Wind,
 } from "lucide-svelte";
 

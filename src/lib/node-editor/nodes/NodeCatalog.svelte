@@ -1,6 +1,6 @@
 <script lang="ts">
 	/**
-	 * NodeCatalogSidebar — Drag & Drop node catalog
+	 * NodeCatalog — Drag & Drop sidebar for adding nodes
 	 *
 	 * Draggable items that can be dropped onto the SvelteFlow canvas.
 	 * Uses native HTML5 Drag & Drop API.
@@ -70,13 +70,13 @@
 </script>
 
 {#if open}
-	<aside class="node-sidebar">
+	<aside class="sidebar">
 		<div class="sidebar-header">
 			<span class="sidebar-title">
 				<Activity size={14} />
 				<span class="mono-label">NODES</span>
 			</span>
-			<button class="sidebar-close" onclick={onClose}>
+			<button class="sidebar-close" onclick={onClose} type="button">
 				<X size={16} />
 			</button>
 		</div>
@@ -108,7 +108,7 @@
 {/if}
 
 <style>
-	.node-sidebar {
+	.sidebar {
 		position: fixed;
 		top: 0;
 		right: 0;
@@ -182,7 +182,9 @@
 		background: var(--bg);
 		border: 1px solid var(--border);
 		cursor: grab;
-		transition: border-color 0.15s ease, transform 0.15s ease;
+		transition:
+			border-color 0.15s ease,
+			transform 0.15s ease;
 	}
 
 	.catalog-item:hover {

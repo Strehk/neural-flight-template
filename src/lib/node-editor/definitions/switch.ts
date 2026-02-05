@@ -5,9 +5,9 @@
  * Smooth crossfade optional.
  */
 
-import type { SignalNodeDef, ComputeResult, SignalValue } from "../types";
-import { clamp01, lerp } from "../types";
-import { registerNodeType } from "../graph";
+import type { SignalNodeDef, ComputeResult, SignalValue } from "../graph/types";
+import { clamp01, lerp } from "../graph/types";
+import { registerNodeType } from "../graph/engine";
 
 interface SwitchState {
 	/** Current blend position (0 = A, 1 = B) for smooth transitions */

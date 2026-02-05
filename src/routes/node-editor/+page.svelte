@@ -6,7 +6,7 @@
 	 * Each VR parameter is its own SliderNode with input handle.
 	 * LFO nodes can drive multiple sliders via connections.
 	 *
-	 * Engine: Uses Signal Library (src/lib/signal) for evaluation.
+	 * Engine: Uses Signal Library (src/lib/node-editor/graph) for evaluation.
 	 * UI syncs bidirectionally with SignalGraph.
 	 */
 
@@ -24,21 +24,25 @@
 	import "@xyflow/svelte/dist/style.css";
 	import { Workflow, Play, Square, Plus } from "lucide-svelte";
 	import PageHeader from "$lib/components/PageHeader.svelte";
-	import NodeCatalogSidebar from "$lib/nodes/components/NodeCatalogSidebar.svelte";
 	import { FLOW_EDITOR_PROPS } from "$lib/flow/config";
-	import { getBridgeStatus, initBridge, sendSettings } from "$lib/nodes";
-	import { PARAMETER_PRESETS } from "$lib/nodes/presets";
 
-	// Signal Library — the actual engine
-	import { signalGraph, remap, type SignalEdge } from "$lib/signal";
-	import { setLfoSpeed } from "$lib/signal/nodes";
-
-	// Custom node components
-	import LfoNode from "$lib/nodes/components/LfoNode.svelte";
-	import SliderNode from "$lib/nodes/components/SliderNode.svelte";
-	import ColorNode from "$lib/nodes/components/ColorNode.svelte";
-	import GateNode from "$lib/nodes/components/GateNode.svelte";
-	import SwitchNode from "$lib/nodes/components/SwitchNode.svelte";
+	// Node Editor imports
+	import {
+		signalGraph,
+		remap,
+		type SignalEdge,
+		setLfoSpeed,
+		getBridgeStatus,
+		initBridge,
+		sendSettings,
+		PARAMETER_PRESETS,
+		LfoNode,
+		SliderNode,
+		ColorNode,
+		GateNode,
+		SwitchNode,
+		NodeCatalog,
+	} from "$lib/node-editor";
 
 	// Register custom node types
 	const nodeTypes: NodeTypes = {
@@ -407,7 +411,7 @@
 	<title>Node Editor | ICAROS</title>
 </svelte:head>
 
-<NodeCatalogSidebar open={sidebarOpen} onClose={toggleSidebar} />
+<NodeCatalog open={sidebarOpen} onClose={toggleSidebar} />
 
 <div class="editor-page">
 	<PageHeader icon={Workflow} label="Node Editor" {status}>

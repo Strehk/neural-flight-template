@@ -5,8 +5,8 @@
  * Like a gate signal in analog synthesizers.
  */
 
-import type { SignalNodeDef, ComputeResult, SignalValue } from "../types";
-import { registerNodeType } from "../graph";
+import type { SignalNodeDef, ComputeResult, SignalValue } from "../graph/types";
+import { registerNodeType } from "../graph/engine";
 
 interface GateState {
 	/** Whether gate is currently open */
@@ -48,7 +48,7 @@ export const GATE_NODE: SignalNodeDef = {
 		dt: number,
 	): ComputeResult => {
 		const s = state as GateState;
-		let newState = { ...s };
+		const newState = { ...s };
 
 		// Check for trigger (rising edge: value > 0.5)
 		const triggerInput = inputs.trigger ?? 0;

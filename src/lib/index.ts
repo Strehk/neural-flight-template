@@ -48,18 +48,20 @@ export type { ArchitectureNodeData, NodeClass } from "./flow/types";
 
 // Node Editor
 export type {
-	Connection,
-	NodeDef,
-	NodeGraph,
-	NodeInstance,
-	PortDef,
-} from "./nodes/types";
-export { createNodeEngine } from "./nodes/engine.svelte";
-export type { NodeEngine } from "./nodes/engine.svelte";
+	SignalNodeDef,
+	SignalNodeInstance,
+	SignalEdge,
+	SignalValue,
+	SignalPort,
+	ComputeResult,
+} from "./node-editor/graph/types";
+export { SignalGraph, signalGraph, registerNodeType, getNodeType, getAllNodeTypes } from "./node-editor/graph/engine";
+export { clamp01, lerp, remap } from "./node-editor/graph/types";
 export {
 	disconnectBridge,
 	getBridgeStatus,
 	initBridge,
 	sendSettings,
-} from "./nodes/bridge";
-export { getNodeDef, listNodeTypes, NODE_REGISTRY } from "./nodes/catalog/registry";
+} from "./node-editor/bridge";
+export { PARAMETER_PRESETS, getPreset, listPresets } from "./node-editor/parameters/registry";
+export type { ParameterPreset } from "./node-editor/parameters/registry";

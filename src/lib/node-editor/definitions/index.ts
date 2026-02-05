@@ -1,5 +1,5 @@
 /**
- * Signal Nodes — Auto-registration
+ * Node Definitions — Auto-registration
  *
  * Import this module to register all built-in node types.
  */

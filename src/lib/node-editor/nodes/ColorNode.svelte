@@ -8,14 +8,13 @@
 
 	import { Handle, Position, useSvelteFlow, useNodeConnections } from "@xyflow/svelte";
 	import { Palette } from "lucide-svelte";
-	import { sendSettings } from "$lib/nodes/bridge";
+	import { ColorPicker } from "../controls";
+	import { sendSettings } from "../bridge";
 
 	interface ColorNodeData {
 		label: string;
 		param: string;
-		value: string; // Hex color
-		/** When driven by LFO, this is the hue (0-1) */
-		hue?: number;
+		value: string;
 	}
 
 	interface Props {
@@ -23,16 +22,15 @@
 		data: ColorNodeData;
 	}
 
-	let { id, data }: Props = $props();
+	const { id, data }: Props = $props();
 	const { updateNodeData } = useSvelteFlow();
 
 	// Check if input is connected
 	const connections = useNodeConnections({ handleType: "target", handleId: "hue" });
 	const isConnected = $derived(connections.current.length > 0);
 
-	function handleColorChange(e: Event) {
-		const target = e.target as HTMLInputElement;
-		updateNodeData(id, { value: target.value });
+	function handleColorChange(color: string) {
+		updateNodeData(id, { value: color });
 	}
 
 	// Send color to VR scene
@@ -41,42 +39,37 @@
 	});
 </script>
 
-<div class="color-node" class:connected={isConnected}>
-	<!-- Input handle for hue (left side) -->
+<div class="node node--output" class:connected={isConnected}>
 	<Handle type="target" position={Position.Left} id="hue" class="handle-input" />
 
-	<div class="node-header">
+	<header>
 		<Palette size={14} />
 		<span>{data.label}</span>
-	</div>
+	</header>
 
-	<div class="node-content">
-		<input
-			type="color"
-			value={data.value}
-			oninput={handleColorChange}
-			disabled={isConnected}
-			class="nodrag color-input"
-		/>
-		<div class="value-display">{data.value}</div>
+	<div class="content">
+		<ColorPicker value={data.value} disabled={isConnected} onchange={handleColorChange} />
 	</div>
 </div>
 
 <style>
-	.color-node {
+	.node {
 		background: var(--surface);
-		border: 1px solid var(--border);
 		padding: 0.5rem;
 		min-width: 120px;
 		font-family: var(--font-mono);
 		font-size: 0.7rem;
 	}
 
-	.color-node.connected {
+	.node--output {
+		border: 1px solid var(--border);
+	}
+
+	.node--output.connected {
 		border-color: var(--accent-muted);
 	}
 
-	.node-header {
+	header {
 		display: flex;
 		align-items: center;
 		gap: 0.25rem;
@@ -89,35 +82,14 @@
 		border-bottom: 1px solid var(--border);
 	}
 
-	.node-content {
+	.content {
 		display: flex;
 		flex-direction: column;
 		gap: 0.25rem;
 	}
 
-	.color-input {
-		width: 100%;
-		height: 32px;
-		border: 1px solid var(--border);
-		background: var(--surface);
-		cursor: pointer;
-		padding: 2px;
-	}
-
-	.color-input:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	.value-display {
-		text-align: center;
-		color: var(--text-subtle);
-		font-size: 0.65rem;
-		text-transform: uppercase;
-	}
-
 	/* Handle styling */
-	:global(.color-node .handle-input) {
+	:global(.node--output .handle-input) {
 		width: 10px;
 		height: 10px;
 		background: var(--border);
@@ -125,7 +97,7 @@
 		border-radius: 0;
 	}
 
-	:global(.color-node.connected .handle-input) {
+	:global(.node--output.connected .handle-input) {
 		background: var(--accent-muted);
 	}
 </style>
