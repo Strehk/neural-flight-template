@@ -1,6 +1,7 @@
 # Node Editor Architecture
 
 > Inspired by [Strudel-Flow](https://github.com/xyflow/strudel-flow)
+> 📐 **Full Architecture:** [`dev/ARCHITECTURE_NODE_EDITOR.md`](../../../dev/ARCHITECTURE_NODE_EDITOR.md)
 
 ## Core Principle
 
@@ -35,14 +36,20 @@ src/lib/node-editor/
 │   ├── engine.ts                 # SignalGraph class
 │   └── index.ts
 │
-├── definitions/                  # Node Logic (pure functions)
-│   ├── lfo.ts                    # compute(), createState()
-│   ├── slider.ts
-│   ├── gate.ts
-│   ├── switch.ts
-│   └── index.ts                  # Auto-registration
+├── components/                   # Bausteine (Logic + UI)
+│   ├── lfo.ts                    # Logic: compute(), createState()
+│   ├── lfo_ui.ts                 # UI: ModuleDef + registration
+│   ├── LfoContent.svelte         # Svelte content component
+│   ├── slider.ts / param_slider_ui.ts / SliderContent.svelte
+│   ├── gate.ts / gate_ui.ts / GateContent.svelte
+│   ├── switch.ts / switch_ui.ts / SwitchContent.svelte
+│   ├── color.ts / color_ui.ts / ColorContent.svelte
+│   ├── registry.ts               # Module registry
+│   ├── types.ts                  # ModuleDef, AnyComponent
+│   ├── _template.ts              # Template for new components
+│   └── index.ts                  # Auto-registration barrel
 │
-├── controls/                     # Reusable UI Controls
+├── controls/                     # Reusable UI Controls (bits-ui)
 │   ├── Slider.svelte             # Range input
 │   ├── WaveBar.svelte            # Vertical bar visualization (0-1)
 │   ├── ColorPicker.svelte        # Color input + preview
@@ -50,13 +57,11 @@ src/lib/node-editor/
 │   ├── ValueDisplay.svelte       # Formatted number display
 │   └── index.ts
 │
-├── nodes/                        # Node Components (use controls/)
-│   ├── LfoNode.svelte
-│   ├── SliderNode.svelte
-│   ├── GateNode.svelte
-│   ├── SwitchNode.svelte
-│   ├── ColorNode.svelte
+├── nodes/                        # SvelteFlow integration
+│   ├── EditorCanvas.svelte       # Canvas wrapper
+│   ├── NodeShell.svelte          # Shared node wrapper
 │   ├── NodeCatalog.svelte        # Sidebar with drag & drop
+│   ├── ModuleRenderer.svelte     # Generic renderer for all modules
 │   └── index.ts
 │
 ├── parameters/                   # VR Parameter Registry
@@ -117,12 +122,12 @@ import {
   signalGraph,
   remap,
   PARAMETER_PRESETS,
-  LfoNode,
-  SliderNode,
+  ModuleRenderer,
+  getModule,
   sendSettings,
 } from "$lib/node-editor";
 ```
 
 ---
 
-*Updated: 2026-02-04*
+*Updated: 2026-02-06*
