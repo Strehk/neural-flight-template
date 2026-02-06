@@ -7,8 +7,8 @@
 	 */
 
 	import { Handle, Position, useNodeConnections } from "@xyflow/svelte";
-	import NodeShell from "../nodes/NodeShell.svelte";
-	import { getModule } from "./registry";
+	import NodeShell from "./NodeShell.svelte";
+	import { getModule } from "../components/registry";
 
 	interface Props {
 		id: string;

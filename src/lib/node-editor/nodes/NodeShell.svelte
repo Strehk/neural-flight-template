@@ -8,7 +8,7 @@
 
 	import { useSvelteFlow } from "@xyflow/svelte";
 	import type { Snippet } from "svelte";
-	import type { AnyComponent } from "../modules/types";
+	import type { AnyComponent } from "../components/types";
 	import "./nodes.css";
 
 	type Variant = "input" | "process" | "trigger" | "logic" | "output";

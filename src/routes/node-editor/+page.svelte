@@ -33,9 +33,9 @@
 		PARAMETER_PRESETS,
 		NodeCatalog,
 		EditorCanvas,
+		ModuleRenderer,
+		getModule,
 	} from "$lib/node-editor";
-
-	import { ModuleRenderer, getModule } from "$lib/node-editor/modules";
 
 	// Single nodeType — ModuleRenderer handles all module types
 	const nodeTypes: NodeTypes = { module: ModuleRenderer };

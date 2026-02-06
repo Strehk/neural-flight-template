@@ -7,19 +7,15 @@
 // Graph Engine
 export * from "./graph";
 
-// Node Definitions (auto-registers on import)
-import "./definitions";
-export * from "./definitions";
+// Components (definitions + modules, auto-registers on import)
+import "./components";
+export * from "./components";
 
 // Controls
 export * from "./controls";
 
 // Node Components
 export * from "./nodes";
-
-// Module System (auto-registers on import)
-import "./modules";
-export * from "./modules";
 
 // Parameters
 export * from "./parameters/registry";
