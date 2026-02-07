@@ -2,9 +2,12 @@ import SliderContent from "./SliderContent.svelte";
 import type { ModuleDef } from "./types";
 import type { ParameterPreset } from "../parameters/registry";
 
-export function createParamSliderModule(preset: ParameterPreset): ModuleDef {
+export function createParamSliderModule(
+	preset: ParameterPreset,
+	nodeType: string,
+): ModuleDef {
 	return {
-		type: "slider",
+		type: nodeType,
 		label: preset.label,
 		icon: preset.icon,
 		variant: "process",

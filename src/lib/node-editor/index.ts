@@ -24,7 +24,7 @@ import "./nodes/lfo_node";
 import "./nodes/gate_node";
 import "./nodes/switch_node";
 import "./nodes/color_node";
-import "./nodes/slider_node";
+import "./nodes/param_nodes";
 
 // Parameters
 export * from "./parameters/registry";

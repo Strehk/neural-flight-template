@@ -107,6 +107,14 @@ export const PARAMETER_PRESETS: Record<string, ParameterPreset> = {
 	},
 };
 
+/** Valid VR parameter keys (derived from PARAMETER_PRESETS) */
+export type VRParameterKey = keyof typeof PARAMETER_PRESETS;
+
+/** Check if a key is a registered VR parameter */
+export function isVRParameter(key: string): key is VRParameterKey {
+	return key in PARAMETER_PRESETS;
+}
+
 /** Get preset by param name */
 export function getPreset(param: string): ParameterPreset | undefined {
 	return PARAMETER_PRESETS[param];

@@ -28,7 +28,6 @@
 		getBridgeStatus,
 		initBridge,
 		sendSettings,
-		PARAMETER_PRESETS,
 		NodeCatalog,
 		EditorCanvas,
 		ModuleRenderer,
@@ -58,6 +57,22 @@
 	// Node ID counter
 	let nodeIdCounter = 100;
 
+	/** Create a param node with defaults from the module registry */
+	function createParamNode(
+		id: string,
+		presetKey: string,
+		position: { x: number; y: number },
+	): Node {
+		const nodeType = `param-${presetKey}`;
+		const moduleDef = getModule(nodeType);
+		return {
+			id,
+			type: "module",
+			position,
+			data: { moduleType: nodeType, ...moduleDef?.defaultData },
+		};
+	}
+
 	/** Create initial demo graph */
 	function createDemoGraph(): { nodes: Node[]; edges: Edge[] } {
 		const demoNodes: Node[] = [
@@ -67,30 +82,10 @@
 				position: { x: 50, y: 120 },
 				data: { moduleType: "lfo", wave: 0, speed: 0.1 },
 			},
-			{
-				id: "terrain-amplitude",
-				type: "module",
-				position: { x: 280, y: 50 },
-				data: { moduleType: "slider", ...PARAMETER_PRESETS.terrainAmplitude },
-			},
-			{
-				id: "fog-near",
-				type: "module",
-				position: { x: 280, y: 170 },
-				data: { moduleType: "slider", ...PARAMETER_PRESETS.fogNear },
-			},
-			{
-				id: "fog-far",
-				type: "module",
-				position: { x: 280, y: 290 },
-				data: { moduleType: "slider", ...PARAMETER_PRESETS.fogFar },
-			},
-			{
-				id: "sun-intensity",
-				type: "module",
-				position: { x: 280, y: 410 },
-				data: { moduleType: "slider", ...PARAMETER_PRESETS.sunIntensity },
-			},
+			createParamNode("terrain-amplitude", "terrainAmplitude", { x: 280, y: 50 }),
+			createParamNode("fog-near", "fogNear", { x: 280, y: 170 }),
+			createParamNode("fog-far", "fogFar", { x: 280, y: 290 }),
+			createParamNode("sun-intensity", "sunIntensity", { x: 280, y: 410 }),
 		];
 
 		const demoEdges: Edge[] = [
@@ -107,9 +102,11 @@
 		return { nodes: demoNodes, edges: demoEdges };
 	}
 
-	/** Resolve the signal graph type from moduleType */
+	/** Resolve the signal graph type from moduleType (decoupled via NodeDef) */
 	function getSignalType(node: Node): string {
-		return (node.data.moduleType as string) ?? "";
+		const moduleType = (node.data.moduleType as string) ?? "";
+		const nodeDef = getNodeDef(moduleType);
+		return nodeDef?.signal.type ?? moduleType;
 	}
 
 	/**
@@ -121,7 +118,8 @@
 
 		for (const node of nodes) {
 			const signalType = getSignalType(node);
-			const nodeDef = getNodeDef(signalType);
+			const moduleType = (node.data.moduleType as string) ?? "";
+			const nodeDef = getNodeDef(moduleType);
 
 			if (!graphNodeIds.has(node.id)) {
 				const instance = signalGraph.addNode(node.id, signalType);
