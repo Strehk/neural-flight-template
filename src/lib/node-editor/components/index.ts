@@ -22,3 +22,5 @@ export { createParamSliderModule } from "./param_slider_ui";
 export { GATE_MODULE } from "./gate_ui";
 export { SWITCH_MODULE } from "./switch_ui";
 export { COLOR_MODULE } from "./color_ui";
+export { MULTIPLY_SIGNAL } from "./multiply";
+export { MULTIPLY_MODULE } from "./multiply_ui";

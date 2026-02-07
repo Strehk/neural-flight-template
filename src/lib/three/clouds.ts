@@ -91,6 +91,7 @@ export function updateClouds(
 	clouds: THREE.Group,
 	delta: number,
 	playerPos: THREE.Vector3,
+	driftSpeed: number = CLOUDS.DRIFT_SPEED,
 ): void {
 	// ─── YOUR DRIFT LOGIC HERE (≈8 lines) ──────────────
 	//
@@ -106,8 +107,8 @@ export function updateClouds(
 	// ─────────────────────────────────────────────────────
 
 	const dirLen = Math.hypot(CLOUDS.DRIFT_DIRECTION.x, CLOUDS.DRIFT_DIRECTION.z);
-	const dx = (CLOUDS.DRIFT_DIRECTION.x / dirLen) * CLOUDS.DRIFT_SPEED * delta;
-	const dz = (CLOUDS.DRIFT_DIRECTION.z / dirLen) * CLOUDS.DRIFT_SPEED * delta;
+	const dx = (CLOUDS.DRIFT_DIRECTION.x / dirLen) * driftSpeed * delta;
+	const dz = (CLOUDS.DRIFT_DIRECTION.z / dirLen) * driftSpeed * delta;
 	const limit = CLOUDS.SPREAD;
 
 	for (const cloud of clouds.children) {

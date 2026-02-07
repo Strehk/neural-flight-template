@@ -75,27 +75,99 @@
 		};
 	}
 
-	/** Create initial demo graph */
+	/** Create initial demo graph — showcases all 4 node categories */
 	function createDemoGraph(): { nodes: Node[]; edges: Edge[] } {
 		const demoNodes: Node[] = [
+			// Input: LFO
 			{
 				id: "lfo-1",
 				type: "module",
-				position: { x: 50, y: 120 },
-				data: { moduleType: "lfo", wave: 0, speed: 0.1 },
+				position: { x: 50, y: 100 },
+				data: { moduleType: "lfo", wave: 0, speed: 0.15 },
 			},
-			createParamNode("terrain-amplitude", "terrainAmplitude", { x: 280, y: 50 }),
-			createParamNode("fog-near", "fogNear", { x: 280, y: 170 }),
-			createParamNode("fog-far", "fogFar", { x: 280, y: 290 }),
-			createParamNode("sun-intensity", "sunIntensity", { x: 280, y: 410 }),
+			// Trigger: Gate
+			{
+				id: "gate-1",
+				type: "module",
+				position: { x: 300, y: 220 },
+				data: { moduleType: "gate", open: false, duration: 0.8, eventType: "ring-pass" },
+			},
+			// Process: Switch (A/B blend via gate)
+			{
+				id: "switch-1",
+				type: "module",
+				position: { x: 540, y: 180 },
+				data: { moduleType: "switch", out: 0.25, gateActive: false },
+			},
+			// Output: Color (showcase, unconnected)
+			{
+				id: "color-1",
+				type: "module",
+				position: { x: 50, y: 380 },
+				data: { moduleType: "color", value: "#4caf50" },
+			},
+			// Parameter nodes — driven
+			createParamNode("terrain-amplitude", "terrainAmplitude", { x: 300, y: 20 }),
+			createParamNode("fog-near", "fogNear", { x: 780, y: 100 }),
+			createParamNode("sun-intensity", "sunIntensity", { x: 780, y: 240 }),
+			// Parameter nodes — manual
+			createParamNode("water-level", "waterLevel", { x: 300, y: 380 }),
+			createParamNode("fog-far", "fogFar", { x: 540, y: 380 }),
+			createParamNode("terrain-frequency", "terrainFrequency", { x: 780, y: 380 }),
 		];
 
 		const demoEdges: Edge[] = [
+			// LFO → Terrain Amplitude (direct modulation)
 			{
 				id: "e-lfo-terrain",
 				source: "lfo-1",
 				target: "terrain-amplitude",
 				sourceHandle: "wave",
+				targetHandle: "value",
+				animated: true,
+			},
+			// LFO → Gate trigger
+			{
+				id: "e-lfo-gate",
+				source: "lfo-1",
+				target: "gate-1",
+				sourceHandle: "wave",
+				targetHandle: "trigger",
+				animated: true,
+			},
+			// LFO → Switch input A
+			{
+				id: "e-lfo-switch-a",
+				source: "lfo-1",
+				target: "switch-1",
+				sourceHandle: "wave",
+				targetHandle: "a",
+				animated: true,
+			},
+			// Gate → Switch gate control
+			{
+				id: "e-gate-switch",
+				source: "gate-1",
+				target: "switch-1",
+				sourceHandle: "gate",
+				targetHandle: "gate",
+				animated: true,
+			},
+			// Switch → Fog Near
+			{
+				id: "e-switch-fog",
+				source: "switch-1",
+				target: "fog-near",
+				sourceHandle: "out",
+				targetHandle: "value",
+				animated: true,
+			},
+			// Switch → Sun Intensity
+			{
+				id: "e-switch-sun",
+				source: "switch-1",
+				target: "sun-intensity",
+				sourceHandle: "out",
 				targetHandle: "value",
 				animated: true,
 			},

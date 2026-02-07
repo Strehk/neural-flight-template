@@ -57,6 +57,7 @@ src/lib/node-editor/
 │   ├── gate.ts / gate_ui.ts / GateContent.svelte
 │   ├── switch.ts / switch_ui.ts / SwitchContent.svelte
 │   ├── color.ts / color_ui.ts / ColorContent.svelte
+│   ├── multiply.ts / multiply_ui.ts / MultiplyContent.svelte
 │   ├── registry.ts               # Module registry (populated by NodeDef)
 │   ├── types.ts                  # ModuleDef, AnyComponent
 │   └── index.ts                  # Barrel exports (no auto-registration)
@@ -76,6 +77,7 @@ src/lib/node-editor/
 │   ├── gate_node.ts              # GATE_NODE: NodeDef
 │   ├── switch_node.ts            # SWITCH_NODE: NodeDef
 │   ├── color_node.ts             # COLOR_NODE: NodeDef
+│   ├── multiply_node.ts          # MULTIPLY_NODE: NodeDef
 │   ├── param_nodes.ts            # Dynamic: 1 NodeDef per PARAMETER_PRESET
 │   └── index.ts
 │

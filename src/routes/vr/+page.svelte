@@ -130,6 +130,15 @@ onMount(() => {
 					terrainManager.rebuildAllChunks();
 				}
 
+				// Cloud opacity
+				if (s.cloudOpacity !== undefined) {
+					clouds.traverse((child) => {
+						if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
+							child.material.opacity = runtimeConfig.cloudOpacity;
+						}
+					});
+				}
+
 				// Cloud rebuild (debounced)
 				if (s.cloudCount !== undefined || s.cloudHeight !== undefined) {
 					if (cloudRebuildTimer) clearTimeout(cloudRebuildTimer);
@@ -149,7 +158,7 @@ onMount(() => {
 
 		player.tick(delta);
 		if (runtimeConfig.cloudDriftEnabled) {
-			updateClouds(clouds, delta, player.rig.position);
+			updateClouds(clouds, delta, player.rig.position, runtimeConfig.windSpeed);
 		}
 		score += terrainManager.update(player.rig.position);
 		renderer.render(scene, player.camera);

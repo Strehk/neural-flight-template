@@ -147,6 +147,8 @@ export interface RuntimeConfig {
 	waterLevel: number;
 	treeDensity: number;
 	minClearance: number;
+	cloudOpacity: number;
+	windSpeed: number;
 }
 
 function createDefaults(): RuntimeConfig {
@@ -173,6 +175,8 @@ function createDefaults(): RuntimeConfig {
 		waterLevel: TERRAIN.WATER_Y,
 		treeDensity: DECORATIONS.TREES_PER_CHUNK,
 		minClearance: FLIGHT.MIN_CLEARANCE,
+		cloudOpacity: CLOUDS.OPACITY,
+		windSpeed: CLOUDS.DRIFT_SPEED,
 	};
 }
 
