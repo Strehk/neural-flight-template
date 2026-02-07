@@ -69,7 +69,7 @@ src/lib/node-editor/
 │   ├── ValueDisplay.svelte       # Formatted number display
 │   └── index.ts
 │
-├── nodes/                        # Unified NodeDef + SvelteFlow integration
+├── nodes/                        # Unified NodeDef (TypeScript only)
 │   ├── types.ts                  # NodeDef interface
 │   ├── registry.ts               # registerNode(), getNodeDef(), getAllNodeDefs()
 │   ├── lfo_node.ts               # LFO_NODE: NodeDef (Signal + Module + Sync)
@@ -77,10 +77,14 @@ src/lib/node-editor/
 │   ├── switch_node.ts            # SWITCH_NODE: NodeDef
 │   ├── color_node.ts             # COLOR_NODE: NodeDef
 │   ├── slider_node.ts            # SLIDER_NODE: NodeDef
-│   ├── EditorCanvas.svelte       # Canvas wrapper
-│   ├── NodeShell.svelte          # Shared node wrapper
-│   ├── NodeCatalog.svelte        # Dynamic sidebar (reads from registry)
+│   └── index.ts
+│
+├── canvas/                       # SvelteFlow infrastructure
+│   ├── EditorCanvas.svelte       # Canvas wrapper (drag & drop)
 │   ├── ModuleRenderer.svelte     # Generic renderer for all modules
+│   ├── NodeShell.svelte          # Shared node wrapper (header + content)
+│   ├── NodeCatalog.svelte        # Dynamic sidebar (reads from registry)
+│   ├── canvas.css                # Global node + handle styles
 │   └── index.ts
 │
 ├── parameters/                   # VR Parameter Registry

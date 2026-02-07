@@ -3,13 +3,13 @@
 	 * NodeShell — Shared wrapper for all module nodes
 	 *
 	 * Provides: variant border, header (icon + label + delete), content slot.
-	 * Imports nodes.css for global handle + node styles.
+	 * Imports canvas.css for global handle + node styles.
 	 */
 
 	import { useSvelteFlow } from "@xyflow/svelte";
 	import type { Snippet } from "svelte";
 	import type { AnyComponent } from "../components/types";
-	import "./nodes.css";
+	import "./canvas.css";
 
 	type Variant = "input" | "process" | "trigger" | "logic" | "output";
 

@@ -13,8 +13,11 @@ export * from "./components";
 // Controls
 export * from "./controls";
 
-// Node Components + Unified Registry
+// Node Definitions + Unified Registry (TypeScript only)
 export * from "./nodes";
+
+// Canvas (SvelteFlow infrastructure)
+export * from "./canvas";
 
 // Import node registrations (side-effect: registers in all layers)
 import "./nodes/lfo_node";

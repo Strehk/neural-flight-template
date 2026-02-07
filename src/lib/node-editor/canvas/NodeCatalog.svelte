@@ -9,7 +9,7 @@
 	import { X, Activity } from "lucide-svelte";
 	import type { ComponentType } from "svelte";
 	import type { ModuleVariant } from "../components/types";
-	import { getAllNodeDefs } from "./registry";
+	import { getAllNodeDefs } from "../nodes/registry";
 
 	interface NodeCatalogItem {
 		type: string;

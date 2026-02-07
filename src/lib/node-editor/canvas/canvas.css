@@ -1,11 +1,11 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   Node Editor — Shared Node Styles
+   Canvas — Shared Node Styles
    ═══════════════════════════════════════════════════════════════════════════
 
-   Centralized styles for all signal nodes.
+   Centralized styles for all signal nodes on the SvelteFlow canvas.
    Each variant sets --node-color for border + header + handle theming.
 
-   Import in every node component: import "./nodes.css";
+   Imported by NodeShell: import "./canvas.css";
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* ── Base ── */
