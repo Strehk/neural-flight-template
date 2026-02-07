@@ -5,7 +5,7 @@
 
 ## Core Principle
 
-Two separate layers, simply connected:
+Three layers, unified by NodeDef:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -14,40 +14,52 @@ Two separate layers, simply connected:
 │  - Edges: Connection lines                                   │
 │  - Interaction: Drag, Connect, Select                        │
 └──────────────────────────┬──────────────────────────────────┘
-                           │ sync()
+                           │ sync via NodeDef.syncOutputs/syncInputs
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  SignalGraph (Compute Layer)                                 │
-│  - Nodes: ID, Type, State, Outputs                           │
-│  - Edges: Source → Target Port                               │
-│  - evaluate(dt): Topological sort + computation              │
-└─────────────────────────────────────────────────────────────┘
+│  NodeDef (Unified Layer)                                     │
+│  - 1 registration = Signal + Module + Sync                   │
+│  - Naming: LFO_SIGNAL + LFO_MODULE → LFO_NODE               │
+└──────────────┬────────────────────────┬─────────────────────┘
+               ▼                        ▼
+┌──────────────────────┐  ┌──────────────────────────────────┐
+│ SignalDef (Compute)   │  │  ModuleDef (UI)                  │
+│ - Headless compute    │  │  - Svelte widget, ports, icon    │
+│ - evaluate(dt)        │  │  - bits-ui controls              │
+└──────────────────────┘  └──────────────────────────────────┘
 ```
+
+## Naming Convention
+
+| Layer | Suffix | Type | Example Variable | Example File |
+|-------|--------|------|-----------------|--------------|
+| Compute | `_SIGNAL` | `SignalDef` | `LFO_SIGNAL` | `components/lfo.ts` |
+| UI | `_MODULE` | `ModuleDef` | `LFO_MODULE` | `components/lfo_ui.ts` |
+| Unified | `_NODE` | `NodeDef` | `LFO_NODE` | `nodes/lfo_node.ts` |
 
 ## Directory Structure
 
 ```
 src/lib/node-editor/
 ├── README.md                     # This file
-├── index.ts                      # Public exports
+├── index.ts                      # Public exports + node registration imports
 │
-├── graph/                        # Compute Engine
-│   ├── types.ts                  # Signal, Port, NodeDef, Edge
-│   ├── engine.ts                 # SignalGraph class
+├── graph/                        # Compute Engine (headless)
+│   ├── types.ts                  # SignalDef, SignalPort, SignalEdge
+│   ├── engine.ts                 # SignalGraph class + signal registry
 │   └── index.ts
 │
 ├── components/                   # Bausteine (Logic + UI)
-│   ├── lfo.ts                    # Logic: compute(), createState()
-│   ├── lfo_ui.ts                 # UI: ModuleDef + registration
+│   ├── lfo.ts                    # LFO_SIGNAL: SignalDef
+│   ├── lfo_ui.ts                 # LFO_MODULE: ModuleDef
 │   ├── LfoContent.svelte         # Svelte content component
 │   ├── slider.ts / param_slider_ui.ts / SliderContent.svelte
 │   ├── gate.ts / gate_ui.ts / GateContent.svelte
 │   ├── switch.ts / switch_ui.ts / SwitchContent.svelte
 │   ├── color.ts / color_ui.ts / ColorContent.svelte
-│   ├── registry.ts               # Module registry
+│   ├── registry.ts               # Module registry (populated by NodeDef)
 │   ├── types.ts                  # ModuleDef, AnyComponent
-│   ├── _template.ts              # Template for new components
-│   └── index.ts                  # Auto-registration barrel
+│   └── index.ts                  # Barrel exports (no auto-registration)
 │
 ├── controls/                     # Reusable UI Controls (bits-ui)
 │   ├── Slider.svelte             # Range input
@@ -57,10 +69,17 @@ src/lib/node-editor/
 │   ├── ValueDisplay.svelte       # Formatted number display
 │   └── index.ts
 │
-├── nodes/                        # SvelteFlow integration
+├── nodes/                        # Unified NodeDef + SvelteFlow integration
+│   ├── types.ts                  # NodeDef interface
+│   ├── registry.ts               # registerNode(), getNodeDef(), getAllNodeDefs()
+│   ├── lfo_node.ts               # LFO_NODE: NodeDef (Signal + Module + Sync)
+│   ├── gate_node.ts              # GATE_NODE: NodeDef
+│   ├── switch_node.ts            # SWITCH_NODE: NodeDef
+│   ├── color_node.ts             # COLOR_NODE: NodeDef
+│   ├── slider_node.ts            # SLIDER_NODE: NodeDef
 │   ├── EditorCanvas.svelte       # Canvas wrapper
 │   ├── NodeShell.svelte          # Shared node wrapper
-│   ├── NodeCatalog.svelte        # Sidebar with drag & drop
+│   ├── NodeCatalog.svelte        # Dynamic sidebar (reads from registry)
 │   ├── ModuleRenderer.svelte     # Generic renderer for all modules
 │   └── index.ts
 │
@@ -77,57 +96,44 @@ src/lib/node-editor/
    └─> edges array updates
 
 2. Sync Loop (requestAnimationFrame):
-   ├─> syncEdgesToGraph(edges, graph)
-   └─> syncNodesToGraph(nodes, graph)
+   ├─> syncNodesToGraph() + NodeDef.syncInputs()
+   └─> syncEdgesToGraph()
 
-3. graph.evaluate(dt)
+3. signalGraph.evaluate(dt)
    ├─> Topological sort
    ├─> For each node: compute(inputs, state, dt)
    └─> Outputs stored
 
-4. syncGraphToUI(nodes, graph)
-   └─> node.data updated with output values
+4. syncGraphToUI() + NodeDef.syncOutputs()
+   ├─> node.data updated with output values
+   └─> Changed params batched → bridge.sendSettings()
 
 5. Svelte reactivity
    └─> UI components re-render (WaveBar, Slider, etc.)
-
-6. Output nodes call bridge.sendSettings()
-   └─> WebSocket → VR Scene
 ```
 
-## Controls
+## Adding a New Node
 
-| Control | Type | Input? | Visual? | Example |
-|---------|------|--------|---------|---------|
-| `Slider.svelte` | Range | ✅ | ✅ | Speed, Amplitude |
-| `WaveBar.svelte` | Bar | ❌ | ✅ | LFO Output (0-1 as height) |
-| `ColorPicker.svelte` | Color | ✅ | ✅ | Color selection + preview |
-| `GateButton.svelte` | Button | ✅ | ✅ | HIGH/LOW state |
-| `ValueDisplay.svelte` | Text | ❌ | ✅ | Numeric value |
+1. Create `components/my_thing.ts` → export `MY_THING_SIGNAL: SignalDef`
+2. Create `components/my_thing_ui.ts` → export `MY_THING_MODULE: ModuleDef`
+3. Create `nodes/my_thing_node.ts` → export `MY_THING_NODE: NodeDef` + `registerNode()`
+4. Add side-effect import in `index.ts`: `import "./nodes/my_thing_node"`
 
-## Node Categories
-
-| Category | Border Color | Example Nodes |
-|----------|--------------|---------------|
-| Input | `--success` | LFO |
-| Process | `--border` | Slider |
-| Trigger | `--warning` | Gate |
-| Logic | `--info` | Switch |
-| Output | `--border` | Color |
+Zero changes to `+page.svelte`, `NodeCatalog`, or sync logic.
 
 ## Import Example
 
 ```typescript
 import {
   signalGraph,
-  remap,
+  getNodeDef,
+  getAllNodeDefs,
   PARAMETER_PRESETS,
   ModuleRenderer,
-  getModule,
   sendSettings,
 } from "$lib/node-editor";
 ```
 
 ---
 
-*Updated: 2026-02-06*
+*Updated: 2026-02-07*

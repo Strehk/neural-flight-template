@@ -1,7 +1,6 @@
 import SliderContent from "./SliderContent.svelte";
-import { registerModule } from "./registry";
 import type { ModuleDef } from "./types";
-import { PARAMETER_PRESETS, type ParameterPreset } from "../parameters/registry";
+import type { ParameterPreset } from "../parameters/registry";
 
 export function createParamSliderModule(preset: ParameterPreset): ModuleDef {
 	return {
@@ -15,5 +14,3 @@ export function createParamSliderModule(preset: ParameterPreset): ModuleDef {
 		defaultData: { ...preset, driven: false },
 	};
 }
-
-registerModule(createParamSliderModule(PARAMETER_PRESETS.terrainAmplitude));

@@ -5,11 +5,11 @@
  * UI layer converts to hex for VR scene settings.
  */
 
-import type { SignalNodeDef, ComputeResult, SignalValue } from "../graph/types";
+import type { SignalDef, ComputeResult, SignalValue } from "../graph/types";
 import { clamp01 } from "../graph/types";
-import { registerNodeType } from "../graph/engine";
 
-export const COLOR_NODE: SignalNodeDef = {
+
+export const COLOR_SIGNAL: SignalDef = {
 	type: "color",
 	label: "Color",
 	inputs: [
@@ -37,5 +37,3 @@ export const COLOR_NODE: SignalNodeDef = {
 	}),
 };
 
-// Auto-register
-registerNodeType(COLOR_NODE);

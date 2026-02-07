@@ -5,8 +5,8 @@
  * Like a gate signal in analog synthesizers.
  */
 
-import type { SignalNodeDef, ComputeResult, SignalValue } from "../graph/types";
-import { registerNodeType } from "../graph/engine";
+import type { SignalDef, ComputeResult, SignalValue } from "../graph/types";
+
 
 interface GateState {
 	/** Whether gate is currently open */
@@ -19,7 +19,7 @@ interface GateState {
 	eventType: string;
 }
 
-export const GATE_NODE: SignalNodeDef = {
+export const GATE_SIGNAL: SignalDef = {
 	type: "gate",
 	label: "Gate",
 	inputs: [
@@ -87,5 +87,3 @@ export function setGateDuration(state: GateState, duration: number): GateState {
 	return { ...state, duration: Math.max(0.05, duration) };
 }
 
-// Auto-register
-registerNodeType(GATE_NODE);

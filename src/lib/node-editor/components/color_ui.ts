@@ -1,6 +1,5 @@
 import { Palette } from "lucide-svelte";
 import ColorContent from "./ColorContent.svelte";
-import { registerModule } from "./registry";
 import type { ModuleDef } from "./types";
 
 export const COLOR_MODULE: ModuleDef = {
@@ -21,5 +20,3 @@ export const COLOR_MODULE: ModuleDef = {
 	],
 	defaultData: { label: "Color", param: "ringColor", value: "#f1c40f" },
 };
-
-registerModule(COLOR_MODULE);

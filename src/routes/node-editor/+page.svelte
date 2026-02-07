@@ -24,9 +24,7 @@
 
 	import {
 		signalGraph,
-		remap,
 		type SignalEdge,
-		setLfoSpeed,
 		getBridgeStatus,
 		initBridge,
 		sendSettings,
@@ -34,6 +32,7 @@
 		NodeCatalog,
 		EditorCanvas,
 		ModuleRenderer,
+		getNodeDef,
 		getModule,
 	} from "$lib/node-editor";
 
@@ -122,21 +121,17 @@
 
 		for (const node of nodes) {
 			const signalType = getSignalType(node);
+			const nodeDef = getNodeDef(signalType);
 
 			if (!graphNodeIds.has(node.id)) {
 				const instance = signalGraph.addNode(node.id, signalType);
-				if (instance && signalType === "lfo") {
-					const speed = (node.data.speed as number) ?? 0.1;
-					instance.state = setLfoSpeed(instance.state as { phase: number; baseSpeed: number }, speed);
+				if (instance && nodeDef?.syncInputs) {
+					nodeDef.syncInputs(node, instance);
 				}
-			} else if (signalType === "lfo") {
+			} else {
 				const instance = signalGraph.getNode(node.id);
-				if (instance) {
-					const speed = (node.data.speed as number) ?? 0.1;
-					instance.state = setLfoSpeed(
-						instance.state as { phase: number; baseSpeed: number },
-						speed,
-					);
+				if (instance && nodeDef?.syncInputs) {
+					nodeDef.syncInputs(node, instance);
 				}
 			}
 		}
@@ -176,75 +171,37 @@
 	}
 
 	/**
-	 * Sync SignalGraph outputs → SvelteFlow UI
+	 * Sync SignalGraph outputs → SvelteFlow UI (generic via NodeDef.syncOutputs)
+	 * Also sends changed parameter values to the VR bridge.
 	 */
 	function syncGraphToUI(): void {
 		let updated = false;
+		const settingsBatch: Record<string, number | boolean | string> = {};
 
 		for (const node of nodes) {
 			const instance = signalGraph.getNode(node.id);
 			if (!instance) continue;
 
-			const moduleType = node.data.moduleType as string;
+			const nodeDef = getNodeDef(node.data.moduleType as string);
+			if (!nodeDef) continue;
 
-			if (moduleType === "lfo") {
-				const wave = instance.outputs.wave ?? 0.5;
-				const state = instance.state as { phase: number; baseSpeed: number };
-				if (node.data.wave !== wave) {
-					node.data = { ...node.data, wave, phase: state.phase };
-					updated = true;
-				}
-			} else if (moduleType === "slider") {
-				const normalizedValue = instance.outputs.out ?? 0.5;
-				const min = node.data.min as number;
-				const max = node.data.max as number;
-				const value = remap(normalizedValue, min, max);
-				const hasInput = edges.some((e) => e.target === node.id && e.targetHandle === "value");
+			const changes = nodeDef.syncOutputs(instance, node, edges);
+			if (changes) {
+				node.data = { ...node.data, ...changes };
+				updated = true;
 
-				if (node.data.value !== value || node.data.driven !== hasInput) {
-					node.data = { ...node.data, value, driven: hasInput };
-					updated = true;
-
-					const param = node.data.param as string;
-					if (param) {
-						sendSettings({ [param]: value });
-					}
-				}
-			} else if (moduleType === "gate") {
-				const gateValue = instance.outputs.gate ?? 0;
-				const isOpen = gateValue > 0.5;
-				if (node.data.open !== isOpen) {
-					node.data = { ...node.data, open: isOpen };
-					updated = true;
-				}
-			} else if (moduleType === "switch") {
-				const out = instance.outputs.out ?? 0.25;
-				const gateEdge = edges.find((e) => e.target === node.id && e.targetHandle === "gate");
-				const gateActive = gateEdge
-					? signalGraph.getOutput(gateEdge.source, gateEdge.sourceHandle ?? "gate") > 0.5
-					: false;
-
-				if (node.data.out !== out || node.data.gateActive !== gateActive) {
-					node.data = { ...node.data, out, gateActive };
-					updated = true;
-				}
-			} else if (moduleType === "color") {
-				const r = Math.round((instance.outputs.r ?? 0.5) * 255);
-				const g = Math.round((instance.outputs.g ?? 0.5) * 255);
-				const b = Math.round((instance.outputs.b ?? 0.5) * 255);
-				const hex = `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
-				const hasInput = edges.some((e) => e.target === node.id);
-
-				if (hasInput && node.data.value !== hex) {
-					node.data = { ...node.data, value: hex };
-					sendSettings({ [node.data.param as string]: hex });
-					updated = true;
+				const param = node.data.param as string;
+				if (param && "value" in changes) {
+					settingsBatch[param] = changes.value as number | boolean | string;
 				}
 			}
 		}
 
 		if (updated) {
 			nodes = [...nodes];
+		}
+		if (Object.keys(settingsBatch).length > 0) {
+			sendSettings(settingsBatch);
 		}
 	}
 

@@ -1,31 +1,20 @@
 /**
- * Components — Node definitions + UI modules (auto-register on import)
+ * Components — Signal definitions + Module definitions
+ *
+ * Registration now happens via nodes/*_node.ts (unified NodeDef).
+ * This barrel only re-exports definitions and utilities.
  */
-
-// Import logic nodes to trigger auto-registration
-import "./lfo";
-import "./gate";
-import "./switch";
-import "./slider";
-import "./color";
-
-// Import UI modules to trigger auto-registration
-import "./lfo_ui";
-import "./param_slider_ui";
-import "./gate_ui";
-import "./switch_ui";
-import "./color_ui";
 
 // Re-export types + registry
 export * from "./types";
 export { registerModule, getModule, getAllModules } from "./registry";
 
-// Re-export node definitions
-export { LFO_NODE, setLfoSpeed } from "./lfo";
-export { GATE_NODE, triggerGate, setGateDuration } from "./gate";
-export { SWITCH_NODE, setSwitchSmoothing } from "./switch";
-export { SLIDER_NODE } from "./slider";
-export { COLOR_NODE } from "./color";
+// Re-export signal definitions
+export { LFO_SIGNAL, setLfoSpeed } from "./lfo";
+export { GATE_SIGNAL, triggerGate, setGateDuration } from "./gate";
+export { SWITCH_SIGNAL, setSwitchSmoothing } from "./switch";
+export { SLIDER_SIGNAL } from "./slider";
+export { COLOR_SIGNAL } from "./color";
 
 // Re-export module defs
 export { LFO_MODULE } from "./lfo_ui";

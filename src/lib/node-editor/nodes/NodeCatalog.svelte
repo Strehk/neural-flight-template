@@ -6,8 +6,10 @@
 	 * Uses native HTML5 Drag & Drop API.
 	 */
 
-	import { X, Activity, Sliders, Palette, Zap, ToggleLeft } from "lucide-svelte";
+	import { X, Activity } from "lucide-svelte";
 	import type { ComponentType } from "svelte";
+	import type { ModuleVariant } from "../components/types";
+	import { getAllNodeDefs } from "./registry";
 
 	interface NodeCatalogItem {
 		type: string;
@@ -24,43 +26,21 @@
 
 	const { open, onClose }: Props = $props();
 
-	const CATALOG: NodeCatalogItem[] = [
-		{
-			type: "lfo",
-			label: "LFO",
-			icon: Activity,
-			description: "Low frequency oscillator (0-1)",
-			color: "var(--success)",
-		},
-		{
-			type: "slider",
-			label: "Slider",
-			icon: Sliders,
-			description: "Parameter with min/max range",
-			color: "var(--text-muted)",
-		},
-		{
-			type: "color",
-			label: "Color",
-			icon: Palette,
-			description: "Color picker for scene colors",
-			color: "var(--accent)",
-		},
-		{
-			type: "gate",
-			label: "Gate",
-			icon: Zap,
-			description: "Event → 0/1 signal",
-			color: "var(--warning)",
-		},
-		{
-			type: "switch",
-			label: "Switch",
-			icon: ToggleLeft,
-			description: "Gate-controlled A/B selector",
-			color: "var(--info)",
-		},
-	];
+	const VARIANT_COLORS: Record<ModuleVariant, string> = {
+		input: "var(--success)",
+		process: "var(--text-muted)",
+		trigger: "var(--warning)",
+		logic: "var(--info)",
+		output: "var(--accent)",
+	};
+
+	const CATALOG: NodeCatalogItem[] = getAllNodeDefs().map((def) => ({
+		type: def.type,
+		label: def.label,
+		icon: def.module.icon as ComponentType,
+		description: def.description,
+		color: VARIANT_COLORS[def.module.variant] ?? "var(--text-muted)",
+	}));
 
 	function handleDragStart(e: DragEvent, item: NodeCatalogItem): void {
 		if (!e.dataTransfer) return;

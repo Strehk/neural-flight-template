@@ -1,6 +1,5 @@
 import { Zap } from "lucide-svelte";
 import GateContent from "./GateContent.svelte";
-import { registerModule } from "./registry";
 import type { ModuleDef } from "./types";
 
 export const GATE_MODULE: ModuleDef = {
@@ -13,5 +12,3 @@ export const GATE_MODULE: ModuleDef = {
 	outputs: [{ id: "gate", label: "Gate", side: "right", handleClass: "handle-output" }],
 	defaultData: { open: false, duration: 0.5, eventType: "ring-pass" },
 };
-
-registerModule(GATE_MODULE);

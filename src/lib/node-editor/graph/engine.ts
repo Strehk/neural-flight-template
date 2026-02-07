@@ -6,27 +6,27 @@
  */
 
 import type {
-	SignalNodeDef,
+	SignalDef,
 	SignalNodeInstance,
 	SignalEdge,
 	SignalValue,
 } from "./types";
 
 /** Registry of node type definitions */
-const nodeRegistry = new Map<string, SignalNodeDef>();
+const nodeRegistry = new Map<string, SignalDef>();
 
 /** Register a node type definition */
-export function registerNodeType(def: SignalNodeDef): void {
+export function registerNodeType(def: SignalDef): void {
 	nodeRegistry.set(def.type, def);
 }
 
 /** Get a node type definition */
-export function getNodeType(type: string): SignalNodeDef | undefined {
+export function getNodeType(type: string): SignalDef | undefined {
 	return nodeRegistry.get(type);
 }
 
 /** Get all registered node types */
-export function getAllNodeTypes(): SignalNodeDef[] {
+export function getAllNodeTypes(): SignalDef[] {
 	return Array.from(nodeRegistry.values());
 }
 

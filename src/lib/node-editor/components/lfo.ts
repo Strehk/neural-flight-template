@@ -4,9 +4,9 @@
  * Outputs a 0-1 sine wave. Speed can be modulated by another LFO.
  */
 
-import type { SignalNodeDef, ComputeResult, SignalValue } from "../graph/types";
+import type { SignalDef, ComputeResult, SignalValue } from "../graph/types";
 import { clamp01 } from "../graph/types";
-import { registerNodeType } from "../graph/engine";
+
 
 interface LfoState {
 	/** Current phase (0-1) */
@@ -15,7 +15,7 @@ interface LfoState {
 	baseSpeed: number;
 }
 
-export const LFO_NODE: SignalNodeDef = {
+export const LFO_SIGNAL: SignalDef = {
 	type: "lfo",
 	label: "LFO",
 	inputs: [
@@ -65,5 +65,3 @@ export function setLfoSpeed(state: LfoState, speed: number): LfoState {
 	return { ...state, baseSpeed: Math.max(0.01, speed) };
 }
 
-// Auto-register
-registerNodeType(LFO_NODE);

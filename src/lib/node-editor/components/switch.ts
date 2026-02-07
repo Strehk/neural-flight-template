@@ -5,9 +5,9 @@
  * Smooth crossfade optional.
  */
 
-import type { SignalNodeDef, ComputeResult, SignalValue } from "../graph/types";
+import type { SignalDef, ComputeResult, SignalValue } from "../graph/types";
 import { clamp01, lerp } from "../graph/types";
-import { registerNodeType } from "../graph/engine";
+
 
 interface SwitchState {
 	/** Current blend position (0 = A, 1 = B) for smooth transitions */
@@ -16,7 +16,7 @@ interface SwitchState {
 	smoothing: number;
 }
 
-export const SWITCH_NODE: SignalNodeDef = {
+export const SWITCH_SIGNAL: SignalDef = {
 	type: "switch",
 	label: "Switch",
 	inputs: [
@@ -89,5 +89,3 @@ export function setSwitchSmoothing(
 	return { ...state, smoothing: Math.max(0, smoothing) };
 }
 
-// Auto-register
-registerNodeType(SWITCH_NODE);

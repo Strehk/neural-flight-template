@@ -1,6 +1,5 @@
 import { ToggleLeft } from "lucide-svelte";
 import SwitchContent from "./SwitchContent.svelte";
-import { registerModule } from "./registry";
 import type { ModuleDef } from "./types";
 
 export const SWITCH_MODULE: ModuleDef = {
@@ -17,5 +16,3 @@ export const SWITCH_MODULE: ModuleDef = {
 	outputs: [{ id: "out", label: "Out", side: "right", handleClass: "handle-output" }],
 	defaultData: { a: 0.25, b: 0.75, out: 0.25, gateActive: false },
 };
-
-registerModule(SWITCH_MODULE);

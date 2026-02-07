@@ -27,7 +27,7 @@ export interface ComputeResult {
 }
 
 /** Base interface for all signal nodes */
-export interface SignalNodeDef {
+export interface SignalDef {
 	/** Unique node type identifier */
 	type: string;
 	/** Human-readable label */
@@ -50,7 +50,7 @@ export interface SignalNodeDef {
 export interface SignalNodeInstance {
 	/** Unique instance id */
 	id: string;
-	/** Node type (references SignalNodeDef) */
+	/** Node type (references SignalDef) */
 	type: string;
 	/** Current internal state */
 	state: unknown;

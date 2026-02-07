@@ -5,16 +5,16 @@
  * UI layer handles remapping to actual parameter ranges.
  */
 
-import type { SignalNodeDef, ComputeResult, SignalValue } from "../graph/types";
+import type { SignalDef, ComputeResult, SignalValue } from "../graph/types";
 import { clamp01 } from "../graph/types";
-import { registerNodeType } from "../graph/engine";
+
 
 interface SliderState {
 	/** Whether input is connected (for UI styling) */
 	driven: boolean;
 }
 
-export const SLIDER_NODE: SignalNodeDef = {
+export const SLIDER_SIGNAL: SignalDef = {
 	type: "slider",
 	label: "Slider",
 	inputs: [
@@ -49,5 +49,3 @@ export const SLIDER_NODE: SignalNodeDef = {
 	},
 };
 
-// Auto-register
-registerNodeType(SLIDER_NODE);

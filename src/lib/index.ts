@@ -48,7 +48,7 @@ export type { ArchitectureNodeData, NodeClass } from "./flow/types";
 
 // Node Editor
 export type {
-	SignalNodeDef,
+	SignalDef,
 	SignalNodeInstance,
 	SignalEdge,
 	SignalValue,
