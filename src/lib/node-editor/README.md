@@ -76,7 +76,7 @@ src/lib/node-editor/
 │   ├── gate_node.ts              # GATE_NODE: NodeDef
 │   ├── switch_node.ts            # SWITCH_NODE: NodeDef
 │   ├── color_node.ts             # COLOR_NODE: NodeDef
-│   ├── slider_node.ts            # SLIDER_NODE: NodeDef
+│   ├── param_nodes.ts            # Dynamic: 1 NodeDef per PARAMETER_PRESET
 │   └── index.ts
 │
 ├── canvas/                       # SvelteFlow infrastructure
@@ -118,10 +118,15 @@ src/lib/node-editor/
 
 ## Adding a New Node
 
+**Custom node (new behavior):**
 1. Create `components/my_thing.ts` → export `MY_THING_SIGNAL: SignalDef`
 2. Create `components/my_thing_ui.ts` → export `MY_THING_MODULE: ModuleDef`
 3. Create `nodes/my_thing_node.ts` → export `MY_THING_NODE: NodeDef` + `registerNode()`
 4. Add side-effect import in `index.ts`: `import "./nodes/my_thing_node"`
+
+**VR parameter node (slider):**
+1. Add entry to `PARAMETER_PRESETS` in `parameters/registry.ts`
+2. Done — `param_nodes.ts` auto-generates the NodeDef + catalog entry
 
 Zero changes to `+page.svelte`, `NodeCatalog`, or sync logic.
 
