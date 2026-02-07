@@ -37,16 +37,12 @@ export function resolvePortType(
 /**
  * Check if two port types are compatible.
  *
- * Current matrix: all types cross-compatible (number ↔ trigger).
- * Infrastructure ready for future restrictions (e.g. audio, compound).
+ * All types cross-compatible (number ↔ trigger).
+ * Add restrictions here when new types (e.g. audio, compound) need them.
  */
 export function arePortTypesCompatible(
-	sourceType: PortType,
-	targetType: PortType,
+	_sourceType: PortType,
+	_targetType: PortType,
 ): boolean {
-	const compatible: Record<PortType, PortType[]> = {
-		number: ["number", "trigger"],
-		trigger: ["number", "trigger"],
-	};
-	return compatible[sourceType]?.includes(targetType) ?? false;
+	return true;
 }

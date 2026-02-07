@@ -23,11 +23,6 @@ export interface SignalPort {
 	portType?: PortType;
 }
 
-/** Get the port type, defaulting to "number" */
-export function getPortType(port: SignalPort): PortType {
-	return port.portType ?? "number";
-}
-
 /** Result of a node computation */
 export interface ComputeResult {
 	/** Output values keyed by port id */
