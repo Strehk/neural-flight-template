@@ -9,6 +9,7 @@
 	import { X, Activity } from "lucide-svelte";
 	import type { ComponentType } from "svelte";
 	import type { ModuleVariant } from "../components/types";
+	import type { NodeCategory } from "../nodes/types";
 	import { getAllNodeDefs } from "../nodes/registry";
 
 	interface NodeCatalogItem {
@@ -17,6 +18,13 @@
 		icon: ComponentType;
 		description: string;
 		color: string;
+		category: NodeCategory;
+	}
+
+	interface CatalogGroup {
+		category: NodeCategory;
+		label: string;
+		items: NodeCatalogItem[];
 	}
 
 	interface Props {
@@ -34,13 +42,31 @@
 		output: "var(--accent)",
 	};
 
-	const CATALOG: NodeCatalogItem[] = getAllNodeDefs().map((def) => ({
+	const CATEGORY_LABELS: Record<NodeCategory, string> = {
+		input: "Sources",
+		trigger: "Triggers",
+		process: "Process",
+		output: "Output",
+	};
+
+	const CATEGORY_ORDER: NodeCategory[] = ["input", "trigger", "process", "output"];
+
+	const ALL_ITEMS: NodeCatalogItem[] = getAllNodeDefs().map((def) => ({
 		type: def.type,
 		label: def.label,
 		icon: def.module.icon as ComponentType,
 		description: def.description,
 		color: VARIANT_COLORS[def.module.variant] ?? "var(--text-muted)",
+		category: def.category,
 	}));
+
+	const CATALOG_GROUPS: CatalogGroup[] = CATEGORY_ORDER
+		.map((cat) => ({
+			category: cat,
+			label: CATEGORY_LABELS[cat],
+			items: ALL_ITEMS.filter((item) => item.category === cat),
+		}))
+		.filter((group) => group.items.length > 0);
 
 	function handleDragStart(e: DragEvent, item: NodeCatalogItem): void {
 		if (!e.dataTransfer) return;
@@ -64,25 +90,30 @@
 		<div class="sidebar-content">
 			<p class="sidebar-hint">Drag nodes to canvas</p>
 
-			<div class="catalog-list">
-				{#each CATALOG as item}
-					<!-- svelte-ignore a11y_no_static_element_interactions -->
-					<div
-						class="catalog-item"
-						draggable="true"
-						ondragstart={(e) => handleDragStart(e, item)}
-						style="--item-color: {item.color}"
-					>
-						<div class="item-icon">
-							<item.icon size={16} />
-						</div>
-						<div class="item-info">
-							<span class="item-label">{item.label}</span>
-							<span class="item-desc">{item.description}</span>
-						</div>
+			{#each CATALOG_GROUPS as group}
+				<div class="catalog-group">
+					<span class="group-label">{group.label}</span>
+					<div class="catalog-list">
+						{#each group.items as item}
+							<!-- svelte-ignore a11y_no_static_element_interactions -->
+							<div
+								class="catalog-item"
+								draggable="true"
+								ondragstart={(e) => handleDragStart(e, item)}
+								style="--item-color: {item.color}"
+							>
+								<div class="item-icon">
+									<item.icon size={16} />
+								</div>
+								<div class="item-info">
+									<span class="item-label">{item.label}</span>
+									<span class="item-desc">{item.description}</span>
+								</div>
+							</div>
+						{/each}
 					</div>
-				{/each}
-			</div>
+				</div>
+			{/each}
 		</div>
 	</aside>
 {/if}
@@ -146,6 +177,21 @@
 		font-size: 0.7rem;
 		margin-bottom: 0.75rem;
 		text-align: center;
+	}
+
+	.catalog-group {
+		margin-bottom: 1rem;
+	}
+
+	.group-label {
+		display: block;
+		font-family: var(--font-mono);
+		font-size: 0.6rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: var(--text-muted);
+		margin-bottom: 0.375rem;
 	}
 
 	.catalog-list {

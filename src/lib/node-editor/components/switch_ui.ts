@@ -9,7 +9,7 @@ export const SWITCH_MODULE: ModuleDef = {
 	variant: "logic",
 	component: SwitchContent,
 	inputs: [
-		{ id: "gate", label: "Gate", side: "left", handleClass: "handle-gate", position: "25%" },
+		{ id: "gate", label: "Gate", side: "left", handleClass: "handle-gate", position: "25%", portType: "trigger" },
 		{ id: "a", label: "A", side: "left", handleClass: "handle-input", position: "55%" },
 		{ id: "b", label: "B", side: "left", handleClass: "handle-input", position: "85%" },
 	],

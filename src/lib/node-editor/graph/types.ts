@@ -8,6 +8,9 @@
 /** All signal values are normalized to 0-1 range */
 export type SignalValue = number;
 
+/** Semantic port type for visual hints and connection validation */
+export type PortType = "number" | "trigger";
+
 /** Port definition for inputs/outputs */
 export interface SignalPort {
 	/** Unique identifier within the node */
@@ -16,6 +19,13 @@ export interface SignalPort {
 	label: string;
 	/** Default value (0-1) */
 	default: SignalValue;
+	/** Semantic port type (default: "number") */
+	portType?: PortType;
+}
+
+/** Get the port type, defaulting to "number" */
+export function getPortType(port: SignalPort): PortType {
+	return port.portType ?? "number";
 }
 
 /** Result of a node computation */

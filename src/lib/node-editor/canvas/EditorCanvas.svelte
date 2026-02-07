@@ -24,9 +24,10 @@
 		flowProps: Record<string, unknown>;
 		onconnect: (connection: Connection) => void;
 		ondrop: (nodeType: string, position: { x: number; y: number }) => void;
+		isValidConnection?: (connection: Connection | Edge) => boolean;
 	}
 
-	let { nodes = $bindable(), edges = $bindable(), nodeTypes, flowProps, onconnect, ondrop }: Props = $props();
+	let { nodes = $bindable(), edges = $bindable(), nodeTypes, flowProps, onconnect, ondrop, isValidConnection }: Props = $props();
 
 	const { screenToFlowPosition } = useSvelteFlow();
 
@@ -58,6 +59,7 @@
 		colorMode="dark"
 		fitView
 		onconnect={onconnect}
+		{isValidConnection}
 		{...flowProps}
 	>
 		<Background />

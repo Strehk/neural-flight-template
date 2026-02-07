@@ -9,6 +9,6 @@ export const GATE_MODULE: ModuleDef = {
 	variant: "trigger",
 	component: GateContent,
 	inputs: [{ id: "trigger", label: "Trigger", side: "left", handleClass: "handle-input" }],
-	outputs: [{ id: "gate", label: "Gate", side: "right", handleClass: "handle-output" }],
+	outputs: [{ id: "gate", label: "Gate", side: "right", handleClass: "handle-gate", portType: "trigger" }],
 	defaultData: { open: false, duration: 0.5, eventType: "ring-pass" },
 };

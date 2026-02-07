@@ -33,6 +33,8 @@
 		ModuleRenderer,
 		getNodeDef,
 		getModule,
+		resolvePortType,
+		arePortTypesCompatible,
 	} from "$lib/node-editor";
 
 	// Single nodeType — ModuleRenderer handles all module types
@@ -263,6 +265,13 @@
 		sidebarOpen = !sidebarOpen;
 	}
 
+	/** Validate connections using port type compatibility matrix */
+	function isValidConnection(connection: Connection | Edge): boolean {
+		const sourceType = resolvePortType(nodes, connection.source, connection.sourceHandle ?? null, "source");
+		const targetType = resolvePortType(nodes, connection.target, connection.targetHandle ?? null, "target");
+		return arePortTypesCompatible(sourceType, targetType);
+	}
+
 	/** Handle drop on canvas — create new node from module registry */
 	function handleNodeDrop(nodeType: string, position: { x: number; y: number }): void {
 		const moduleDef = getModule(nodeType);
@@ -336,6 +345,7 @@
 				flowProps={FLOW_EDITOR_PROPS}
 				onconnect={handleConnect}
 				ondrop={handleNodeDrop}
+				{isValidConnection}
 			/>
 		</SvelteFlowProvider>
 	</main>

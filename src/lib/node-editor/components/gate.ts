@@ -34,6 +34,7 @@ export const GATE_SIGNAL: SignalDef = {
 			id: "gate",
 			label: "Gate",
 			default: 0,
+			portType: "trigger",
 		},
 	],
 	createState: (): GateState => ({

@@ -24,6 +24,7 @@ export const SWITCH_SIGNAL: SignalDef = {
 			id: "gate",
 			label: "Gate",
 			default: 0,
+			portType: "trigger",
 		},
 		{
 			id: "a",

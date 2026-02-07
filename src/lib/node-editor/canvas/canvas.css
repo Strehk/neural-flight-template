@@ -127,6 +127,7 @@
 	background: var(--warning);
 	border: none;
 	border-radius: 0;
+	transform: rotate(45deg);
 }
 
 /* Connected input handles get accent color */

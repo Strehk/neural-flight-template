@@ -19,7 +19,7 @@ for (const [key, preset] of Object.entries(PARAMETER_PRESETS)) {
 		type: nodeType,
 		label: preset.label,
 		description: `${preset.label} (${preset.min}–${preset.max})`,
-		category: "process",
+		category: "output",
 		signal: SLIDER_SIGNAL,
 		module: createParamSliderModule(preset, nodeType),
 		syncOutputs: (instance, node, edges) => {

@@ -6,6 +6,7 @@
  */
 
 import type { Component, ComponentType } from "svelte";
+import type { PortType } from "../graph/types";
 
 // biome-ignore lint/suspicious/noExplicitAny: Svelte 5 supports both class + function components
 export type AnyComponent = ComponentType | Component<any>;
@@ -20,6 +21,8 @@ export interface ExposedPort {
 	side: "left" | "right";
 	handleClass: string;
 	position?: string;
+	/** Semantic port type (default: "number") */
+	portType?: PortType;
 }
 
 /** Complete module definition */
