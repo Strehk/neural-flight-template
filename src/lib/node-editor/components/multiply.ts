@@ -15,7 +15,7 @@ export const COMPONENT_MULTIPLY: SignalDef = {
 		{ id: "b", label: "B", default: 0.5 },
 	],
 	outputs: [{ id: "out", label: "Out", default: 0.25 }],
-	createState: () => ({}),
+	createState: () => null,
 	compute: (
 		inputs: Record<string, SignalValue>,
 		state: unknown,
@@ -25,7 +25,7 @@ export const COMPONENT_MULTIPLY: SignalDef = {
 		const b = inputs.b ?? 0.5;
 		return {
 			outputs: { out: clampSignal(a * b) },
-			state,
+			state: null,
 		};
 	},
 };

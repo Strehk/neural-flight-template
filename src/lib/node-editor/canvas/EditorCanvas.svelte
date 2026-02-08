@@ -22,7 +22,7 @@ interface Props {
 	edges: Edge[];
 	nodeTypes: NodeTypes;
 	flowProps: Record<string, unknown>;
-	onconnect: (connection: Connection) => void;
+	onconnect?: (connection: Connection) => void;
 	ondrop: (nodeType: string, position: { x: number; y: number }) => void;
 	isValidConnection?: (connection: Connection | Edge) => boolean;
 }

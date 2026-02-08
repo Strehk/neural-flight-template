@@ -81,10 +81,3 @@ export const COMPONENT_SWITCH: SignalDef = {
 	},
 };
 
-/** Set transition smoothing time */
-export function setSwitchSmoothing(
-	state: SwitchState,
-	smoothing: number,
-): SwitchState {
-	return { ...state, smoothing: Math.max(0, smoothing) };
-}

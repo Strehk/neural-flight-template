@@ -29,7 +29,7 @@ function handleChange(v: number) {
 	min={0}
 	max={1}
 	step={0.01}
-	label="Offset"
+	label="Amp"
 	onchange={handleChange}
 />
 <ValueDisplay {value} precision={2} />

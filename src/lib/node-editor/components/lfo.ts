@@ -59,7 +59,3 @@ export const COMPONENT_LFO: SignalDef = {
 	},
 };
 
-/** Update LFO base speed (called from UI) */
-export function setLfoSpeed(state: LfoState, speed: number): LfoState {
-	return { ...state, baseSpeed: Math.max(0.01, speed) };
-}

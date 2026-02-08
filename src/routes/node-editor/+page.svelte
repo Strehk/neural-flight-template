@@ -231,25 +231,6 @@ function cleanupDeletedNodes(): void {
 	}
 }
 
-// ── Connection ───────────────────────────────────────────────────
-
-function handleConnect(connection: Connection) {
-	const edgeId = `e-${connection.source}-${connection.sourceHandle}-${connection.target}-${connection.targetHandle}`;
-	if (edges.some((e) => e.id === edgeId)) return;
-
-	edges = [
-		...edges,
-		{
-			id: edgeId,
-			source: connection.source,
-			target: connection.target,
-			sourceHandle: connection.sourceHandle,
-			targetHandle: connection.targetHandle,
-			animated: true,
-		},
-	];
-}
-
 function isValidConnection(_connection: Connection | Edge): boolean {
 	return true; // All types cross-compatible (R3)
 }
@@ -375,7 +356,6 @@ onDestroy(() => {
 				bind:edges
 				{nodeTypes}
 				flowProps={FLOW_EDITOR_PROPS}
-				onconnect={handleConnect}
 				ondrop={handleNodeDrop}
 				{isValidConnection}
 			/>

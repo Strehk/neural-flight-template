@@ -18,7 +18,7 @@ interface GateState {
 	eventType: string;
 }
 
-export const GATE_SIGNAL: SignalDef = {
+export const COMPONENT_GATE: SignalDef = {
 	type: "gate",
 	label: "Gate",
 	inputs: [
@@ -73,16 +73,3 @@ export const GATE_SIGNAL: SignalDef = {
 	},
 };
 
-/** Manually trigger the gate (called from external events) */
-export function triggerGate(state: GateState): GateState {
-	return {
-		...state,
-		open: true,
-		timeRemaining: state.duration,
-	};
-}
-
-/** Set gate duration */
-export function setGateDuration(state: GateState, duration: number): GateState {
-	return { ...state, duration: Math.max(0.05, duration) };
-}

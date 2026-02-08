@@ -34,5 +34,6 @@ export const FLOW_EDITOR_PROPS = {
 	minZoom: 0.3,
 	maxZoom: 2,
 	fitViewOptions: { padding: 0.3 },
+	defaultEdgeOptions: { animated: true },
 	proOptions: { hideAttribution: true },
 } as const;
