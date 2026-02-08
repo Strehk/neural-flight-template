@@ -1,15 +1,14 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
-	import type { ComponentType } from 'svelte';
+import type { ComponentType, Snippet } from "svelte";
 
-	interface Props {
-		icon: ComponentType;
-		label: string;
-		status?: 'connected' | 'connecting' | 'disconnected' | 'error';
-		actions?: Snippet;
-	}
+interface Props {
+	icon: ComponentType;
+	label: string;
+	status?: "connected" | "connecting" | "disconnected" | "error";
+	actions?: Snippet;
+}
 
-	const { icon: Icon, label, status, actions }: Props = $props();
+const { icon: Icon, label, status, actions }: Props = $props();
 </script>
 
 <header class="header-bar">

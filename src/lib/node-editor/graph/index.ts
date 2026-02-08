@@ -5,5 +5,5 @@
  * It can be used for any signal processing, not just the node editor.
  */
 
-export * from "./types";
 export * from "./engine";
+export * from "./types";

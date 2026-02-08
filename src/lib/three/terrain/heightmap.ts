@@ -1,5 +1,5 @@
 import { createNoise2D } from "simplex-noise";
-import { TERRAIN, runtimeConfig } from "$lib/config/flight";
+import { runtimeConfig, TERRAIN } from "$lib/config/flight";
 
 export interface HeightmapConfig {
 	/** Number of noise octaves layered together. */

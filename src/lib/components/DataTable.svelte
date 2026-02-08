@@ -1,16 +1,16 @@
 <script lang="ts">
-	interface TableItem {
-		name: string;
-		description: string;
-		url?: string;
-	}
+interface TableItem {
+	name: string;
+	description: string;
+	url?: string;
+}
 
-	interface Props {
-		items: TableItem[];
-		headers?: [string, string];
-	}
+interface Props {
+	items: TableItem[];
+	headers?: [string, string];
+}
 
-	const { items, headers = ['Tech', 'Description'] }: Props = $props();
+const { items, headers = ["Tech", "Description"] }: Props = $props();
 </script>
 
 <div class="data-table-wrapper">

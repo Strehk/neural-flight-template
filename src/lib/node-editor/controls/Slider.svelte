@@ -1,38 +1,39 @@
 <script lang="ts">
-	/**
-	 * Slider Control — bits-ui Slider with label and value display
-	 */
-	import { Slider as BitsSlider } from "bits-ui";
+/**
+ * Slider Control — bits-ui Slider with label and value display
+ */
+import { Slider as BitsSlider } from "bits-ui";
 
-	interface Props {
-		value: number;
-		min?: number;
-		max?: number;
-		step?: number;
-		label?: string;
-		unit?: string;
-		disabled?: boolean;
-		color?: string;
-		onchange: (value: number) => void;
-	}
+interface Props {
+	value: number;
+	min?: number;
+	max?: number;
+	step?: number;
+	label?: string;
+	unit?: string;
+	disabled?: boolean;
+	color?: string;
+	onchange: (value: number) => void;
+}
 
-	const {
-		value,
-		min = 0,
-		max = 1,
-		step = 0.01,
-		label,
-		unit = "",
-		disabled = false,
-		color = "var(--text-muted)",
-		onchange,
-	}: Props = $props();
+const {
+	value,
+	min = 0,
+	max = 1,
+	step = 0.01,
+	label,
+	unit = "",
+	disabled = false,
+	color = "var(--text-muted)",
+	onchange,
+}: Props = $props();
 
-	const displayValue = $derived(() => {
-		if (step < 0.01) return value.toFixed(3);
-		if (step < 1) return value.toFixed(2);
-		return value.toFixed(0);
-	});
+const displayValue = $derived(() => {
+	const v = value ?? 0;
+	if (step < 0.01) return v.toFixed(3);
+	if (step < 1) return v.toFixed(2);
+	return v.toFixed(0);
+});
 </script>
 
 <div class="control-slider" style="--slider-color: {color}">
@@ -44,7 +45,7 @@
 		{min}
 		{max}
 		{step}
-		{value}
+		value={value ?? 0}
 		{disabled}
 		onValueChange={onchange}
 		class="slider-root nodrag"

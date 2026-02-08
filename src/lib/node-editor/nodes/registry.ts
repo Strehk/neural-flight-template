@@ -1,29 +1,18 @@
 /**
- * Node Registry — Unified registration for Signal + Module + Sync
+ * Node Registry — All available nodes for the catalog
  *
- * Single source of truth for all node types.
- * Registers in both the signal registry (graph/engine) and module registry (components/registry).
+ * When creating a new node:
+ * 1. Create the NodeDef file in nodes/
+ * 2. Import it here
+ * 3. Add it to ALL_NODES
  */
 
+import { NODE_LFO_MODULATOR } from "./lfo_modulator_node";
+import { OUTPUT_NODES } from "./system_nodes";
 import type { NodeDef } from "./types";
-import { registerNodeType } from "../graph/engine";
-import { registerModule } from "../components/registry";
 
-const nodeRegistry = new Map<string, NodeDef>();
+export const ALL_NODES: NodeDef[] = [NODE_LFO_MODULATOR, ...OUTPUT_NODES];
 
-/** Register a unified node definition (auto-registers in signal + module layers) */
-export function registerNode(def: NodeDef): void {
-	nodeRegistry.set(def.type, def);
-	registerNodeType(def.signal);
-	registerModule(def.module);
-}
-
-/** Get a node definition by type */
 export function getNodeDef(type: string): NodeDef | undefined {
-	return nodeRegistry.get(type);
-}
-
-/** Get all registered node definitions */
-export function getAllNodeDefs(): NodeDef[] {
-	return Array.from(nodeRegistry.values());
+	return ALL_NODES.find((n) => n.type === type);
 }

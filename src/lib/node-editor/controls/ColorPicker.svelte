@@ -1,20 +1,20 @@
 <script lang="ts">
-	/**
-	 * ColorPicker Control — Color input with preview
-	 */
+/**
+ * ColorPicker Control — Color input with preview
+ */
 
-	interface Props {
-		value: string;
-		disabled?: boolean;
-		onchange: (color: string) => void;
-	}
+interface Props {
+	value: string;
+	disabled?: boolean;
+	onchange: (color: string) => void;
+}
 
-	const { value, disabled = false, onchange }: Props = $props();
+const { value, disabled = false, onchange }: Props = $props();
 
-	function handleInput(e: Event) {
-		const target = e.target as HTMLInputElement;
-		onchange(target.value);
-	}
+function handleInput(e: Event) {
+	const target = e.target as HTMLInputElement;
+	onchange(target.value);
+}
 </script>
 
 <div class="color-picker">

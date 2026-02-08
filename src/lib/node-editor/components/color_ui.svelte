@@ -1,14 +1,14 @@
 <script lang="ts">
-	import { useSvelteFlow } from "@xyflow/svelte";
-	import { ColorPicker } from "../controls";
+import { useSvelteFlow } from "@xyflow/svelte";
+import { ColorPicker } from "../controls";
 
-	interface Props {
-		id: string;
-		data: Record<string, unknown>;
-	}
+interface Props {
+	id: string;
+	data: Record<string, unknown>;
+}
 
-	const { id, data }: Props = $props();
-	const { updateNodeData } = useSvelteFlow();
+const { id, data }: Props = $props();
+const { updateNodeData } = useSvelteFlow();
 </script>
 
 <div class="color-preview" style="background: {data.value};"></div>

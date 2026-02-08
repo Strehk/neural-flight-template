@@ -126,14 +126,20 @@ onMount(() => {
 				}
 
 				// Terrain rebuild (amplitude/frequency changed)
-				if (s.terrainAmplitude !== undefined || s.terrainFrequency !== undefined) {
+				if (
+					s.terrainAmplitude !== undefined ||
+					s.terrainFrequency !== undefined
+				) {
 					terrainManager.rebuildAllChunks();
 				}
 
 				// Cloud opacity
 				if (s.cloudOpacity !== undefined) {
 					clouds.traverse((child) => {
-						if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
+						if (
+							child instanceof THREE.Mesh &&
+							child.material instanceof THREE.MeshStandardMaterial
+						) {
 							child.material.opacity = runtimeConfig.cloudOpacity;
 						}
 					});

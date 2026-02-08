@@ -3,17 +3,17 @@
  * Configuration for SliderNode instances — data-driven node catalog
  */
 
-import type { ComponentType } from "svelte";
 import {
-	Mountain,
-	Waves,
-	Droplets,
-	Sun,
 	Cloud,
 	CloudFog,
+	Droplets,
 	Maximize,
+	Mountain,
+	Sun,
+	Waves,
 	Wind,
 } from "lucide-svelte";
+import type { ComponentType } from "svelte";
 
 /** Preset configuration for a parameter slider node */
 export interface ParameterPreset {

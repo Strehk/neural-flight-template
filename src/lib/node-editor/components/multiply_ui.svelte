@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { ValueDisplay } from "../controls";
+import { ValueDisplay } from "../controls";
 
-	interface Props {
-		id: string;
-		data: Record<string, unknown>;
-	}
+interface Props {
+	id: string;
+	data: Record<string, unknown>;
+}
 
-	const { data }: Props = $props();
+const { data }: Props = $props();
 </script>
 
 <div class="multiply-symbol">×</div>

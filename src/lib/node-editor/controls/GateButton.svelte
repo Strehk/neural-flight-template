@@ -1,15 +1,15 @@
 <script lang="ts">
-	/**
-	 * GateButton Control — bits-ui Toggle with HIGH/LOW state
-	 */
-	import { Toggle } from "bits-ui";
+/**
+ * GateButton Control — bits-ui Toggle with HIGH/LOW state
+ */
+import { Toggle } from "bits-ui";
 
-	interface Props {
-		open: boolean;
-		onclick: () => void;
-	}
+interface Props {
+	open: boolean;
+	onclick: () => void;
+}
 
-	const { open, onclick }: Props = $props();
+const { open, onclick }: Props = $props();
 </script>
 
 <Toggle.Root

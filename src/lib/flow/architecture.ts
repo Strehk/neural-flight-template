@@ -1,4 +1,4 @@
-import { MarkerType, Position, type Edge, type Node } from "@xyflow/svelte";
+import { type Edge, MarkerType, type Node, Position } from "@xyflow/svelte";
 import type { ArchitectureNodeData, NodeClass } from "./types";
 
 // Layout constants
@@ -16,11 +16,36 @@ interface ClientNode {
 }
 
 const CLIENTS: ClientNode[] = [
-	{ id: "esp32", label: "ESP32\nSensor\n[INPUT]", type: "INPUT", class: "node-input" },
-	{ id: "gyro", label: "/gyro\nPhone\n[INPUT]", type: "INPUT", class: "node-input" },
-	{ id: "vr", label: "/vr\nQuest\n[OUTPUT]", type: "OUTPUT", class: "node-output" },
-	{ id: "spect", label: "/spect\nMonitor\n[OUTPUT]", type: "OUTPUT", class: "node-output" },
-	{ id: "lights", label: "/lights\nDMX\n[OUTPUT]", type: "OUTPUT", class: "node-output" },
+	{
+		id: "esp32",
+		label: "ESP32\nSensor\n[INPUT]",
+		type: "INPUT",
+		class: "node-input",
+	},
+	{
+		id: "gyro",
+		label: "/gyro\nPhone\n[INPUT]",
+		type: "INPUT",
+		class: "node-input",
+	},
+	{
+		id: "vr",
+		label: "/vr\nQuest\n[OUTPUT]",
+		type: "OUTPUT",
+		class: "node-output",
+	},
+	{
+		id: "spect",
+		label: "/spect\nMonitor\n[OUTPUT]",
+		type: "OUTPUT",
+		class: "node-output",
+	},
+	{
+		id: "lights",
+		label: "/lights\nDMX\n[OUTPUT]",
+		type: "OUTPUT",
+		class: "node-output",
+	},
 ];
 
 /**
@@ -29,7 +54,9 @@ const CLIENTS: ClientNode[] = [
  */
 export function createArchitectureNodes(): Node<ArchitectureNodeData>[] {
 	// Calculate total width of client row
-	const totalClientWidth = CLIENTS.length * NODE_WIDTH + (CLIENTS.length - 1) * (CLIENT_SPACING - NODE_WIDTH);
+	const totalClientWidth =
+		CLIENTS.length * NODE_WIDTH +
+		(CLIENTS.length - 1) * (CLIENT_SPACING - NODE_WIDTH);
 
 	// Center server above clients
 	const serverX = totalClientWidth / 2 - NODE_WIDTH / 2;

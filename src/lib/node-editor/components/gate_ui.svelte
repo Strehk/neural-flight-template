@@ -1,19 +1,22 @@
 <script lang="ts">
-	import { useSvelteFlow } from "@xyflow/svelte";
-	import { GateButton, Slider } from "../controls";
+import { useSvelteFlow } from "@xyflow/svelte";
+import { GateButton, Slider } from "../controls";
 
-	interface Props {
-		id: string;
-		data: Record<string, unknown>;
-	}
+interface Props {
+	id: string;
+	data: Record<string, unknown>;
+}
 
-	const { id, data }: Props = $props();
-	const { updateNodeData } = useSvelteFlow();
+const { id, data }: Props = $props();
+const { updateNodeData } = useSvelteFlow();
 
-	function triggerGate() {
-		updateNodeData(id, { open: true });
-		setTimeout(() => updateNodeData(id, { open: false }), (data.duration as number) * 1000);
-	}
+function triggerGate() {
+	updateNodeData(id, { open: true });
+	setTimeout(
+		() => updateNodeData(id, { open: false }),
+		(data.duration as number) * 1000,
+	);
+}
 </script>
 
 <GateButton open={data.open as boolean} onclick={triggerGate} />

@@ -4,9 +4,8 @@
  * Outputs a 0-1 sine wave. Speed can be modulated by another LFO.
  */
 
-import type { SignalDef, ComputeResult, SignalValue } from "../graph/types";
-import { clamp01 } from "../graph/types";
-
+import type { ComputeResult, SignalDef, SignalValue } from "../graph/types";
+import { clampSignal } from "../graph/types";
 
 interface LfoState {
 	/** Current phase (0-1) */
@@ -15,7 +14,7 @@ interface LfoState {
 	baseSpeed: number;
 }
 
-export const LFO_SIGNAL: SignalDef = {
+export const COMPONENT_LFO: SignalDef = {
 	type: "lfo",
 	label: "LFO",
 	inputs: [
@@ -51,7 +50,7 @@ export const LFO_SIGNAL: SignalDef = {
 		const newPhase = (s.phase + effectiveSpeed * dt) % 1;
 
 		// Sine wave normalized to 0-1
-		const wave = clamp01((Math.sin(newPhase * Math.PI * 2) + 1) / 2);
+		const wave = clampSignal((Math.sin(newPhase * Math.PI * 2) + 1) / 2);
 
 		return {
 			outputs: { wave },
@@ -64,4 +63,3 @@ export const LFO_SIGNAL: SignalDef = {
 export function setLfoSpeed(state: LfoState, speed: number): LfoState {
 	return { ...state, baseSpeed: Math.max(0.01, speed) };
 }
-

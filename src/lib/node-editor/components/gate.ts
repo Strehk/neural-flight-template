@@ -5,8 +5,7 @@
  * Like a gate signal in analog synthesizers.
  */
 
-import type { SignalDef, ComputeResult, SignalValue } from "../graph/types";
-
+import type { ComputeResult, SignalDef, SignalValue } from "../graph/types";
 
 interface GateState {
 	/** Whether gate is currently open */
@@ -87,4 +86,3 @@ export function triggerGate(state: GateState): GateState {
 export function setGateDuration(state: GateState, duration: number): GateState {
 	return { ...state, duration: Math.max(0.05, duration) };
 }
-

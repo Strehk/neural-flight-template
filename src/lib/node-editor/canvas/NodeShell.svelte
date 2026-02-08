@@ -1,34 +1,43 @@
 <script lang="ts">
-	/**
-	 * NodeShell — Shared wrapper for all module nodes
-	 *
-	 * Provides: variant border, header (icon + label + delete), content slot.
-	 * Imports canvas.css for global handle + node styles.
-	 */
+/**
+ * NodeShell — Shared wrapper for all module nodes
+ *
+ * Provides: variant border, header (icon + label + delete), content slot.
+ * Imports canvas.css for global handle + node styles.
+ */
 
-	import { useSvelteFlow } from "@xyflow/svelte";
-	import type { Snippet } from "svelte";
-	import type { AnyComponent } from "../components/types";
-	import "./canvas.css";
+import { useSvelteFlow } from "@xyflow/svelte";
+import type { Component, ComponentType, Snippet } from "svelte";
+import "./canvas.css";
 
-	type Variant = "input" | "process" | "trigger" | "logic" | "output";
+// biome-ignore lint/suspicious/noExplicitAny: Svelte 5 supports both class + function components
+type AnyComponent = ComponentType | Component<any>;
+type Variant = "input" | "process" | "trigger" | "logic" | "output";
 
-	interface Props {
-		id: string;
-		icon: AnyComponent;
-		label: string;
-		variant: Variant;
-		active?: boolean;
-		connected?: boolean;
-		children: Snippet;
-	}
+interface Props {
+	id: string;
+	icon: AnyComponent;
+	label: string;
+	variant: Variant;
+	active?: boolean;
+	connected?: boolean;
+	children: Snippet;
+}
 
-	const { id, icon: Icon, label, variant, active = false, connected = false, children }: Props = $props();
-	const { deleteElements } = useSvelteFlow();
+const {
+	id,
+	icon: Icon,
+	label,
+	variant,
+	active = false,
+	connected = false,
+	children,
+}: Props = $props();
+const { deleteElements } = useSvelteFlow();
 
-	function deleteNode() {
-		deleteElements({ nodes: [{ id }] });
-	}
+function deleteNode() {
+	deleteElements({ nodes: [{ id }] });
+}
 </script>
 
 <div class="node node--{variant}" class:active class:connected>

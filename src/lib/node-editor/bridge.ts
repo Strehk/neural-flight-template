@@ -34,7 +34,11 @@ export function sendSettings(
 }
 
 /** Get current connection status */
-export function getBridgeStatus(): "connected" | "disconnected" | "connecting" | "error" {
+export function getBridgeStatus():
+	| "connected"
+	| "disconnected"
+	| "connecting"
+	| "error" {
 	return client?.status ?? "disconnected";
 }
 

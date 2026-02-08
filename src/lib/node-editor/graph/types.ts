@@ -49,6 +49,8 @@ export interface SignalDef {
 		state: unknown,
 		dt: number,
 	) => ComputeResult;
+	/** Svelte widget component (unknown to keep graph/ free of Svelte imports) */
+	widget?: unknown;
 }
 
 /** Runtime instance of a signal node */
@@ -61,6 +63,8 @@ export interface SignalNodeInstance {
 	state: unknown;
 	/** Current output values */
 	outputs: Record<string, SignalValue>;
+	/** UI-driven input overrides (used when no cable is connected) */
+	inputOverrides?: Record<string, SignalValue>;
 }
 
 /** Connection between two node ports */
@@ -78,7 +82,7 @@ export interface SignalEdge {
 }
 
 /** Clamp a value to 0-1 range */
-export function clamp01(value: number): SignalValue {
+export function clampSignal(value: number): SignalValue {
 	return Math.max(0, Math.min(1, value));
 }
 

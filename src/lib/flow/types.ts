@@ -1,4 +1,4 @@
-import type { Node, Edge } from "@xyflow/svelte";
+import type { Edge, Node } from "@xyflow/svelte";
 
 /**
  * Node classes for CSS styling

@@ -1,37 +1,54 @@
 /**
- * NodeDef — Unified node definition (Signal + Module + Sync)
+ * Node Types — Compositions of Components
  *
- * Single registration point for each node type.
- * Eliminates the split between SignalDef and ModuleDef registries.
+ * A Node wires components into a pipeline and exposes selected ports to the canvas.
+ * Every Node has at least 2 components (min: source + output).
  */
 
-import type { Node, Edge } from "@xyflow/svelte";
-import type { SignalDef, SignalNodeInstance } from "../graph/types";
-import type { ModuleDef } from "../components/types";
+import type { AnyComponent } from "../components/types";
+import type { PortType, SignalDef } from "../graph/types";
 
-/** Category for organizing nodes in the catalog */
-export type NodeCategory = "input" | "process" | "trigger" | "output";
+/** Category for catalog grouping + visual theming */
+export type NodeCategory = "input" | "process" | "trigger" | "logic" | "output";
 
-/** Unified node definition — 1 registration = Signal + Module + Sync */
+/** Exposed port — appears as a SvelteFlow Handle on the canvas */
+export interface ExposedPort {
+	/** Port identifier (signal_ prefix convention) */
+	id: string;
+	/** Display label */
+	label: string;
+	/** Handle position */
+	side: "left" | "right";
+	/** Semantic port type for visual hints (default: "number") */
+	portType?: PortType;
+}
+
+/** Internal component slot within a Node */
+export interface ComponentSlot {
+	/** Unique slot ID within this node */
+	id: string;
+	/** Signal definition (carries compute + widget + defaults) */
+	signal: SignalDef;
+	/** Map: component port ID → internal wire name (null = unconnected) */
+	inputWires: Record<string, string | null>;
+	/** Map: component port ID → internal wire name */
+	outputWires: Record<string, string>;
+}
+
+/** NodeDef — Unified node definition */
 export interface NodeDef {
-	/** Unique node type identifier (must match signal.type and module.type) */
+	/** Unique node type identifier */
 	type: string;
 	/** Human-readable label */
 	label: string;
-	/** Short description for catalog */
-	description: string;
-	/** Category for grouping */
+	/** Category for catalog grouping + visual theming */
 	category: NodeCategory;
-	/** Signal layer definition (headless compute) */
-	signal: SignalDef;
-	/** Module layer definition (UI rendering) */
-	module: ModuleDef;
-	/** Map signal outputs → node.data changes. Return null if nothing changed. */
-	syncOutputs: (
-		instance: SignalNodeInstance,
-		node: Node,
-		edges: Edge[],
-	) => Record<string, unknown> | null;
-	/** Optional: sync node.data → signal instance state (e.g. LFO speed knob) */
-	syncInputs?: (node: Node, instance: SignalNodeInstance) => void;
+	/** Icon for catalog + node header */
+	icon: AnyComponent;
+	/** Internal component slots (the pipeline) */
+	components: ComponentSlot[];
+	/** Exposed input ports (appear as left handles) */
+	inputs: ExposedPort[];
+	/** Exposed output ports (appear as right handles) */
+	outputs: ExposedPort[];
 }

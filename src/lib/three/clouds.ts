@@ -22,7 +22,10 @@ export function disposeClouds(group: THREE.Group): void {
 }
 
 /** Create low-poly cloud groups as a single merged mesh. */
-export function createClouds(count: number = CLOUDS.COUNT, height = 0): THREE.Group {
+export function createClouds(
+	count: number = CLOUDS.COUNT,
+	height = 0,
+): THREE.Group {
 	const group = new THREE.Group();
 	const mat = new THREE.MeshStandardMaterial({
 		color: CLOUDS.COLOR,

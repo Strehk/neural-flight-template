@@ -1,13 +1,13 @@
 /**
- * Multiply Signal Node — out = clamp01(a × b)
+ * Multiply Signal Node — out = clampSignal(a × b)
  *
  * Simplest useful math operator. Both inputs default to 0.5.
  */
 
-import type { SignalDef, ComputeResult, SignalValue } from "../graph/types";
-import { clamp01 } from "../graph/types";
+import type { ComputeResult, SignalDef, SignalValue } from "../graph/types";
+import { clampSignal } from "../graph/types";
 
-export const MULTIPLY_SIGNAL: SignalDef = {
+export const COMPONENT_MULTIPLY: SignalDef = {
 	type: "multiply",
 	label: "Multiply",
 	inputs: [
@@ -24,7 +24,7 @@ export const MULTIPLY_SIGNAL: SignalDef = {
 		const a = inputs.a ?? 0.5;
 		const b = inputs.b ?? 0.5;
 		return {
-			outputs: { out: clamp01(a * b) },
+			outputs: { out: clampSignal(a * b) },
 			state,
 		};
 	},

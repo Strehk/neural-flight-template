@@ -1,17 +1,17 @@
 <script lang="ts">
-	/**
-	 * ValueDisplay Control — Formatted number display
-	 */
+/**
+ * ValueDisplay Control — Formatted number display
+ */
 
-	interface Props {
-		value: number;
-		precision?: number;
-		driven?: boolean;
-	}
+interface Props {
+	value: number;
+	precision?: number;
+	driven?: boolean;
+}
 
-	const { value, precision = 2, driven = false }: Props = $props();
+const { value, precision = 2, driven = false }: Props = $props();
 
-	const formatted = $derived(value.toFixed(precision));
+const formatted = $derived(value.toFixed(precision));
 </script>
 
 <div class="value-display" class:driven>

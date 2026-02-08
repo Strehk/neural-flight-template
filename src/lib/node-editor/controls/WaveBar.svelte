@@ -1,17 +1,17 @@
 <script lang="ts">
-	/**
-	 * WaveBar Control — Vertical bar visualization (0-1 as height)
-	 */
+/**
+ * WaveBar Control — Vertical bar visualization (0-1 as height)
+ */
 
-	interface Props {
-		value: number;
-		height?: number;
-		color?: string;
-	}
+interface Props {
+	value: number;
+	height?: number;
+	color?: string;
+}
 
-	const { value, height = 32, color = "var(--success)" }: Props = $props();
+const { value, height = 32, color = "var(--success)" }: Props = $props();
 
-	const fillHeight = $derived(Math.round(Math.max(0, Math.min(1, value)) * 100));
+const fillHeight = $derived(Math.round(Math.max(0, Math.min(1, value)) * 100));
 </script>
 
 <div class="wave-bar" style="height: {height}px">

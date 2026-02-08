@@ -1,22 +1,41 @@
-import { Palette } from "lucide-svelte";
-import ColorContent from "./ColorContent.svelte";
-import type { ModuleDef } from "./types";
+/**
+ * Color UI — RGB color mixer with color picker widget
+ *
+ * Self-contained: own compute(), independent from color.ts.
+ * Inputs: r, g, b (0-1)
+ * Outputs: r, g, b (0-1, passthrough)
+ * Widget: color_ui.svelte
+ */
 
-export const COLOR_MODULE: ModuleDef = {
+import type { ComputeResult, SignalDef, SignalValue } from "../graph/types";
+import { clampSignal } from "../graph/types";
+import ColorUi from "./color_ui.svelte";
+
+export const COMPONENT_COLOR_UI: SignalDef = {
 	type: "color",
 	label: "Color",
-	icon: Palette,
-	variant: "output",
-	component: ColorContent,
 	inputs: [
-		{ id: "r", label: "R", side: "left", handleClass: "handle-r", position: "30%" },
-		{ id: "g", label: "G", side: "left", handleClass: "handle-g", position: "55%" },
-		{ id: "b", label: "B", side: "left", handleClass: "handle-b", position: "80%" },
+		{ id: "r", label: "R", default: 0.5 },
+		{ id: "g", label: "G", default: 0.5 },
+		{ id: "b", label: "B", default: 0.5 },
 	],
 	outputs: [
-		{ id: "r", label: "R", side: "right", handleClass: "handle-r", position: "30%" },
-		{ id: "g", label: "G", side: "right", handleClass: "handle-g", position: "55%" },
-		{ id: "b", label: "B", side: "right", handleClass: "handle-b", position: "80%" },
+		{ id: "r", label: "R", default: 0.5 },
+		{ id: "g", label: "G", default: 0.5 },
+		{ id: "b", label: "B", default: 0.5 },
 	],
-	defaultData: { label: "Color", param: "ringColor", value: "#f1c40f" },
+	createState: () => ({}),
+	compute: (
+		inputs: Record<string, SignalValue>,
+		state: unknown,
+		_dt: number,
+	): ComputeResult => ({
+		outputs: {
+			r: clampSignal(inputs.r ?? 0.5),
+			g: clampSignal(inputs.g ?? 0.5),
+			b: clampSignal(inputs.b ?? 0.5),
+		},
+		state,
+	}),
+	widget: ColorUi,
 };

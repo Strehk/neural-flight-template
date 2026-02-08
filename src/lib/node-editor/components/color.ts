@@ -5,11 +5,10 @@
  * UI layer converts to hex for VR scene settings.
  */
 
-import type { SignalDef, ComputeResult, SignalValue } from "../graph/types";
-import { clamp01 } from "../graph/types";
+import type { ComputeResult, SignalDef, SignalValue } from "../graph/types";
+import { clampSignal } from "../graph/types";
 
-
-export const COLOR_SIGNAL: SignalDef = {
+export const COMPONENT_COLOR: SignalDef = {
 	type: "color",
 	label: "Color",
 	inputs: [
@@ -29,11 +28,10 @@ export const COLOR_SIGNAL: SignalDef = {
 		_dt: number,
 	): ComputeResult => ({
 		outputs: {
-			r: clamp01(inputs.r ?? 0.5),
-			g: clamp01(inputs.g ?? 0.5),
-			b: clamp01(inputs.b ?? 0.5),
+			r: clampSignal(inputs.r ?? 0.5),
+			g: clampSignal(inputs.g ?? 0.5),
+			b: clampSignal(inputs.b ?? 0.5),
 		},
 		state,
 	}),
 };
-

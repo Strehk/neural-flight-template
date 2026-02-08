@@ -1,79 +1,103 @@
 <script lang="ts">
-	import { onDestroy } from 'svelte';
-	import {
-		Plane,
-		Glasses,
-		Smartphone,
-		Gamepad2,
-		Eye,
-		Workflow,
-		Network,
-		MapPin,
-		Wrench,
-		BookOpen,
-	} from 'lucide-svelte';
-	import ArchitectureDiagram from '$lib/components/ArchitectureDiagram.svelte';
-	import DataTable from '$lib/components/DataTable.svelte';
-	import LinkCard from '$lib/components/LinkCard.svelte';
-	import NodeEditorPreview from '$lib/components/NodeEditorPreview.svelte';
-	import PageHeader from '$lib/components/PageHeader.svelte';
-	import { createWebSocketClient } from '$lib/ws/client.svelte';
+import {
+	BookOpen,
+	Eye,
+	Gamepad2,
+	Glasses,
+	MapPin,
+	Network,
+	Plane,
+	Smartphone,
+	Workflow,
+	Wrench,
+} from "lucide-svelte";
+import { onDestroy } from "svelte";
+import ArchitectureDiagram from "$lib/components/ArchitectureDiagram.svelte";
+import DataTable from "$lib/components/DataTable.svelte";
+import LinkCard from "$lib/components/LinkCard.svelte";
+import NodeEditorPreview from "$lib/components/NodeEditorPreview.svelte";
+import PageHeader from "$lib/components/PageHeader.svelte";
+import { createWebSocketClient } from "$lib/ws/client.svelte";
 
-	const ws = createWebSocketClient();
+const ws = createWebSocketClient();
 
-	onDestroy(() => {
-		ws.disconnect();
-	});
+onDestroy(() => {
+	ws.disconnect();
+});
 
-	// Route definitions
-	const routes = [
-		{
-			path: '/vr',
-			icon: Glasses,
-			title: 'VR Flight Scene',
-			description: 'WebXR experience for Meta Quest',
-			planned: false,
-		},
-		{
-			path: '/gyro',
-			icon: Smartphone,
-			title: 'Smartphone Gyro',
-			description: 'Device Orientation API input',
-			planned: false,
-		},
-		{
-			path: '/controller',
-			icon: Gamepad2,
-			title: 'Desktop Controller',
-			description: 'Manual pitch/roll input',
-			planned: false,
-		},
-		{
-			path: '/spectator',
-			icon: Eye,
-			title: 'Spectator Monitor',
-			description: 'External display for viewers',
-			planned: true,
-		},
-		{
-			path: '/node-editor',
-			icon: Workflow,
-			title: 'Node Editor',
-			description: 'Visual programming for VR scene',
-			planned: false,
-		},
-	];
+// Route definitions
+const routes = [
+	{
+		path: "/vr",
+		icon: Glasses,
+		title: "VR Flight Scene",
+		description: "WebXR experience for Meta Quest",
+		planned: false,
+	},
+	{
+		path: "/gyro",
+		icon: Smartphone,
+		title: "Smartphone Gyro",
+		description: "Device Orientation API input",
+		planned: false,
+	},
+	{
+		path: "/controller",
+		icon: Gamepad2,
+		title: "Desktop Controller",
+		description: "Manual pitch/roll input",
+		planned: false,
+	},
+	{
+		path: "/spectator",
+		icon: Eye,
+		title: "Spectator Monitor",
+		description: "External display for viewers",
+		planned: true,
+	},
+	{
+		path: "/node-editor",
+		icon: Workflow,
+		title: "Node Editor",
+		description: "Visual programming for VR scene",
+		planned: false,
+	},
+];
 
-	// Tech stack
-	const techStack = [
-		{ name: 'SvelteKit', description: 'Full-stack web framework', url: 'https://svelte.dev' },
-		{ name: 'Bun', description: 'JavaScript runtime', url: 'https://bun.sh' },
-		{ name: 'Three.js', description: '3D graphics library', url: 'https://threejs.org' },
-		{ name: 'WebXR', description: 'VR/AR browser API', url: 'https://immersiveweb.dev' },
-		{ name: 'bits-ui', description: 'Svelte UI components', url: 'https://bits-ui.com' },
-		{ name: 'ESP32', description: 'Microcontroller', url: 'https://espressif.com' },
-		{ name: 'BNO055', description: '9-DOF IMU sensor', url: 'https://www.adafruit.com/product/2472' },
-	];
+// Tech stack
+const techStack = [
+	{
+		name: "SvelteKit",
+		description: "Full-stack web framework",
+		url: "https://svelte.dev",
+	},
+	{ name: "Bun", description: "JavaScript runtime", url: "https://bun.sh" },
+	{
+		name: "Three.js",
+		description: "3D graphics library",
+		url: "https://threejs.org",
+	},
+	{
+		name: "WebXR",
+		description: "VR/AR browser API",
+		url: "https://immersiveweb.dev",
+	},
+	{
+		name: "bits-ui",
+		description: "Svelte UI components",
+		url: "https://bits-ui.com",
+	},
+	{
+		name: "ESP32",
+		description: "Microcontroller",
+		url: "https://espressif.com",
+	},
+	{
+		name: "BNO055",
+		description: "9-DOF IMU sensor",
+		url: "https://www.adafruit.com/product/2472",
+	},
+];
 </script>
 
 <div class="landing-page">

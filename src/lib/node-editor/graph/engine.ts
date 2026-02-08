@@ -7,8 +7,8 @@
 
 import type {
 	SignalDef,
-	SignalNodeInstance,
 	SignalEdge,
+	SignalNodeInstance,
 	SignalValue,
 } from "./types";
 
@@ -104,6 +104,14 @@ export class SignalGraph {
 		this.dirty = true;
 	}
 
+	/** Set a UI-driven input override (used when no cable is connected) */
+	setInput(nodeId: string, portId: string, value: SignalValue): void {
+		const instance = this.nodes.get(nodeId);
+		if (!instance) return;
+		if (!instance.inputOverrides) instance.inputOverrides = {};
+		instance.inputOverrides[portId] = value;
+	}
+
 	/** Get all edges */
 	getAllEdges(): SignalEdge[] {
 		return [...this.edges];
@@ -129,9 +137,9 @@ export class SignalGraph {
 			// Collect inputs from connected edges (average multiple connections)
 			const inputs: Record<string, SignalValue> = {};
 
-			// Start with default values
+			// Start with default values, then apply UI overrides
 			for (const port of def.inputs) {
-				inputs[port.id] = port.default;
+				inputs[port.id] = instance.inputOverrides?.[port.id] ?? port.default;
 			}
 
 			// Collect all connected values per port and average them

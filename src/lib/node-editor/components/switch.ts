@@ -5,9 +5,8 @@
  * Smooth crossfade optional.
  */
 
-import type { SignalDef, ComputeResult, SignalValue } from "../graph/types";
-import { clamp01, lerp } from "../graph/types";
-
+import type { ComputeResult, SignalDef, SignalValue } from "../graph/types";
+import { clampSignal, lerp } from "../graph/types";
 
 interface SwitchState {
 	/** Current blend position (0 = A, 1 = B) for smooth transitions */
@@ -16,7 +15,7 @@ interface SwitchState {
 	smoothing: number;
 }
 
-export const SWITCH_SIGNAL: SignalDef = {
+export const COMPONENT_SWITCH: SignalDef = {
 	type: "switch",
 	label: "Switch",
 	inputs: [
@@ -69,14 +68,14 @@ export const SWITCH_SIGNAL: SignalDef = {
 		} else {
 			const speed = 1 / s.smoothing;
 			const delta = (target - s.blend) * Math.min(1, speed * dt);
-			newBlend = clamp01(s.blend + delta);
+			newBlend = clampSignal(s.blend + delta);
 		}
 
 		// Interpolate between A and B
 		const out = lerp(a, b, newBlend);
 
 		return {
-			outputs: { out: clamp01(out) },
+			outputs: { out: clampSignal(out) },
 			state: { ...s, blend: newBlend },
 		};
 	},
@@ -89,4 +88,3 @@ export function setSwitchSmoothing(
 ): SwitchState {
 	return { ...state, smoothing: Math.max(0, smoothing) };
 }
-

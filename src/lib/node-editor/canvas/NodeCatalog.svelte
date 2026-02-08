@@ -1,78 +1,34 @@
 <script lang="ts">
-	/**
-	 * NodeCatalog — Drag & Drop sidebar for adding nodes
-	 *
-	 * Draggable items that can be dropped onto the SvelteFlow canvas.
-	 * Uses native HTML5 Drag & Drop API.
-	 */
+/**
+ * NodeCatalog — Drag & Drop sidebar for adding nodes
+ *
+ * Reads ALL_NODES from registry, groups by category, draggable items.
+ * Drag sets nodeType in DataTransfer → EditorCanvas handles the drop.
+ *
+ * Styles: sidebar → app.css, catalog-specific → canvas.css
+ */
 
-	import { X, Activity } from "lucide-svelte";
-	import type { ComponentType } from "svelte";
-	import type { ModuleVariant } from "../components/types";
-	import type { NodeCategory } from "../nodes/types";
-	import { getAllNodeDefs } from "../nodes/registry";
+import { Activity, X } from "lucide-svelte";
+import { ALL_NODES } from "../nodes/registry";
+import "./canvas.css";
 
-	interface NodeCatalogItem {
-		type: string;
-		label: string;
-		icon: ComponentType;
-		description: string;
-		color: string;
-		category: NodeCategory;
-	}
+interface Props {
+	open: boolean;
+	onClose: () => void;
+}
 
-	interface CatalogGroup {
-		category: NodeCategory;
-		label: string;
-		items: NodeCatalogItem[];
-	}
+const { open, onClose }: Props = $props();
 
-	interface Props {
-		open: boolean;
-		onClose: () => void;
-	}
+const grouped = $derived(
+	ALL_NODES.reduce<Record<string, typeof ALL_NODES>>((acc, node) => {
+		(acc[node.category] ??= []).push(node);
+		return acc;
+	}, {}),
+);
 
-	const { open, onClose }: Props = $props();
-
-	const VARIANT_COLORS: Record<ModuleVariant, string> = {
-		input: "var(--success)",
-		process: "var(--text-muted)",
-		trigger: "var(--warning)",
-		logic: "var(--info)",
-		output: "var(--accent)",
-	};
-
-	const CATEGORY_LABELS: Record<NodeCategory, string> = {
-		input: "Sources",
-		trigger: "Triggers",
-		process: "Process",
-		output: "Output",
-	};
-
-	const CATEGORY_ORDER: NodeCategory[] = ["input", "trigger", "process", "output"];
-
-	const ALL_ITEMS: NodeCatalogItem[] = getAllNodeDefs().map((def) => ({
-		type: def.type,
-		label: def.label,
-		icon: def.module.icon as ComponentType,
-		description: def.description,
-		color: VARIANT_COLORS[def.module.variant] ?? "var(--text-muted)",
-		category: def.category,
-	}));
-
-	const CATALOG_GROUPS: CatalogGroup[] = CATEGORY_ORDER
-		.map((cat) => ({
-			category: cat,
-			label: CATEGORY_LABELS[cat],
-			items: ALL_ITEMS.filter((item) => item.category === cat),
-		}))
-		.filter((group) => group.items.length > 0);
-
-	function handleDragStart(e: DragEvent, item: NodeCatalogItem): void {
-		if (!e.dataTransfer) return;
-		e.dataTransfer.setData("application/reactflow", item.type);
-		e.dataTransfer.effectAllowed = "move";
-	}
+function handleDragStart(e: DragEvent, nodeType: string) {
+	e.dataTransfer?.setData("application/reactflow", nodeType);
+}
 </script>
 
 {#if open}
@@ -88,167 +44,24 @@
 		</div>
 
 		<div class="sidebar-content">
-			<p class="sidebar-hint">Drag nodes to canvas</p>
-
-			{#each CATALOG_GROUPS as group}
+			{#each Object.entries(grouped) as [category, nodes]}
 				<div class="catalog-group">
-					<span class="group-label">{group.label}</span>
-					<div class="catalog-list">
-						{#each group.items as item}
-							<!-- svelte-ignore a11y_no_static_element_interactions -->
-							<div
-								class="catalog-item"
-								draggable="true"
-								ondragstart={(e) => handleDragStart(e, item)}
-								style="--item-color: {item.color}"
-							>
-								<div class="item-icon">
-									<item.icon size={16} />
-								</div>
-								<div class="item-info">
-									<span class="item-label">{item.label}</span>
-									<span class="item-desc">{item.description}</span>
-								</div>
-							</div>
-						{/each}
-					</div>
+					<span class="catalog-group-label">{category}</span>
+					{#each nodes as node}
+						{@const Icon = node.icon}
+						<div
+							class="catalog-item"
+							draggable="true"
+							ondragstart={(e) => handleDragStart(e, node.type)}
+							role="button"
+							tabindex="0"
+						>
+							<Icon size={14} />
+							<span>{node.label}</span>
+						</div>
+					{/each}
 				</div>
 			{/each}
 		</div>
 	</aside>
 {/if}
-
-<style>
-	.sidebar {
-		position: fixed;
-		top: 0;
-		right: 0;
-		width: 240px;
-		height: 100dvh;
-		background: var(--surface);
-		border-left: 1px solid var(--border);
-		z-index: 100;
-		display: flex;
-		flex-direction: column;
-	}
-
-	.sidebar-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 0.75rem 1rem;
-		border-bottom: 1px solid var(--border);
-	}
-
-	.sidebar-title {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		color: var(--text);
-	}
-
-	.mono-label {
-		font-family: var(--font-mono);
-		font-size: 0.7rem;
-		font-weight: 700;
-		letter-spacing: 0.05em;
-	}
-
-	.sidebar-close {
-		background: transparent;
-		border: none;
-		color: var(--text-muted);
-		cursor: pointer;
-		padding: 0.25rem;
-	}
-
-	.sidebar-close:hover {
-		color: var(--text);
-	}
-
-	.sidebar-content {
-		flex: 1;
-		overflow-y: auto;
-		padding: 0.75rem;
-	}
-
-	.sidebar-hint {
-		color: var(--text-muted);
-		font-size: 0.7rem;
-		margin-bottom: 0.75rem;
-		text-align: center;
-	}
-
-	.catalog-group {
-		margin-bottom: 1rem;
-	}
-
-	.group-label {
-		display: block;
-		font-family: var(--font-mono);
-		font-size: 0.6rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
-		color: var(--text-muted);
-		margin-bottom: 0.375rem;
-	}
-
-	.catalog-list {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-
-	.catalog-item {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		padding: 0.5rem;
-		background: var(--bg);
-		border: 1px solid var(--border);
-		cursor: grab;
-		transition:
-			border-color 0.15s ease,
-			transform 0.15s ease;
-	}
-
-	.catalog-item:hover {
-		border-color: var(--item-color);
-		transform: translateX(2px);
-	}
-
-	.catalog-item:active {
-		cursor: grabbing;
-	}
-
-	.item-icon {
-		width: 32px;
-		height: 32px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: var(--surface);
-		color: var(--item-color);
-	}
-
-	.item-info {
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-		gap: 0.125rem;
-	}
-
-	.item-label {
-		font-family: var(--font-mono);
-		font-size: 0.75rem;
-		font-weight: 600;
-		color: var(--text);
-	}
-
-	.item-desc {
-		font-size: 0.6rem;
-		color: var(--text-muted);
-		line-height: 1.3;
-	}
-</style>

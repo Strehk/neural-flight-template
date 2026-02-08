@@ -70,8 +70,11 @@ function isGyroSupported(): boolean {
 function requiresPermission(): boolean {
 	return (
 		typeof DeviceOrientationEvent !== "undefined" &&
-		typeof (DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> })
-			.requestPermission === "function"
+		typeof (
+			DeviceOrientationEvent as unknown as {
+				requestPermission?: () => Promise<string>;
+			}
+		).requestPermission === "function"
 	);
 }
 
@@ -122,18 +125,22 @@ export function createGyroClient(): GyroClient {
 
 		try {
 			const permission = await (
-				DeviceOrientationEvent as unknown as { requestPermission: () => Promise<string> }
+				DeviceOrientationEvent as unknown as {
+					requestPermission: () => Promise<string>;
+				}
 			).requestPermission();
 
 			if (permission === "granted") {
 				startListening();
 			} else {
 				status = "error";
-				errorMessage = "Permission denied. Enable in Settings > Safari > Motion & Orientation";
+				errorMessage =
+					"Permission denied. Enable in Settings > Safari > Motion & Orientation";
 			}
 		} catch (err) {
 			status = "error";
-			errorMessage = err instanceof Error ? err.message : "Permission request failed";
+			errorMessage =
+				err instanceof Error ? err.message : "Permission request failed";
 		}
 	}
 
@@ -147,14 +154,20 @@ export function createGyroClient(): GyroClient {
 			const gamma = event.gamma ?? 0;
 
 			// Exponential moving average for smoothing
-			smoothedBeta = smoothedBeta * (1 - SMOOTHING_ALPHA) + beta * SMOOTHING_ALPHA;
-			smoothedGamma = smoothedGamma * (1 - SMOOTHING_ALPHA) + gamma * SMOOTHING_ALPHA;
+			smoothedBeta =
+				smoothedBeta * (1 - SMOOTHING_ALPHA) + beta * SMOOTHING_ALPHA;
+			smoothedGamma =
+				smoothedGamma * (1 - SMOOTHING_ALPHA) + gamma * SMOOTHING_ALPHA;
 
 			rawBeta = Math.round(smoothedBeta * 10) / 10;
 			rawGamma = Math.round(smoothedGamma * 10) / 10;
 
 			// Apply calibration
-			const calibrated = applyCalibration(smoothedBeta, smoothedGamma, calibration);
+			const calibrated = applyCalibration(
+				smoothedBeta,
+				smoothedGamma,
+				calibration,
+			);
 			pitch = Math.round(calibrated.pitch * 10) / 10;
 			roll = Math.round(calibrated.roll * 10) / 10;
 

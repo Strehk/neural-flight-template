@@ -1,5 +1,51 @@
 // Three.js
 
+// Flow (Svelte Flow diagrams)
+export {
+	createArchitectureEdges,
+	createArchitectureNodes,
+} from "./flow/architecture";
+export { FLOW_EDITOR_PROPS, FLOW_READONLY_PROPS } from "./flow/config";
+export type { ArchitectureNodeData, NodeClass } from "./flow/types";
+// Gyro
+export type { CalibrationOffset } from "./gyro/calibration";
+export {
+	applyCalibration,
+	clearCalibration,
+	loadCalibration,
+	saveCalibration,
+} from "./gyro/calibration";
+export type { GyroState, GyroStatus } from "./gyro/orientation.svelte";
+export { createGyroClient } from "./gyro/orientation.svelte";
+export {
+	disconnectBridge,
+	getBridgeStatus,
+	initBridge,
+	sendSettings,
+} from "./node-editor/bridge";
+export {
+	getAllNodeTypes,
+	getNodeType,
+	registerNodeType,
+	SignalGraph,
+	signalGraph,
+} from "./node-editor/graph/engine";
+// Node Editor
+export type {
+	ComputeResult,
+	SignalDef,
+	SignalEdge,
+	SignalNodeInstance,
+	SignalPort,
+	SignalValue,
+} from "./node-editor/graph/types";
+export { clampSignal, lerp, remap } from "./node-editor/graph/types";
+export type { ParameterPreset } from "./node-editor/parameters/registry";
+export {
+	getPreset,
+	listPresets,
+	PARAMETER_PRESETS,
+} from "./node-editor/parameters/registry";
 export { createClouds } from "./three/clouds";
 export { loadGLTF } from "./three/loader";
 export { FlightPlayer } from "./three/player";
@@ -26,42 +72,3 @@ export type {
 } from "./types/websocket";
 // Client
 export { createWebSocketClient } from "./ws/client.svelte";
-
-// Gyro
-export type { CalibrationOffset } from "./gyro/calibration";
-export {
-	applyCalibration,
-	clearCalibration,
-	loadCalibration,
-	saveCalibration,
-} from "./gyro/calibration";
-export type { GyroState, GyroStatus } from "./gyro/orientation.svelte";
-export { createGyroClient } from "./gyro/orientation.svelte";
-
-// Flow (Svelte Flow diagrams)
-export {
-	createArchitectureEdges,
-	createArchitectureNodes,
-} from "./flow/architecture";
-export { FLOW_EDITOR_PROPS, FLOW_READONLY_PROPS } from "./flow/config";
-export type { ArchitectureNodeData, NodeClass } from "./flow/types";
-
-// Node Editor
-export type {
-	SignalDef,
-	SignalNodeInstance,
-	SignalEdge,
-	SignalValue,
-	SignalPort,
-	ComputeResult,
-} from "./node-editor/graph/types";
-export { SignalGraph, signalGraph, registerNodeType, getNodeType, getAllNodeTypes } from "./node-editor/graph/engine";
-export { clamp01, lerp, remap } from "./node-editor/graph/types";
-export {
-	disconnectBridge,
-	getBridgeStatus,
-	initBridge,
-	sendSettings,
-} from "./node-editor/bridge";
-export { PARAMETER_PRESETS, getPreset, listPresets } from "./node-editor/parameters/registry";
-export type { ParameterPreset } from "./node-editor/parameters/registry";

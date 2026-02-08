@@ -22,13 +22,11 @@
 
    ═══════════════════════════════════════════════════════════════════════════ */
 
-
 /* ═══════════════════════════════════════════════════════════════════════════
    1. FONTS
    ═══════════════════════════════════════════════════════════════════════════ */
 
 @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap");
-
 
 /* ═══════════════════════════════════════════════════════════════════════════
    2. DESIGN TOKENS
@@ -41,48 +39,48 @@
 
 :root {
 	/* ── Background & Surface ── */
-	--bg: #09090b;                    /* Main background (near black) */
-	--surface: #18181b;               /* Card/panel background */
-	--surface-hover: #27272a;         /* Surface hover state */
-	--surface-active: #3f3f46;        /* Surface pressed/active state */
+	--bg: #09090b; /* Main background (near black) */
+	--surface: #18181b; /* Card/panel background */
+	--surface-hover: #27272a; /* Surface hover state */
+	--surface-active: #3f3f46; /* Surface pressed/active state */
 
 	/* ── Border ── */
-	--border: #3f3f46;                /* Default border color */
-	--border-subtle: #27272a;         /* Subtle borders */
+	--border: #3f3f46; /* Default border color */
+	--border-subtle: #27272a; /* Subtle borders */
 
 	/* ── Text ── */
-	--text: #ffffff;                  /* Primary text */
-	--text-muted: #a1a1aa;            /* Secondary/muted text */
-	--text-subtle: #71717a;           /* Tertiary/subtle text */
+	--text: #ffffff; /* Primary text */
+	--text-muted: #a1a1aa; /* Secondary/muted text */
+	--text-subtle: #71717a; /* Tertiary/subtle text */
 
 	/* ── Accent (Purple) ── */
-	--accent: #a78bfa;                /* Primary accent color */
-	--accent-hover: #c4b5fd;          /* Accent hover */
-	--accent-muted: #8b7ec8;          /* Muted accent (sliders, etc.) */
+	--accent: #a78bfa; /* Primary accent color */
+	--accent-hover: #c4b5fd; /* Accent hover */
+	--accent-muted: #8b7ec8; /* Muted accent (sliders, etc.) */
 
 	/* ── Semantic Colors ── */
-	--success: #4ade80;               /* Success/connected/positive */
-	--success-muted: #22c55e;         /* Darker success */
-	--warning: #facc15;               /* Warning/calibration needed */
-	--warning-muted: #f59e0b;         /* Darker warning */
-	--error: #f87171;                 /* Error/disconnected/danger */
-	--error-muted: #ef4444;           /* Darker error */
+	--success: #4ade80; /* Success/connected/positive */
+	--success-muted: #22c55e; /* Darker success */
+	--warning: #facc15; /* Warning/calibration needed */
+	--warning-muted: #f59e0b; /* Darker warning */
+	--error: #f87171; /* Error/disconnected/danger */
+	--error-muted: #ef4444; /* Darker error */
 
 	/* ── Typography ── */
 	--font-main: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
 	--font-mono: var(--font-main); /* Alias for backwards compatibility */
 
 	/* ── Spacing Scale ── */
-	--space-xs: 0.25rem;              /* 4px */
-	--space-sm: 0.5rem;               /* 8px */
-	--space-md: 1rem;                 /* 16px */
-	--space-lg: 1.5rem;               /* 24px */
-	--space-xl: 2rem;                 /* 32px */
-	--space-2xl: 3rem;                /* 48px */
+	--space-xs: 0.25rem; /* 4px */
+	--space-sm: 0.5rem; /* 8px */
+	--space-md: 1rem; /* 16px */
+	--space-lg: 1.5rem; /* 24px */
+	--space-xl: 2rem; /* 32px */
+	--space-2xl: 3rem; /* 48px */
 
 	/* ── Border Radius ── */
-	--radius-none: 0;                 /* Brutalist: no radius */
-	--radius-sm: 2px;                 /* Subtle radius for badges */
+	--radius-none: 0; /* Brutalist: no radius */
+	--radius-sm: 2px; /* Subtle radius for badges */
 
 	/* ── Transitions ── */
 	--transition-fast: 0.1s ease;
@@ -98,7 +96,6 @@
 	--z-sidebar: 90;
 	--z-toast: 100;
 }
-
 
 /* ═══════════════════════════════════════════════════════════════════════════
    3. RESET & BASE
@@ -156,7 +153,6 @@ body {
 	outline: none;
 }
 
-
 /* ═══════════════════════════════════════════════════════════════════════════
    4. TYPOGRAPHY
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -207,7 +203,6 @@ body {
 	margin-bottom: var(--space-md);
 }
 
-
 /* ═══════════════════════════════════════════════════════════════════════════
    5. LAYOUT UTILITIES
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -238,15 +233,31 @@ body {
 }
 
 /* Flex Utilities */
-.flex { display: flex; }
-.flex-col { flex-direction: column; }
-.flex-center { align-items: center; justify-content: center; }
-.flex-between { justify-content: space-between; }
-.gap-xs { gap: var(--space-xs); }
-.gap-sm { gap: var(--space-sm); }
-.gap-md { gap: var(--space-md); }
-.gap-lg { gap: var(--space-lg); }
-
+.flex {
+	display: flex;
+}
+.flex-col {
+	flex-direction: column;
+}
+.flex-center {
+	align-items: center;
+	justify-content: center;
+}
+.flex-between {
+	justify-content: space-between;
+}
+.gap-xs {
+	gap: var(--space-xs);
+}
+.gap-sm {
+	gap: var(--space-sm);
+}
+.gap-md {
+	gap: var(--space-md);
+}
+.gap-lg {
+	gap: var(--space-lg);
+}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    6. CARDS & PANELS
@@ -302,7 +313,6 @@ body {
 	color: var(--text);
 	white-space: pre;
 }
-
 
 /* ═══════════════════════════════════════════════════════════════════════════
    7. BUTTONS
@@ -500,7 +510,6 @@ body {
 	min-height: 44px;
 }
 
-
 /* ═══════════════════════════════════════════════════════════════════════════
    8. FORM CONTROLS
    ═══════════════════════════════════════════════════════════════════════════
@@ -685,7 +694,6 @@ input[type="color"] {
 	color: var(--accent-muted);
 }
 
-
 /* ═══════════════════════════════════════════════════════════════════════════
    9. STATUS INDICATORS
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -746,7 +754,6 @@ input[type="color"] {
 	background: var(--error);
 	color: var(--bg);
 }
-
 
 /* ═══════════════════════════════════════════════════════════════════════════
    10. NAVIGATION & HEADER
@@ -846,15 +853,19 @@ input[type="color"] {
 	padding: var(--space-sm) 0;
 }
 
-
 /* ═══════════════════════════════════════════════════════════════════════════
    11. ANIMATIONS
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* Pulse — For attention-getting elements */
 @keyframes pulse {
-	0%, 100% { opacity: 1; }
-	50% { opacity: 0.6; }
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.6;
+	}
 }
 
 .pulse {
@@ -863,7 +874,9 @@ input[type="color"] {
 
 /* Spin — For loading spinners */
 @keyframes spin {
-	to { transform: rotate(360deg); }
+	to {
+		transform: rotate(360deg);
+	}
 }
 
 .spin {
@@ -880,26 +893,34 @@ input[type="color"] {
 	animation: spin 0.8s linear infinite;
 }
 
-
 /* ═══════════════════════════════════════════════════════════════════════════
    12. RESPONSIVE UTILITIES
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* Hide on mobile */
 @media (max-width: 640px) {
-	.hide-mobile { display: none !important; }
+	.hide-mobile {
+		display: none !important;
+	}
 }
 
 /* Hide on desktop */
 @media (min-width: 641px) {
-	.hide-desktop { display: none !important; }
+	.hide-desktop {
+		display: none !important;
+	}
 }
 
 /* Text alignment */
-.text-center { text-align: center; }
-.text-left { text-align: left; }
-.text-right { text-align: right; }
-
+.text-center {
+	text-align: center;
+}
+.text-left {
+	text-align: left;
+}
+.text-right {
+	text-align: right;
+}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    13. LANDING PAGE
@@ -990,7 +1011,6 @@ input[type="color"] {
 .landing-main .footer a:hover {
 	text-decoration: underline;
 }
-
 
 /* ═══════════════════════════════════════════════════════════════════════════
    13b. CONTROLLER PAGES (Gyro, Controller)
@@ -1102,7 +1122,6 @@ input[type="color"] {
 	max-width: 320px;
 }
 
-
 /* ═══════════════════════════════════════════════════════════════════════════
    14. SVELTE FLOW
    ═══════════════════════════════════════════════════════════════════════════
@@ -1125,7 +1144,6 @@ input[type="color"] {
 	border-radius: 0;
 	white-space: pre-line;
 }
-
 
 /* ═══════════════════════════════════════════════════════════════════════════
    END OF DESIGN SYSTEM

@@ -140,6 +140,43 @@
 	background: var(--success);
 }
 
+/* ── Catalog (NodeCatalog sidebar content) ── */
+.catalog-group {
+	margin-bottom: 0.75rem;
+	padding: 0 0.75rem;
+}
+
+.catalog-group-label {
+	display: block;
+	font-family: var(--font-mono);
+	font-size: 0.6rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--text-subtle);
+	margin-bottom: 0.25rem;
+}
+
+.catalog-item {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.35rem 0.5rem;
+	font-size: 0.7rem;
+	color: var(--text-muted);
+	cursor: grab;
+	user-select: none;
+}
+
+.catalog-item:hover {
+	color: var(--text);
+	background: var(--surface-hover);
+}
+
+.catalog-item:active {
+	cursor: grabbing;
+}
+
 /* LFO input handle (speed mod) uses warning color */
 .node--input .handle-input {
 	background: var(--warning);

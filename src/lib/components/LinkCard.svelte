@@ -1,16 +1,23 @@
 <script lang="ts">
-	import type { ComponentType } from 'svelte';
+import type { ComponentType } from "svelte";
 
-	interface Props {
-		href: string;
-		icon: ComponentType;
-		path: string;
-		title: string;
-		description: string;
-		planned?: boolean;
-	}
+interface Props {
+	href: string;
+	icon: ComponentType;
+	path: string;
+	title: string;
+	description: string;
+	planned?: boolean;
+}
 
-	const { href, icon: Icon, path, title, description, planned = false }: Props = $props();
+const {
+	href,
+	icon: Icon,
+	path,
+	title,
+	description,
+	planned = false,
+}: Props = $props();
 </script>
 
 {#if planned}
