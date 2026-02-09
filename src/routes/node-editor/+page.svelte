@@ -107,6 +107,11 @@ function handleNodeDrop(
 		}
 	}
 
+	// Dynamic channel count for mixer nodes
+	if (def.type === "mixer") {
+		data._channelCount = 2;
+	}
+
 	// Create SvelteFlow node
 	nodes = [...nodes, { id: sfId, type: "module", position, data }];
 
@@ -122,6 +127,11 @@ function handleNodeDrop(
 		engineIds.push(engineId);
 	}
 	nodeEngineMap.set(sfId, engineIds);
+
+	// Set initial channelCount for mixer (raw integer, not 0-1)
+	if (def.type === "mixer") {
+		signalGraph.setInput(`${sfId}_mixer`, "channelCount", 2);
+	}
 
 	// Internal wires — build signal→source map, then connect
 	const sources = new Map<string, { engineId: string; port: string }>();

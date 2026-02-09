@@ -7,10 +7,14 @@
  * 3. Add it to ALL_NODES
  */
 
+import { NODE_BODY_SMOOTHER } from "./body_smoother_node";
+import { NODE_COLOR_BLEND } from "./color_blend_node";
 import { NODE_ENVELOPE } from "./envelope_node";
 import { NODE_LFO_MODULATOR } from "./lfo_modulator_node";
 import { NODE_LOGIC_GATE } from "./logic_gate_node";
+import { NODE_MIXER } from "./mixer_node";
 import { NODE_NOISE } from "./noise_node";
+import { NODE_PULSE_GENERATOR } from "./pulse_generator_node";
 import { NODE_SLIDER } from "./slider_node";
 import { NODE_SPRING } from "./spring_node";
 import { OUTPUT_NODES } from "./system_nodes";
@@ -23,6 +27,10 @@ export const ALL_NODES: NodeDef[] = [
 	NODE_NOISE,
 	NODE_LOGIC_GATE,
 	NODE_SPRING,
+	NODE_PULSE_GENERATOR,
+	NODE_BODY_SMOOTHER,
+	NODE_COLOR_BLEND,
+	NODE_MIXER,
 	...OUTPUT_NODES,
 ];
 

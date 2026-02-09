@@ -30,7 +30,11 @@ const nodeDef = $derived(getNodeDef(data.nodeType as string));
 		{/each}
 	</NodeShell>
 
-	{#each nodeDef.inputs as port}
+	{@const maxInputs = data._channelCount as number | undefined}
+	{@const visibleInputs = maxInputs != null
+		? nodeDef.inputs.slice(0, maxInputs)
+		: nodeDef.inputs}
+	{#each visibleInputs as port}
 		<Handle type="target" position={Position.Left} id={port.id} />
 	{/each}
 	{#each nodeDef.outputs as port}
