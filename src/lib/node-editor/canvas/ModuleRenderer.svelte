@@ -34,10 +34,20 @@ const nodeDef = $derived(getNodeDef(data.nodeType as string));
 	{@const visibleInputs = maxInputs != null
 		? nodeDef.inputs.slice(0, maxInputs)
 		: nodeDef.inputs}
-	{#each visibleInputs as port}
-		<Handle type="target" position={Position.Left} id={port.id} />
+	{#each visibleInputs as port, i}
+		<Handle
+			type="target"
+			position={Position.Left}
+			id={port.id}
+			style="top: {((i + 1) / (visibleInputs.length + 1)) * 100}%"
+		/>
 	{/each}
-	{#each nodeDef.outputs as port}
-		<Handle type="source" position={Position.Right} id={port.id} />
+	{#each nodeDef.outputs as port, i}
+		<Handle
+			type="source"
+			position={Position.Right}
+			id={port.id}
+			style="top: {((i + 1) / (nodeDef.outputs.length + 1)) * 100}%"
+		/>
 	{/each}
 {/if}
