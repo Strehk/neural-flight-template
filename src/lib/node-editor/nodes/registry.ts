@@ -7,7 +7,6 @@
  * 3. Add it to ALL_NODES
  */
 
-import { NODE_BODY_SMOOTHER } from "./body_smoother_node";
 import { NODE_COLOR_BLEND } from "./color_blend_node";
 import { NODE_ENVELOPE } from "./envelope_node";
 import { NODE_LFO_MODULATOR } from "./lfo_modulator_node";
@@ -28,7 +27,6 @@ export const ALL_NODES: NodeDef[] = [
 	NODE_LOGIC_GATE,
 	NODE_SPRING,
 	NODE_PULSE_GENERATOR,
-	NODE_BODY_SMOOTHER,
 	NODE_COLOR_BLEND,
 	NODE_MIXER,
 	...OUTPUT_NODES,

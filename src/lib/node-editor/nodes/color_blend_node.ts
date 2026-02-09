@@ -5,13 +5,16 @@
  *   Color_A(r/g/b) → Switch_R/G/B(a)
  *   Color_B(r/g/b) → Switch_R/G/B(b)
  *   External(signal_gate) → Switch_R/G/B(gate) [fan-out]
+ *   External(signal_a_r_in...) → Color_A(r/g/b) [optional per-channel override]
+ *   External(signal_b_r_in...) → Color_B(r/g/b) [optional per-channel override]
  *   Switch_R(out) → Output(signal_r)
  *   Switch_G(out) → Output(signal_g)
  *   Switch_B(out) → Output(signal_b)
  *
  * Exposed ports:
- *   Input:  signal_gate (left handle)
- *   Output: signal_r, signal_g, signal_b (right handles)
+ *   Input:  signal_gate, signal_a_r_in, signal_a_g_in, signal_a_b_in,
+ *           signal_b_r_in, signal_b_g_in, signal_b_b_in
+ *   Output: signal_r, signal_g, signal_b
  *
  * Components: 5 (2× Color_UI + 3× Switch headless)
  */
@@ -31,7 +34,11 @@ export const NODE_COLOR_BLEND: NodeDef = {
 		{
 			id: "colorA",
 			signal: COMPONENT_COLOR_UI,
-			inputWires: { r: null, g: null, b: null },
+			inputWires: {
+				r: "signal_a_r_in",
+				g: "signal_a_g_in",
+				b: "signal_a_b_in",
+			},
 			outputWires: {
 				r: "signal_a_r",
 				g: "signal_a_g",
@@ -41,7 +48,11 @@ export const NODE_COLOR_BLEND: NodeDef = {
 		{
 			id: "colorB",
 			signal: COMPONENT_COLOR_UI,
-			inputWires: { r: null, g: null, b: null },
+			inputWires: {
+				r: "signal_b_r_in",
+				g: "signal_b_g_in",
+				b: "signal_b_b_in",
+			},
 			outputWires: {
 				r: "signal_b_r",
 				g: "signal_b_g",
@@ -81,12 +92,13 @@ export const NODE_COLOR_BLEND: NodeDef = {
 	],
 
 	inputs: [
-		{
-			id: "signal_gate",
-			label: "Gate",
-			side: "left",
-			portType: "trigger",
-		},
+		{ id: "signal_gate", label: "Gate", side: "left", portType: "trigger" },
+		{ id: "signal_a_r_in", label: "A:R", side: "left", portType: "number" },
+		{ id: "signal_a_g_in", label: "A:G", side: "left", portType: "number" },
+		{ id: "signal_a_b_in", label: "A:B", side: "left", portType: "number" },
+		{ id: "signal_b_r_in", label: "B:R", side: "left", portType: "number" },
+		{ id: "signal_b_g_in", label: "B:G", side: "left", portType: "number" },
+		{ id: "signal_b_b_in", label: "B:B", side: "left", portType: "number" },
 	],
 	outputs: [
 		{ id: "signal_r", label: "R", side: "right", portType: "number" },

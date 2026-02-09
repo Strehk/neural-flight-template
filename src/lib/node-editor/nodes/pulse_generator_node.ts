@@ -1,25 +1,26 @@
 /**
- * Pulse Generator Node — LFO-driven rhythmic envelope
+ * Pulse Generator Node — LFO-driven pulse train
+ *
+ * Inspired by VCV Rack pulse generators (LittleUtils, Buchla 140).
+ * Simple clock/trigger generator with Rate + Width controls.
  *
  * Internal pipeline:
- *   External(signal_speed_mod) → LFO(speedMod)
- *   LFO(wave) → Comparator(signal)
- *   Comparator(gate) → Gate(trigger)
- *   Gate(gate) → Envelope(gate)
- *   Envelope(envelope) → Output(signal_pulse)
+ *   LFO_UI(wave) → Comparator(signal)
+ *   Slider_UI(out) → Comparator(threshold)  ← "Width" (duty cycle)
+ *   External(signal_rate_mod) → LFO_UI(speedMod)
+ *   Comparator(gate) → Output(signal_pulse)
  *
  * Exposed ports:
- *   Input:  signal_speed_mod (left handle)
+ *   Input:  signal_rate_mod (left handle)
  *   Output: signal_pulse (right handle)
  *
- * Components: 4 (LFO_UI + Comparator_UI + Gate_UI + Envelope_UI)
+ * Components: 3 (LFO_UI + Slider_UI + Comparator headless)
  */
 
 import { HeartPulse } from "lucide-svelte";
-import { COMPONENT_COMPARATOR_UI } from "../components/comparator_ui";
-import { COMPONENT_ENVELOPE_UI } from "../components/envelope_ui";
-import { COMPONENT_GATE_UI } from "../components/gate_ui";
+import { COMPONENT_COMPARATOR } from "../components/comparator";
 import { COMPONENT_LFO_UI } from "../components/lfo_ui";
+import { COMPONENT_SLIDER_UI } from "../components/slider_ui";
 import type { NodeDef } from "./types";
 
 export const NODE_PULSE_GENERATOR: NodeDef = {
@@ -32,38 +33,29 @@ export const NODE_PULSE_GENERATOR: NodeDef = {
 		{
 			id: "lfo",
 			signal: COMPONENT_LFO_UI,
-			inputWires: { speedMod: "signal_speed_mod" },
+			inputWires: { speedMod: "signal_rate_mod" },
 			outputWires: { wave: "signal_lfo_out" },
 		},
 		{
+			id: "width",
+			signal: COMPONENT_SLIDER_UI,
+			inputWires: {},
+			outputWires: { out: "signal_threshold" },
+		},
+		{
 			id: "cmp",
-			signal: COMPONENT_COMPARATOR_UI,
-			inputWires: { signal: "signal_lfo_out", threshold: null },
-			outputWires: { gate: "signal_cmp_gate" },
-		},
-		{
-			id: "gate",
-			signal: COMPONENT_GATE_UI,
-			inputWires: { trigger: "signal_cmp_gate" },
-			outputWires: { gate: "signal_gate_out" },
-		},
-		{
-			id: "env",
-			signal: COMPONENT_ENVELOPE_UI,
+			signal: COMPONENT_COMPARATOR,
 			inputWires: {
-				gate: "signal_gate_out",
-				attack: null,
-				decay: null,
-				sustain: null,
-				release: null,
+				signal: "signal_lfo_out",
+				threshold: "signal_threshold",
 			},
-			outputWires: { envelope: "signal_pulse" },
+			outputWires: { gate: "signal_pulse" },
 		},
 	],
 
 	inputs: [
 		{
-			id: "signal_speed_mod",
+			id: "signal_rate_mod",
 			label: "Speed",
 			side: "left",
 			portType: "number",
