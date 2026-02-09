@@ -22,22 +22,21 @@ The ICAROS fitness device provides body-based flight control:
 
 ## 🏗️ Architecture
 
-```
-                    ┌─────────────┐
-                    │             │
-  ┌────────────────▶│   SERVER    │◀────────────────┐
-  │                 │    (Hub)    │                 │
-  │                 │             │                 │
-  │                 └──────┬──────┘                 │
-  │                        │                        │
-  │           ┌────────────┼────────────┐           │
-  │           │            │            │           │
-  ▼           ▼            ▼            ▼           ▼
-┌───────┐ ┌───────┐ ┌───────┐ ┌───────┐ ┌───────┐
-│ ESP32 │ │ /gyro │ │  /vr  │ │/spect │ │/lights│
-│Sensor │ │ Phone │ │ Quest │ │Monitor│ │DMX/Hue│
-└───────┘ └───────┘ └───────┘ └───────┘ └───────┘
-  INPUT     INPUT    OUTPUT    OUTPUT    OUTPUT
+```mermaid
+graph TD
+    SERVER["🖥️ SERVER (Hub)"]
+
+    ESP32["ESP32 Sensor"]
+    GYRO["/gyro — Phone"]
+    VR["/vr — Quest"]
+    SPECT["/spectator — Monitor"]
+    LIGHTS["/lights — DMX/Hue"]
+
+    ESP32 -- INPUT --> SERVER
+    GYRO -- INPUT --> SERVER
+    SERVER -- OUTPUT --> VR
+    SERVER -- OUTPUT --> SPECT
+    SERVER -- OUTPUT --> LIGHTS
 ```
 
 **Key principle:** All data flows through the server. No direct client-to-client communication.
@@ -66,13 +65,12 @@ brew install android-platform-tools    # Mac
 
 ```bash
 # Clone & install
-git clone https://github.com/YOUR_USERNAME/simple_flight.git
-cd simple_flight
+git clone https://github.com/dweigend/neural-flight-template.git
+cd neural-flight-template
 bun install
 
 # Generate HTTPS certificates (required for WebXR)
-mkdir -p certs
-mkcert -key-file certs/key.pem -cert-file certs/cert.pem localhost 127.0.0.1
+mkcert localhost
 
 # Start dev server
 bun run dev
@@ -101,6 +99,7 @@ adb reverse tcp:5173 tcp:5173
 | `/vr` | Quest | 🥽 WebXR flight scene (Three.js) |
 | `/gyro` | Phone | 📱 Gyroscope controller (ICAROS) |
 | `/controller` | Laptop | 🎮 D-Pad controller + Settings |
+| `/node-editor` | Laptop | 🔧 Visual node editor for VR parameters |
 | `/spectator` | Monitor | 👀 External display *(planned)* |
 
 ---
@@ -113,7 +112,8 @@ src/
 │   ├── +page.svelte              # Landing page
 │   ├── vr/+page.svelte           # WebXR flight scene
 │   ├── gyro/+page.svelte         # Gyroscope controller
-│   └── controller/+page.svelte   # Desktop controller
+│   ├── controller/+page.svelte   # Desktop controller
+│   └── node-editor/+page.svelte  # Visual node editor
 │
 ├── lib/
 │   ├── three/                    # 🎮 Three.js modules
@@ -141,6 +141,15 @@ src/
 │   │
 │   ├── config/                   # ⚙️ Configuration
 │   │   └── flight.ts             # All tuning constants
+│   │
+│   ├── node-editor/              # 🔧 Visual node editor (Eurorack architecture)
+│   │   ├── components/           # Atomic signal processors
+│   │   ├── nodes/                # Node compositions (modules)
+│   │   ├── canvas/               # SvelteFlow infrastructure
+│   │   ├── controls/             # UI primitives (bits-ui)
+│   │   ├── graph/                # Compute engine (headless)
+│   │   ├── parameters/           # VR parameter registry
+│   │   └── bridge.ts             # WebSocket → Three.js
 │   │
 │   ├── components/               # 🎨 UI components (bits-ui)
 │   └── types/                    # 📝 TypeScript interfaces
