@@ -21,7 +21,7 @@ export * from "./graph";
 // Port Types (compatibility check)
 export { arePortTypesCompatible } from "./nodes/port_types";
 // Node Registry (catalog + lookup)
-export { ALL_NODES, getNodeDef } from "./nodes/registry";
+export { ALL_NODES, getAllNodes, getNodeDef } from "./nodes/registry";
 export type { ComponentSlot, ExposedPort, NodeDef } from "./nodes/types";
 // Parameters (VR parameter registry)
 export * from "./parameters/registry";

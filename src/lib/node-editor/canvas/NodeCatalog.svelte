@@ -9,7 +9,8 @@
  */
 
 import { Activity, X } from "lucide-svelte";
-import { ALL_NODES } from "../nodes/registry";
+import { getAllNodes } from "../nodes/registry";
+import type { NodeDef } from "../nodes/types";
 import "./canvas.css";
 
 interface Props {
@@ -20,7 +21,7 @@ interface Props {
 const { open, onClose }: Props = $props();
 
 const grouped = $derived(
-	ALL_NODES.reduce<Record<string, typeof ALL_NODES>>((acc, node) => {
+	getAllNodes().reduce<Record<string, NodeDef[]>>((acc, node) => {
 		(acc[node.category] ??= []).push(node);
 		return acc;
 	}, {}),

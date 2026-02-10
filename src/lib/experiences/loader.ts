@@ -71,6 +71,7 @@ export function setActiveExperienceId(id: string): void {
 }
 
 export function getActiveExperienceId(): string {
+	if (typeof localStorage === "undefined") return DEFAULT_EXPERIENCE_ID;
 	return localStorage.getItem(STORAGE_KEY) ?? DEFAULT_EXPERIENCE_ID;
 }
 
