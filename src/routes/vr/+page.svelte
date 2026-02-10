@@ -3,7 +3,6 @@ import { Trophy } from "lucide-svelte";
 import { onDestroy, onMount } from "svelte";
 import * as THREE from "three";
 import { VRButton } from "three/examples/jsm/webxr/VRButton.js";
-import { applySettings as applyRuntimeSettings } from "$lib/config/flight";
 import { loadExperience, unloadExperience } from "$lib/experiences/loader";
 import type { ActiveExperience } from "$lib/experiences/loader";
 import { createWebSocketClient } from "$lib/ws/client.svelte";
@@ -69,11 +68,10 @@ onMount(() => {
 						};
 					}
 					if (isSettingsUpdate(msg)) {
-						applyRuntimeSettings(msg.settings);
 						for (const key of Object.keys(msg.settings)) {
 							exp.manifest.applySettings(
 								key,
-								msg.settings[key] as number,
+								msg.settings[key] as number | boolean | string,
 								exp.state,
 								scene,
 							);

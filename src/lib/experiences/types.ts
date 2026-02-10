@@ -166,7 +166,7 @@ export interface ExperienceManifest {
 	/** Called when a parameter changes. Map parameter ID to scene changes. */
 	applySettings: (
 		id: string,
-		value: number,
+		value: number | boolean | string,
 		state: ExperienceState,
 		scene: THREE.Scene,
 	) => void;

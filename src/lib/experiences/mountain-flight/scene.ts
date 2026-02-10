@@ -3,10 +3,8 @@ import {
 	CAMERA,
 	CLOUDS,
 	FLIGHT,
-	SCENE,
 	SKY,
 	TERRAIN,
-	runtimeConfig,
 } from "$lib/config/flight";
 import { createClouds, disposeClouds, updateClouds } from "$lib/three/clouds";
 import { FlightPlayer } from "$lib/three/player";
@@ -24,6 +22,10 @@ export interface MountainFlightState extends ExperienceState {
 	score: number;
 	cloudRebuildTimer: ReturnType<typeof setTimeout> | null;
 	camera: THREE.PerspectiveCamera;
+	/** Wind speed for cloud drift — updated via applySettings */
+	windSpeed: number;
+	/** Whether clouds drift with wind — updated via applySettings */
+	cloudDriftEnabled: boolean;
 }
 
 export async function setup(ctx: SetupContext): Promise<MountainFlightState> {
@@ -105,6 +107,8 @@ export async function setup(ctx: SetupContext): Promise<MountainFlightState> {
 		score: 0,
 		cloudRebuildTimer: null,
 		camera: player.camera,
+		windSpeed: CLOUDS.DRIFT_SPEED,
+		cloudDriftEnabled: true,
 	};
 }
 
@@ -116,8 +120,8 @@ export function tick(
 
 	s.player.tick(ctx.delta);
 
-	if (runtimeConfig.cloudDriftEnabled) {
-		updateClouds(s.clouds, ctx.delta, s.player.rig.position, runtimeConfig.windSpeed);
+	if (s.cloudDriftEnabled) {
+		updateClouds(s.clouds, ctx.delta, s.player.rig.position, s.windSpeed);
 	}
 
 	s.score += s.terrain.update(s.player.rig.position);
