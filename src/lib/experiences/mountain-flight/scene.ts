@@ -1,0 +1,142 @@
+import * as THREE from "three";
+import {
+	CAMERA,
+	CLOUDS,
+	FLIGHT,
+	SCENE,
+	SKY,
+	TERRAIN,
+	runtimeConfig,
+} from "$lib/config/flight";
+import { createClouds, disposeClouds, updateClouds } from "$lib/three/clouds";
+import { FlightPlayer } from "$lib/three/player";
+import { createSky } from "$lib/three/sky";
+import { TerrainManager } from "$lib/three/terrain/manager";
+import { createWater } from "$lib/three/terrain/water";
+import type { ExperienceState, SetupContext, TickContext } from "../types";
+
+export interface MountainFlightState extends ExperienceState {
+	player: FlightPlayer;
+	terrain: TerrainManager;
+	water: THREE.Mesh;
+	skyMesh: THREE.Mesh;
+	clouds: THREE.Group;
+	score: number;
+	cloudRebuildTimer: ReturnType<typeof setTimeout> | null;
+	camera: THREE.PerspectiveCamera;
+}
+
+export async function setup(ctx: SetupContext): Promise<MountainFlightState> {
+	// Player (creates own camera + rig)
+	const player = new FlightPlayer({
+		fov: CAMERA.FOV,
+		near: CAMERA.NEAR,
+		far: CAMERA.FAR,
+		spawnPosition: FLIGHT.SPAWN_POSITION,
+		baseSpeed: FLIGHT.BASE_SPEED,
+		terrainSlowdown: FLIGHT.TERRAIN_SLOWDOWN,
+	});
+	ctx.scene.add(player.rig);
+
+	// Shadow config on sun created by loader
+	const sun = ctx.scene.children.find(
+		(c): c is THREE.DirectionalLight => c instanceof THREE.DirectionalLight,
+	);
+	if (sun) {
+		sun.castShadow = true;
+		sun.shadow.mapSize.set(1024, 1024);
+		sun.shadow.camera.left = -150;
+		sun.shadow.camera.right = 150;
+		sun.shadow.camera.top = 150;
+		sun.shadow.camera.bottom = -150;
+		sun.shadow.camera.near = 0.5;
+		sun.shadow.camera.far = 500;
+	}
+
+	// Terrain
+	const terrain = new TerrainManager({
+		chunkSize: TERRAIN.CHUNK_SIZE,
+		maxPool: TERRAIN.MAX_POOL,
+	});
+	ctx.scene.add(terrain.group);
+	ctx.scene.add(terrain.ringGroup);
+	terrain.update(player.rig.position);
+
+	// Water
+	const water = createWater({
+		size: TERRAIN.WATER_SIZE,
+		color: TERRAIN.WATER_COLOR,
+		opacity: TERRAIN.WATER_OPACITY,
+		y: TERRAIN.WATER_Y,
+	});
+	ctx.scene.add(water);
+
+	// Sky
+	const skyMesh = createSky({
+		radius: SKY.RADIUS,
+		detail: SKY.DETAIL,
+		colorTop: SKY.COLOR_TOP,
+		colorHorizon: SKY.COLOR_HORIZON,
+		colorBottom: SKY.COLOR_BOTTOM,
+	});
+	ctx.scene.add(skyMesh);
+
+	// Clouds
+	const clouds = createClouds({
+		count: CLOUDS.COUNT,
+		spread: CLOUDS.SPREAD,
+		heightMin: CLOUDS.HEIGHT_MIN,
+		heightMax: CLOUDS.HEIGHT_MAX,
+		blobCount: CLOUDS.BLOB_COUNT,
+		blobRadius: CLOUDS.BLOB_RADIUS,
+		color: CLOUDS.COLOR,
+		opacity: CLOUDS.OPACITY,
+		driftSpeed: CLOUDS.DRIFT_SPEED,
+		driftDirection: CLOUDS.DRIFT_DIRECTION,
+	});
+	ctx.scene.add(clouds);
+
+	return {
+		player,
+		terrain,
+		water,
+		skyMesh,
+		clouds,
+		score: 0,
+		cloudRebuildTimer: null,
+		camera: player.camera,
+	};
+}
+
+export function tick(
+	state: ExperienceState,
+	ctx: TickContext,
+): { state: ExperienceState; outputs?: Record<string, number> } {
+	const s = state as MountainFlightState;
+
+	s.player.tick(ctx.delta);
+
+	if (runtimeConfig.cloudDriftEnabled) {
+		updateClouds(s.clouds, ctx.delta, s.player.rig.position, runtimeConfig.windSpeed);
+	}
+
+	s.score += s.terrain.update(s.player.rig.position);
+
+	return { state: s, outputs: { score: s.score } };
+}
+
+export function dispose(state: ExperienceState, scene: THREE.Scene): void {
+	const s = state as MountainFlightState;
+
+	if (s.cloudRebuildTimer) clearTimeout(s.cloudRebuildTimer);
+
+	s.terrain.dispose();
+	disposeClouds(s.clouds);
+
+	scene.remove(s.water);
+	scene.remove(s.skyMesh);
+	scene.remove(s.clouds);
+	scene.remove(s.player.rig);
+	scene.remove(s.terrain.group);
+	scene.remove(s.terrain.ringGroup);
+}
