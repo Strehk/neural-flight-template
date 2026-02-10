@@ -6,12 +6,18 @@ import IcarosPreview from "$lib/components/IcarosPreview.svelte";
 import PageHeader from "$lib/components/PageHeader.svelte";
 import SettingsSidebar from "$lib/components/SettingsSidebar.svelte";
 import SpeedButtons from "$lib/components/SpeedButtons.svelte";
+import { getExperience } from "$lib/experiences/catalog";
+import { getActiveExperienceId } from "$lib/experiences/loader";
 import type {
 	OrientationData,
 	SettingsUpdate,
 	SpeedCommand,
 } from "$lib/types/orientation";
 import { createWebSocketClient } from "$lib/ws/client.svelte";
+
+// Load parameters from the active experience manifest
+const manifest = getExperience(getActiveExperienceId());
+const parameters = manifest.parameters;
 
 const ws = createWebSocketClient();
 
@@ -44,7 +50,7 @@ onDestroy(() => ws.disconnect());
 	<title>ICAROS Controller</title>
 </svelte:head>
 
-<SettingsSidebar open={sidebarOpen} onClose={toggleSidebar} onSettingsChange={handleSettings} />
+<SettingsSidebar open={sidebarOpen} onClose={toggleSidebar} onSettingsChange={handleSettings} {parameters} />
 
 <div class="controller-page">
 	<PageHeader icon={Gamepad2} label="ICAROS" status={ws.status}>
