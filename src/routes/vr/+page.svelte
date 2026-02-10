@@ -3,7 +3,11 @@ import { Trophy } from "lucide-svelte";
 import { onDestroy, onMount } from "svelte";
 import * as THREE from "three";
 import { VRButton } from "three/examples/jsm/webxr/VRButton.js";
-import { loadExperience, unloadExperience } from "$lib/experiences/loader";
+import {
+	getActiveExperienceId,
+	loadExperience,
+	unloadExperience,
+} from "$lib/experiences/loader";
 import type { ActiveExperience } from "$lib/experiences/loader";
 import { createWebSocketClient } from "$lib/ws/client.svelte";
 import {
@@ -17,6 +21,8 @@ let renderer: THREE.WebGLRenderer;
 let scene: THREE.Scene;
 let vrButton: HTMLElement;
 let score = $state(0);
+let experienceName = $state("ICAROS VR");
+let hasOutputs = $state(false);
 let lastProcessedTimestamp = 0;
 const ws = createWebSocketClient();
 const clock = new THREE.Clock();
@@ -39,8 +45,13 @@ onMount(() => {
 	vrButton = VRButton.createButton(renderer);
 	document.body.appendChild(vrButton);
 
-	loadExperience("mountain-flight", { scene, camera: dummyCamera, renderer }).then(
+	// Load whichever experience is selected (persisted in localStorage)
+	const experienceId = getActiveExperienceId();
+
+	loadExperience(experienceId, { scene, camera: dummyCamera, renderer }).then(
 		(exp: ActiveExperience) => {
+			experienceName = exp.manifest.name;
+			hasOutputs = (exp.manifest.outputs?.length ?? 0) > 0;
 			const renderCamera = exp.state.camera as THREE.PerspectiveCamera;
 
 			function onResize(): void {
@@ -112,14 +123,16 @@ onDestroy(() => {
 </script>
 
 <svelte:head>
-	<title>ICAROS VR Flight</title>
+	<title>{experienceName} | ICAROS VR</title>
 </svelte:head>
 
 <canvas bind:this={canvas} class="vr-canvas"></canvas>
 
-<div class="score-overlay">
-	<Trophy size={20} /> {score}
-</div>
+{#if hasOutputs}
+	<div class="score-overlay">
+		<Trophy size={20} /> {score}
+	</div>
+{/if}
 
 <style>
 	.vr-canvas {
