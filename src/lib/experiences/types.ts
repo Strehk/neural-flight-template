@@ -22,11 +22,13 @@ export interface ParameterDef {
 	label: string;
 	/** Parameter grouping in Settings Sidebar */
 	group: string;
+	/** Input type — determines which widget the Sidebar renders (default: "number") */
+	type?: "number" | "boolean" | "color";
 	/** Real-world range — Node Editor sends 0-1, remap happens in applySettings() */
 	min: number;
 	max: number;
-	/** Default real-world value */
-	default: number;
+	/** Default value (number for sliders, boolean/string stored as number 0/1 for booleans) */
+	default: number | boolean | string;
 	/** Increment step for Settings Sidebar slider */
 	step: number;
 	/** Optional unit label (e.g. "m", "Hz", "%") */
@@ -103,7 +105,7 @@ export interface ExperienceState {
 
 /** Current parameter values at real-world scale — maintained by Loader */
 export interface RuntimeValues {
-	[parameterId: string]: number;
+	[parameterId: string]: number | boolean | string;
 }
 
 // ── Lifecycle Contexts ──

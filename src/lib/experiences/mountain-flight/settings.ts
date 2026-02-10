@@ -24,6 +24,20 @@ export function applySettings(
 	);
 
 	switch (id) {
+		// ── Flight ──────────────────────────────────────
+		// These mutate FlightPlayer properties directly — tick() reads them each frame
+		case "baseSpeed":
+			s.player.baseSpeed = value as number;
+			break;
+
+		case "rollYawMultiplier":
+			s.player.rollYawMultiplier = value as number;
+			break;
+
+		case "lerpAlpha":
+			s.player.lerpAlpha = value as number;
+			break;
+
 		// ── Fog ──────────────────────────────────────────
 		case "fogNear":
 			if (scene.fog instanceof THREE.Fog) scene.fog.near = value as number;

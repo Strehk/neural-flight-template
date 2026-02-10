@@ -1,10 +1,4 @@
-/**
- * ⚠️ TEMPORARY DEFAULTS — Will move to experience manifest (Step 2).
- * These values currently mirror config/flight.ts CAMERA + FLIGHT constants.
- * After migration: each experience passes its own config, no defaults here.
- */
 import * as THREE from "three";
-import { runtimeConfig } from "$lib/config/flight";
 import { DEFAULT_HEIGHTMAP, getHeight } from "$lib/three/terrain/heightmap";
 import type { OrientationData, SpeedCommand } from "$lib/types/orientation";
 
@@ -28,7 +22,12 @@ const DEFAULTS: Required<FlightPlayerConfig> = {
 	terrainSlowdown: 0.7,
 };
 
-/** Flight player — rig with camera, driven by pitch/roll + speed commands. */
+/**
+ * Flight player — rig with camera, driven by pitch/roll + speed commands.
+ *
+ * All tuning properties (baseSpeed, lerpAlpha, rollYawMultiplier, minClearance)
+ * are mutable and can be updated by applySettings() at runtime.
+ */
 export class FlightPlayer {
 	readonly rig: THREE.Group;
 	readonly camera: THREE.PerspectiveCamera;
@@ -43,9 +42,16 @@ export class FlightPlayer {
 	private accelerating = false;
 	private braking = false;
 
+	/** Mutable flight parameters — set via applySettings */
+	baseSpeed: number;
+	lerpAlpha = 0.15;
+	rollYawMultiplier = 1.5;
+	minClearance = 8;
+
 	constructor(config?: FlightPlayerConfig) {
 		const c = { ...DEFAULTS, ...config };
 
+		this.baseSpeed = c.baseSpeed;
 		this.velocity = c.baseSpeed;
 		this.terrainSlowdown = c.terrainSlowdown;
 
@@ -71,9 +77,9 @@ export class FlightPlayer {
 
 	tick(delta: number): void {
 		this.currentPitch +=
-			(this.targetPitch - this.currentPitch) * runtimeConfig.lerpAlpha;
+			(this.targetPitch - this.currentPitch) * this.lerpAlpha;
 		this.currentRoll +=
-			(this.targetRoll - this.currentRoll) * runtimeConfig.lerpAlpha;
+			(this.targetRoll - this.currentRoll) * this.lerpAlpha;
 
 		this.updateVelocity();
 
@@ -81,11 +87,9 @@ export class FlightPlayer {
 		const rollRad = this.currentRoll * DEG2RAD;
 
 		// Heading accumulates from roll (banking turns the plane).
-		// This is a scalar — no Euler coupling possible.
-		this.heading -= rollRad * runtimeConfig.rollYawMultiplier * delta;
+		this.heading -= rollRad * this.rollYawMultiplier * delta;
 
 		// Forward vector from spherical coordinates (heading + pitch).
-		// Decoupled: pure pitch = straight up/down, pure roll = pure turn.
 		const forward = new THREE.Vector3(
 			-Math.sin(this.heading) * Math.cos(pitchRad),
 			-Math.sin(pitchRad),
@@ -93,8 +97,7 @@ export class FlightPlayer {
 		);
 		this.rig.position.addScaledVector(forward, this.velocity * delta);
 
-		// Visual rotation only — YXZ order: heading first, then pitch, then bank.
-		// Prevents Euler gimbal-coupling artifacts.
+		// Visual rotation only — YXZ order prevents gimbal-coupling artifacts.
 		this.rig.rotation.set(-pitchRad, this.heading, -rollRad, "YXZ");
 
 		this.clampToTerrain();
@@ -102,11 +105,11 @@ export class FlightPlayer {
 
 	private updateVelocity(): void {
 		if (this.accelerating) {
-			this.velocity = runtimeConfig.baseSpeed * 2;
+			this.velocity = this.baseSpeed * 2;
 		} else if (this.braking) {
-			this.velocity = runtimeConfig.baseSpeed * 0.25;
+			this.velocity = this.baseSpeed * 0.25;
 		} else {
-			this.velocity = runtimeConfig.baseSpeed;
+			this.velocity = this.baseSpeed;
 		}
 	}
 
@@ -116,7 +119,7 @@ export class FlightPlayer {
 			this.rig.position.z,
 			DEFAULT_HEIGHTMAP,
 		);
-		const minY = terrainY + runtimeConfig.minClearance;
+		const minY = terrainY + this.minClearance;
 		if (this.rig.position.y < minY) {
 			this.rig.position.y = minY;
 			this.velocity *= this.terrainSlowdown;
