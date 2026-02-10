@@ -49,7 +49,7 @@ const edges: Edge[] = [
 <style>
 	.node-preview {
 		height: 180px;
-		border-radius: 0.5rem;
+		border-radius: 0 rem;
 		overflow: hidden;
 		border: 1px solid var(--color-border);
 	}

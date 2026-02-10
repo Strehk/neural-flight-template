@@ -55,6 +55,7 @@ Three.js Render Loop @ 72fps
 |-------|---------------|
 | `/vr` | WebXR canvas, Three.js scene, animation loop, ring scoring |
 | `/controller` | D-Pad input, speed buttons, 3D preview, settings sidebar |
+| `/node-editor` | Visual node editor — modular signal pipeline for VR parameter control |
 
 ### `lib/three/` — 3D Engine
 
@@ -89,13 +90,32 @@ All tuning values live in `flight.ts` — a single file with `as const` objects.
 
 **Runtime config**: A mutable copy of defaults can be changed live via `SettingsUpdate` WebSocket messages from the controller sidebar. This enables real-time tuning without code changes.
 
+### `lib/node-editor/` — Visual Node Editor
+
+Modular signal system (Eurorack architecture). See [`src/lib/node-editor/README.md`](../src/lib/node-editor/README.md) for full details.
+
+```
+components/   Atomic signal processors (12 Logic + 11 UI)
+nodes/        Node compositions (9 standard + 8 auto-generated output)
+canvas/       SvelteFlow infrastructure (EditorCanvas, NodeShell, Catalog)
+controls/     UI primitives (bits-ui based, signal-unaware)
+graph/        Headless compute engine (SignalGraph, evaluate)
+parameters/   VR parameter registry (PARAMETER_PRESETS)
+bridge.ts     WebSocket → Three.js (numbers only)
+```
+
 ### `lib/components/` — Svelte UI
 
 ```
-ControlPad.svelte ──── D-Pad for pitch/roll
-SpeedButtons.svelte ── Accelerate/Brake
-IcarosPreview.svelte ─ 3D model preview (reactive to input)
-SettingsSidebar.svelte  Runtime config sliders/switches
+ControlPad.svelte ──────── D-Pad for pitch/roll
+SpeedButtons.svelte ────── Accelerate/Brake
+IcarosPreview.svelte ───── 3D model preview (reactive to input)
+SettingsSidebar.svelte ─── Runtime config sliders/switches
+PageHeader.svelte ──────── Page title + subtitle
+LinkCard.svelte ────────── Navigation card with icon
+DataTable.svelte ───────── Key-value data display
+ArchitectureDiagram.svelte  ASCII architecture diagram
+NodeEditorPreview.svelte ── Node editor preview card
 ```
 
 ## Terrain Chunk System

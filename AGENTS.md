@@ -34,6 +34,7 @@ Three.js Render Loop @ 72fps
 
 Key directories:
 - `src/lib/three/` — 3D world components
+- `src/lib/node-editor/` — Visual node editor (Eurorack architecture: Components → Nodes → Canvas)
 - `src/lib/config/flight.ts` — All tuning constants
 - `src/lib/ws/` — WebSocket client/server
 - `src/lib/types/` — TypeScript interfaces

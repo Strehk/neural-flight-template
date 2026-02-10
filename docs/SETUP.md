@@ -74,11 +74,10 @@ Generate certificates for local development:
 
 ```bash
 cd /path/to/project
-mkdir -p certs
-mkcert -key-file certs/key.pem -cert-file certs/cert.pem localhost 127.0.0.1
+mkcert localhost
 ```
 
-The dev server automatically uses these certificates when present.
+This creates `localhost.pem` and `localhost-key.pem` in the project root. The dev server automatically uses these certificates when present.
 
 ---
 
@@ -149,7 +148,7 @@ adb reverse --list
 
 ### Certificate errors in Quest Browser
 
-1. Ensure certificates exist in `certs/` folder
+1. Ensure `localhost.pem` and `localhost-key.pem` exist in project root
 2. Restart dev server after generating certs
 3. If still failing, use `adb reverse` method (avoids cert issues)
 
