@@ -5,18 +5,23 @@ import {
 	Gamepad2,
 	Glasses,
 	MapPin,
+	Mountain,
 	Network,
 	Plane,
+	Play,
 	Smartphone,
 	Workflow,
 	Wrench,
 } from "lucide-svelte";
 import { onDestroy } from "svelte";
+import { goto } from "$app/navigation";
 import ArchitectureDiagram from "$lib/components/ArchitectureDiagram.svelte";
 import DataTable from "$lib/components/DataTable.svelte";
 import LinkCard from "$lib/components/LinkCard.svelte";
 import NodeEditorPreview from "$lib/components/NodeEditorPreview.svelte";
 import PageHeader from "$lib/components/PageHeader.svelte";
+import { listExperiences } from "$lib/experiences/catalog";
+import { setActiveExperienceId } from "$lib/experiences/loader";
 import { createWebSocketClient } from "$lib/ws/client.svelte";
 
 const ws = createWebSocketClient();
@@ -25,12 +30,20 @@ onDestroy(() => {
 	ws.disconnect();
 });
 
+// Experience catalog — from registry
+const experiences = listExperiences();
+
+function launchExperience(id: string): void {
+	setActiveExperienceId(id);
+	goto("/vr");
+}
+
 // Route definitions
 const routes = [
 	{
 		path: "/vr",
 		icon: Glasses,
-		title: "VR Flight Scene",
+		title: "VR Experience",
 		description: "WebXR experience for Meta Quest",
 		planned: false,
 	},
@@ -101,14 +114,39 @@ const techStack = [
 </script>
 
 <div class="landing-page">
-	<PageHeader icon={Plane} label="ICAROS VR Flight Sim" status={ws.status} />
+	<PageHeader icon={Plane} label="ICAROS VR Platform" status={ws.status} />
 
 	<main class="landing-main">
 		<section class="intro">
 			<p>
-				VR flight simulation for Meta Quest, controlled by body movement on an ICAROS fitness device.
-				Pitch and roll translate directly into flight controls via WebSocket.
+				VR teaching platform for Meta Quest, controlled by body movement on an ICAROS fitness device.
+				Students build their own VR experiences — pitch and roll translate directly into controls via WebSocket.
 			</p>
+		</section>
+
+		<!-- ═══ Experience Catalog ═══ -->
+		<section class="section">
+			<h2 class="section-title"><Mountain size={14} /> Experiences</h2>
+			<div class="experience-grid">
+				{#each experiences as exp}
+					<button
+						class="experience-card"
+						onclick={() => launchExperience(exp.id)}
+						type="button"
+					>
+						<div class="experience-card-header">
+							<Play size={16} />
+							<span class="experience-card-name">{exp.name}</span>
+						</div>
+						<span class="experience-card-description">{exp.description}</span>
+						<div class="experience-card-meta">
+							<span>{exp.author}</span>
+							<span>v{exp.version}</span>
+							<span>{exp.parameters.length} params</span>
+						</div>
+					</button>
+				{/each}
+			</div>
 		</section>
 
 		<section class="section">

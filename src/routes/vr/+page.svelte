@@ -133,25 +133,3 @@ onDestroy(() => {
 		<Trophy size={20} /> {score}
 	</div>
 {/if}
-
-<style>
-	.vr-canvas {
-		display: block;
-		width: 100vw;
-		height: 100dvh;
-	}
-	.score-overlay {
-		position: fixed;
-		top: 1rem;
-		right: 1rem;
-		background: rgba(0, 0, 0, 0.7);
-		color: #f1c40f;
-		font-size: 1.5rem;
-		font-weight: bold;
-		padding: 0.5rem 1rem;
-		border-radius: 0.5rem;
-		pointer-events: none;
-		z-index: 10;
-		font-family: monospace;
-	}
-</style>
