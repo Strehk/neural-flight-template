@@ -3,7 +3,16 @@ import { Trophy } from "lucide-svelte";
 import { onDestroy, onMount } from "svelte";
 import * as THREE from "three";
 import { VRButton } from "three/examples/jsm/webxr/VRButton.js";
-import { applySettings, runtimeConfig } from "$lib/config/flight";
+import {
+	CAMERA,
+	CLOUDS,
+	FLIGHT,
+	SCENE,
+	SKY,
+	TERRAIN,
+	applySettings,
+	runtimeConfig,
+} from "$lib/config/flight";
 import { createClouds, disposeClouds, updateClouds } from "$lib/three/clouds";
 import { FlightPlayer } from "$lib/three/player";
 import { createFlightScene } from "$lib/three/scene";
@@ -27,20 +36,60 @@ const ws = createWebSocketClient();
 const clock = new THREE.Clock();
 
 onMount(() => {
-	const scene = createFlightScene();
-	const player = new FlightPlayer();
+	const scene = createFlightScene({
+		skyColor: SCENE.SKY_COLOR,
+		fogNear: SCENE.FOG_NEAR,
+		fogFar: SCENE.FOG_FAR,
+		ambientIntensity: SCENE.AMBIENT_INTENSITY,
+		sunIntensity: SCENE.SUN_INTENSITY,
+		sunColor: SCENE.SUN_COLOR,
+		sunPosition: SCENE.SUN_POSITION,
+	});
+	const player = new FlightPlayer({
+		fov: CAMERA.FOV,
+		near: CAMERA.NEAR,
+		far: CAMERA.FAR,
+		spawnPosition: FLIGHT.SPAWN_POSITION,
+		baseSpeed: FLIGHT.BASE_SPEED,
+		terrainSlowdown: FLIGHT.TERRAIN_SLOWDOWN,
+	});
 	scene.add(player.rig);
 
-	terrainManager = new TerrainManager();
+	terrainManager = new TerrainManager({
+		chunkSize: TERRAIN.CHUNK_SIZE,
+		maxPool: TERRAIN.MAX_POOL,
+	});
 	scene.add(terrainManager.group);
 	scene.add(terrainManager.ringGroup);
 	terrainManager.update(player.rig.position);
 
-	const water = createWater();
+	const water = createWater({
+		size: TERRAIN.WATER_SIZE,
+		color: TERRAIN.WATER_COLOR,
+		opacity: TERRAIN.WATER_OPACITY,
+		y: TERRAIN.WATER_Y,
+	});
 	scene.add(water);
-	const skyMesh = createSky();
+	const skyMesh = createSky({
+		radius: SKY.RADIUS,
+		detail: SKY.DETAIL,
+		colorTop: SKY.COLOR_TOP,
+		colorHorizon: SKY.COLOR_HORIZON,
+		colorBottom: SKY.COLOR_BOTTOM,
+	});
 	scene.add(skyMesh);
-	let clouds = createClouds();
+	let clouds = createClouds({
+		count: CLOUDS.COUNT,
+		spread: CLOUDS.SPREAD,
+		heightMin: CLOUDS.HEIGHT_MIN,
+		heightMax: CLOUDS.HEIGHT_MAX,
+		blobCount: CLOUDS.BLOB_COUNT,
+		blobRadius: CLOUDS.BLOB_RADIUS,
+		color: CLOUDS.COLOR,
+		opacity: CLOUDS.OPACITY,
+		driftSpeed: CLOUDS.DRIFT_SPEED,
+		driftDirection: CLOUDS.DRIFT_DIRECTION,
+	});
 	scene.add(clouds);
 
 	let cloudRebuildTimer: ReturnType<typeof setTimeout> | null = null;
@@ -151,10 +200,11 @@ onMount(() => {
 					cloudRebuildTimer = setTimeout(() => {
 						disposeClouds(clouds);
 						scene.remove(clouds);
-						clouds = createClouds(
-							runtimeConfig.cloudCount,
-							runtimeConfig.cloudHeight,
-						);
+						clouds = createClouds({
+							count: runtimeConfig.cloudCount,
+							heightMin: runtimeConfig.cloudHeight - 50,
+							heightMax: runtimeConfig.cloudHeight + 50,
+						});
 						scene.add(clouds);
 						cloudRebuildTimer = null;
 					}, 500);

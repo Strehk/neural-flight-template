@@ -1,21 +1,43 @@
+/**
+ * ⚠️ TEMPORARY DEFAULTS — Will move to experience manifest (Step 2).
+ * These values currently mirror config/flight.ts SCENE constants.
+ * After migration: each experience passes its own config, no defaults here.
+ */
 import * as THREE from "three";
-import { SCENE } from "$lib/config/flight";
+
+export interface FlightSceneConfig {
+	skyColor?: number;
+	fogNear?: number;
+	fogFar?: number;
+	ambientIntensity?: number;
+	sunIntensity?: number;
+	sunColor?: number;
+	sunPosition?: { x: number; y: number; z: number };
+}
+
+const DEFAULTS: Required<FlightSceneConfig> = {
+	skyColor: 0x87ceeb,
+	fogNear: 100,
+	fogFar: 500,
+	ambientIntensity: 0.3,
+	sunIntensity: 3.0,
+	sunColor: 0xfff4e0,
+	sunPosition: { x: 80, y: 150, z: 40 },
+};
 
 /** Create the flight scene with lighting, fog, and sky color. */
-export function createFlightScene(): THREE.Scene {
-	const scene = new THREE.Scene();
-	scene.background = new THREE.Color(SCENE.SKY_COLOR);
-	scene.fog = new THREE.Fog(SCENE.SKY_COLOR, SCENE.FOG_NEAR, SCENE.FOG_FAR);
+export function createFlightScene(config?: FlightSceneConfig): THREE.Scene {
+	const c = { ...DEFAULTS, ...config };
 
-	const ambient = new THREE.AmbientLight(0xffffff, SCENE.AMBIENT_INTENSITY);
+	const scene = new THREE.Scene();
+	scene.background = new THREE.Color(c.skyColor);
+	scene.fog = new THREE.Fog(c.skyColor, c.fogNear, c.fogFar);
+
+	const ambient = new THREE.AmbientLight(0xffffff, c.ambientIntensity);
 	scene.add(ambient);
 
-	const sun = new THREE.DirectionalLight(SCENE.SUN_COLOR, SCENE.SUN_INTENSITY);
-	sun.position.set(
-		SCENE.SUN_POSITION.x,
-		SCENE.SUN_POSITION.y,
-		SCENE.SUN_POSITION.z,
-	);
+	const sun = new THREE.DirectionalLight(c.sunColor, c.sunIntensity);
+	sun.position.set(c.sunPosition.x, c.sunPosition.y, c.sunPosition.z);
 	sun.castShadow = true;
 	sun.shadow.mapSize.set(1024, 1024);
 	sun.shadow.camera.left = -150;

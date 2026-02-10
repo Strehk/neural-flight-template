@@ -1,5 +1,9 @@
+/**
+ * ⚠️ TEMPORARY DEFAULTS — Will move to experience manifest (Step 2).
+ * These values currently mirror config/flight.ts RINGS + TERRAIN constants.
+ * After migration: each experience passes its own config, no defaults here.
+ */
 import * as THREE from "three";
-import { RINGS, TERRAIN } from "$lib/config/flight";
 import {
 	DEFAULT_HEIGHTMAP,
 	getHeight,
@@ -14,10 +18,43 @@ function seededRandom(a: number, b: number): number {
 	return (h & 0x7fffffff) / 0x7fffffff;
 }
 
+export interface RingConfig {
+	perChunk?: number;
+	radius?: number;
+	tubeRadius?: number;
+	segments?: [number, number];
+	collectDistance?: number;
+	color?: number;
+	collectedColor?: number;
+	heightBase?: number;
+	heightVariation?: number;
+	emissive?: number;
+	emissiveCollected?: number;
+	chunkSize?: number;
+}
+
+const DEFAULTS: Required<RingConfig> = {
+	perChunk: 2,
+	radius: 6,
+	tubeRadius: 0.4,
+	segments: [12, 32],
+	collectDistance: 8,
+	color: 0xf1c40f,
+	collectedColor: 0x2ecc71,
+	heightBase: 20,
+	heightVariation: 30,
+	emissive: 0.3,
+	emissiveCollected: 0.6,
+	chunkSize: 128,
+};
+
 export interface RingState {
 	mesh: THREE.Mesh;
 	collected: boolean;
 	center: THREE.Vector3;
+	collectDistance: number;
+	collectedColor: number;
+	emissiveCollected: number;
 }
 
 export interface ChunkRings {
@@ -25,44 +62,57 @@ export interface ChunkRings {
 	dispose(): void;
 }
 
-const ringGeo = new THREE.TorusGeometry(
-	RINGS.RADIUS,
-	RINGS.TUBE_RADIUS,
-	RINGS.SEGMENTS[0],
-	RINGS.SEGMENTS[1],
-);
+// Lazy geometry cache — one TorusGeometry per unique config
+const geoCache = new Map<string, THREE.TorusGeometry>();
+
+function getRingGeometry(c: Required<RingConfig>): THREE.TorusGeometry {
+	const key = `${c.radius}_${c.tubeRadius}_${c.segments[0]}_${c.segments[1]}`;
+	let geo = geoCache.get(key);
+	if (!geo) {
+		geo = new THREE.TorusGeometry(
+			c.radius,
+			c.tubeRadius,
+			c.segments[0],
+			c.segments[1],
+		);
+		geoCache.set(key, geo);
+	}
+	return geo;
+}
 
 /** Create rings for a single terrain chunk. */
 export function createChunkRings(
 	chunkX: number,
 	chunkZ: number,
-	config: HeightmapConfig = DEFAULT_HEIGHTMAP,
-	ringCount: number = RINGS.PER_CHUNK,
+	heightConfig: HeightmapConfig = DEFAULT_HEIGHTMAP,
+	ringConfig?: RingConfig,
 ): ChunkRings {
-	const size = TERRAIN.CHUNK_SIZE;
-	const worldX = chunkX * size;
-	const worldZ = chunkZ * size;
+	const c = { ...DEFAULTS, ...ringConfig };
+	const geo = getRingGeometry(c);
+
+	const worldX = chunkX * c.chunkSize;
+	const worldZ = chunkZ * c.chunkSize;
 	const seed = chunkX * 48611 + chunkZ * 97213;
 	const rings: RingState[] = [];
 
-	for (let i = 0; i < ringCount; i++) {
-		const lx = (seededRandom(seed + i, 10) - 0.5) * size;
-		const lz = (seededRandom(seed + i, 11) - 0.5) * size;
+	for (let i = 0; i < c.perChunk; i++) {
+		const lx = (seededRandom(seed + i, 10) - 0.5) * c.chunkSize;
+		const lz = (seededRandom(seed + i, 11) - 0.5) * c.chunkSize;
 		const wx = lx + worldX;
 		const wz = lz + worldZ;
-		const terrainY = getHeight(wx, wz, config);
+		const terrainY = getHeight(wx, wz, heightConfig);
 		const y =
 			terrainY +
-			RINGS.HEIGHT_BASE +
-			seededRandom(seed + i, 12) * RINGS.HEIGHT_VARIATION;
+			c.heightBase +
+			seededRandom(seed + i, 12) * c.heightVariation;
 
 		const mat = new THREE.MeshStandardMaterial({
-			color: RINGS.COLOR,
-			emissive: RINGS.COLOR,
-			emissiveIntensity: RINGS.EMISSIVE,
+			color: c.color,
+			emissive: c.color,
+			emissiveIntensity: c.emissive,
 			side: THREE.DoubleSide,
 		});
-		const mesh = new THREE.Mesh(ringGeo, mat);
+		const mesh = new THREE.Mesh(geo, mat);
 		mesh.position.set(wx, y, wz);
 		mesh.rotation.y = seededRandom(seed + i, 13) * Math.PI;
 
@@ -70,6 +120,9 @@ export function createChunkRings(
 			mesh,
 			collected: false,
 			center: new THREE.Vector3(wx, y, wz),
+			collectDistance: c.collectDistance,
+			collectedColor: c.collectedColor,
+			emissiveCollected: c.emissiveCollected,
 		});
 	}
 
@@ -103,13 +156,13 @@ export function updateRings(
 
 	for (const ring of rings) {
 		if (ring.collected) continue;
-		if (ring.center.distanceTo(playerPos) < RINGS.COLLECT_DISTANCE) {
+		if (ring.center.distanceTo(playerPos) < ring.collectDistance) {
 			ring.collected = true;
 			collected++;
 			const mat = ring.mesh.material as THREE.MeshStandardMaterial;
-			mat.color.setHex(RINGS.COLLECTED_COLOR);
-			mat.emissive.setHex(RINGS.COLLECTED_COLOR);
-			mat.emissiveIntensity = RINGS.EMISSIVE_COLLECTED;
+			mat.color.setHex(ring.collectedColor);
+			mat.emissive.setHex(ring.collectedColor);
+			mat.emissiveIntensity = ring.emissiveCollected;
 		}
 	}
 

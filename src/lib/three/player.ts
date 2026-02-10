@@ -1,16 +1,40 @@
+/**
+ * ⚠️ TEMPORARY DEFAULTS — Will move to experience manifest (Step 2).
+ * These values currently mirror config/flight.ts CAMERA + FLIGHT constants.
+ * After migration: each experience passes its own config, no defaults here.
+ */
 import * as THREE from "three";
-import { CAMERA, FLIGHT, runtimeConfig } from "$lib/config/flight";
+import { runtimeConfig } from "$lib/config/flight";
 import { DEFAULT_HEIGHTMAP, getHeight } from "$lib/three/terrain/heightmap";
 import type { OrientationData, SpeedCommand } from "$lib/types/orientation";
 
 const DEG2RAD = Math.PI / 180;
+
+export interface FlightPlayerConfig {
+	fov?: number;
+	near?: number;
+	far?: number;
+	spawnPosition?: { x: number; y: number; z: number };
+	baseSpeed?: number;
+	terrainSlowdown?: number;
+}
+
+const DEFAULTS: Required<FlightPlayerConfig> = {
+	fov: 75,
+	near: 0.1,
+	far: 1000,
+	spawnPosition: { x: 0, y: 50, z: 0 },
+	baseSpeed: 20,
+	terrainSlowdown: 0.7,
+};
 
 /** Flight player — rig with camera, driven by pitch/roll + speed commands. */
 export class FlightPlayer {
 	readonly rig: THREE.Group;
 	readonly camera: THREE.PerspectiveCamera;
 
-	velocity: number = FLIGHT.BASE_SPEED;
+	velocity: number;
+	private readonly terrainSlowdown: number;
 	private targetPitch = 0;
 	private targetRoll = 0;
 	private currentPitch = 0;
@@ -19,18 +43,18 @@ export class FlightPlayer {
 	private accelerating = false;
 	private braking = false;
 
-	constructor() {
-		this.camera = new THREE.PerspectiveCamera(
-			CAMERA.FOV,
-			1,
-			CAMERA.NEAR,
-			CAMERA.FAR,
-		);
+	constructor(config?: FlightPlayerConfig) {
+		const c = { ...DEFAULTS, ...config };
+
+		this.velocity = c.baseSpeed;
+		this.terrainSlowdown = c.terrainSlowdown;
+
+		this.camera = new THREE.PerspectiveCamera(c.fov, 1, c.near, c.far);
 		this.rig = new THREE.Group();
 		this.rig.position.set(
-			FLIGHT.SPAWN_POSITION.x,
-			FLIGHT.SPAWN_POSITION.y,
-			FLIGHT.SPAWN_POSITION.z,
+			c.spawnPosition.x,
+			c.spawnPosition.y,
+			c.spawnPosition.z,
 		);
 		this.rig.add(this.camera);
 	}
@@ -95,7 +119,7 @@ export class FlightPlayer {
 		const minY = terrainY + runtimeConfig.minClearance;
 		if (this.rig.position.y < minY) {
 			this.rig.position.y = minY;
-			this.velocity *= FLIGHT.TERRAIN_SLOWDOWN;
+			this.velocity *= this.terrainSlowdown;
 		}
 	}
 }

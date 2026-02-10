@@ -1,5 +1,10 @@
+/**
+ * ⚠️ TEMPORARY DEFAULTS — Will move to experience manifest (Step 2).
+ * These values currently mirror config/flight.ts TERRAIN constants.
+ * After migration: each experience passes its own config, no defaults here.
+ */
 import * as THREE from "three";
-import { runtimeConfig, TERRAIN } from "$lib/config/flight";
+import { runtimeConfig } from "$lib/config/flight";
 import {
 	type ChunkRings,
 	createChunkRings,
@@ -10,6 +15,16 @@ import {
 import { TerrainChunk } from "./chunk";
 import { type ChunkDecorations, createChunkDecorations } from "./decorations";
 import { getHeightmapConfig, type HeightmapConfig } from "./heightmap";
+
+export interface TerrainManagerConfig {
+	chunkSize?: number;
+	maxPool?: number;
+}
+
+const DEFAULTS: Required<TerrainManagerConfig> = {
+	chunkSize: 128,
+	maxPool: 30,
+};
 
 interface ChunkEntry {
 	terrain: TerrainChunk;
@@ -22,13 +37,21 @@ export class TerrainManager {
 	readonly group = new THREE.Group();
 	readonly ringGroup = new THREE.Group();
 
+	private readonly chunkSize: number;
+	private readonly maxPool: number;
 	private readonly active = new Map<string, ChunkEntry>();
 	private readonly pool: TerrainChunk[] = [];
 
+	constructor(config?: TerrainManagerConfig) {
+		const c = { ...DEFAULTS, ...config };
+		this.chunkSize = c.chunkSize;
+		this.maxPool = c.maxPool;
+	}
+
 	/** Call each frame with the player's world position. Returns collected rings count. */
 	update(position: THREE.Vector3): number {
-		const cx = Math.round(position.x / TERRAIN.CHUNK_SIZE);
-		const cz = Math.round(position.z / TERRAIN.CHUNK_SIZE);
+		const cx = Math.round(position.x / this.chunkSize);
+		const cz = Math.round(position.z / this.chunkSize);
 
 		const needed = new Set<string>();
 
@@ -49,12 +72,10 @@ export class TerrainManager {
 						config,
 						runtimeConfig.treeDensity,
 					);
-					const rings = createChunkRings(
-						gx,
-						gz,
-						config,
-						runtimeConfig.ringCountPerChunk,
-					);
+					const rings = createChunkRings(gx, gz, config, {
+						perChunk: runtimeConfig.ringCountPerChunk,
+						chunkSize: this.chunkSize,
+					});
 
 					this.group.add(terrain.mesh);
 					this.group.add(decorations.group);
@@ -128,14 +149,14 @@ export class TerrainManager {
 	): TerrainChunk {
 		const recycled = this.pool.pop();
 		if (recycled) {
-			recycled.rebuild(gx, gz, TERRAIN.CHUNK_SIZE, config);
+			recycled.rebuild(gx, gz, this.chunkSize, config);
 			return recycled;
 		}
-		return new TerrainChunk(gx, gz, TERRAIN.CHUNK_SIZE, config);
+		return new TerrainChunk(gx, gz, this.chunkSize, config);
 	}
 
 	private recycleTerrain(chunk: TerrainChunk): void {
-		if (this.pool.length < TERRAIN.MAX_POOL) {
+		if (this.pool.length < this.maxPool) {
 			this.pool.push(chunk);
 		} else {
 			chunk.dispose();

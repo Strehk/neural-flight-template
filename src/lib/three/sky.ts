@@ -1,24 +1,46 @@
+/**
+ * ⚠️ TEMPORARY DEFAULTS — Will move to experience manifest (Step 2).
+ * These values currently mirror config/flight.ts SKY constants.
+ * After migration: each experience passes its own config, no defaults here.
+ */
 import * as THREE from "three";
-import { SKY } from "$lib/config/flight";
+
+export interface SkyConfig {
+	radius?: number;
+	detail?: number;
+	colorTop?: number;
+	colorHorizon?: number;
+	colorBottom?: number;
+}
+
+const DEFAULTS: Required<SkyConfig> = {
+	radius: 800,
+	detail: 3,
+	colorTop: 0x1a6fc4,
+	colorHorizon: 0xffeebb,
+	colorBottom: 0x87ceeb,
+};
 
 /** Create a low-poly sky dome using an inverted IcosahedronGeometry with vertex colors. */
-export function createSky(): THREE.Mesh {
-	const geo = new THREE.IcosahedronGeometry(SKY.RADIUS, SKY.DETAIL);
+export function createSky(config?: SkyConfig): THREE.Mesh {
+	const c = { ...DEFAULTS, ...config };
+
+	const geo = new THREE.IcosahedronGeometry(c.radius, c.detail);
 
 	// Invert faces so they render inside-out
 	geo.scale(-1, 1, 1);
 
 	const pos = geo.attributes.position;
 	const colors = new Float32Array(pos.count * 3);
-	const colorTop = new THREE.Color(SKY.COLOR_TOP);
-	const colorHorizon = new THREE.Color(SKY.COLOR_HORIZON);
-	const colorBottom = new THREE.Color(SKY.COLOR_BOTTOM);
+	const colorTop = new THREE.Color(c.colorTop);
+	const colorHorizon = new THREE.Color(c.colorHorizon);
+	const colorBottom = new THREE.Color(c.colorBottom);
 	const temp = new THREE.Color();
 
 	for (let i = 0; i < pos.count; i++) {
 		const y = pos.getY(i);
-		// Normalize y: -RADIUS..+RADIUS → 0..1
-		const t = (y / SKY.RADIUS + 1) * 0.5;
+		// Normalize y: -radius..+radius → 0..1
+		const t = (y / c.radius + 1) * 0.5;
 
 		if (t > 0.5) {
 			// Upper half: horizon → top
@@ -43,7 +65,9 @@ export function createSky(): THREE.Mesh {
 		fog: false,
 	});
 
-	return new THREE.Mesh(geo, mat);
+	const mesh = new THREE.Mesh(geo, mat);
+	mesh.userData.skyRadius = c.radius;
+	return mesh;
 }
 
 /** Update sky dome vertex colors live from hex color strings. */
@@ -59,6 +83,7 @@ export function updateSkyColors(
 
 	if (!colors) return;
 
+	const radius = (mesh.userData.skyRadius as number) ?? 800;
 	const colorTop = new THREE.Color(top);
 	const colorHorizon = new THREE.Color(horizon);
 	const colorBottom = new THREE.Color(bottom);
@@ -66,7 +91,7 @@ export function updateSkyColors(
 
 	for (let i = 0; i < pos.count; i++) {
 		const y = pos.getY(i);
-		const t = (y / SKY.RADIUS + 1) * 0.5;
+		const t = (y / radius + 1) * 0.5;
 
 		if (t > 0.5) {
 			const u = (t - 0.5) * 2;
