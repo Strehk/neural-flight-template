@@ -16,7 +16,7 @@ Scene setup, flight physics, and visual elements for the VR flight sim.
 
 ## Key Patterns
 
-- **All config** lives in `$lib/config/flight.ts` — no magic numbers in modules
+- **Config source:** Mountain Flight still reads `$lib/config/flight.ts`. New experiences pass config directly via function parameters (e.g. `createClouds({ count: 20 })`)
 - **FlatShading** everywhere for low-poly aesthetic
 - **Seeded random** for deterministic placement (same chunk = same objects)
 - **InstancedMesh** for repeated geometry (trees, rocks)

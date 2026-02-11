@@ -1,6 +1,10 @@
-# ⚙️ Config
+# ⚙️ Config (Legacy)
 
-Central configuration for all tuning values. Single source of truth — no magic numbers in modules.
+> **Note:** For new experiences, use **Experience Manifests** (`manifest.ts`) instead.
+> Manifests declare parameters, scene config, and lifecycle in one place.
+> This config module is still used by Mountain Flight during migration.
+
+Central configuration for tuning values. Single source of truth — no magic numbers in modules.
 
 ## `flight.ts`
 

@@ -30,6 +30,13 @@ bun run dev
 
 `src/lib/experiences/mountain-flight/` ist die vollständige Referenz-Experience mit ~20 Parametern, Terrain-System, Clouds, Sky und FlightPlayer-Physik.
 
+## Fehler-Nachrichten
+
+Wenn `Experience "xyz" not found` erscheint, prüfe:
+1. Ist der Ordner unter `src/lib/experiences/xyz/` vorhanden?
+2. Ist die `manifest.id` in `manifest.ts` identisch zum Ordnernamen?
+3. Wurde die Experience in `catalog.ts` importiert und eingetragen?
+
 ## Parameter hinzufügen
 
 In `manifest.ts` einen Eintrag zum `parameters`-Array hinzufügen:
@@ -48,7 +55,19 @@ In `manifest.ts` einen Eintrag zum `parameters`-Array hinzufügen:
 }
 ```
 
-Dann in `settings.ts` einen passenden `case` im `switch` hinzufügen.
+Dann in `settings.ts` einen passenden `case` im `switch` hinzufügen:
+
+```typescript
+// settings.ts — Beispiel-Case
+case "myParam":
+  s.someObject.property = value as number;  // Einfach: State-Wert setzen
+  break;
+```
+
+Drei Patterns für verschiedene Komplexitäten:
+- **Einfach:** State-Property setzen → tick() liest es (`moveSpeed`, `rotationEnabled`)
+- **Visuell:** Material/Fog/Licht direkt updaten (`blockColor`, `fogNear`)
+- **Strukturell:** Alte Objekte disposen, neue generieren (`blockCount`) — siehe Memory-Leak-Warnung im Template
 
 ## Shared Library (Building Blocks)
 
