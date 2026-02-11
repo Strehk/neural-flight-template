@@ -1,20 +1,26 @@
 <script lang="ts">
 import {
-	BookOpen,
+	ChevronDown,
 	Eye,
+	Fish,
 	Gamepad2,
 	Glasses,
+	Lightbulb,
 	MapPin,
 	Mountain,
 	Network,
+	Orbit,
 	Plane,
 	Play,
+	Rocket,
 	Smartphone,
+	TreePine,
 	Workflow,
 	Wrench,
 } from "lucide-svelte";
+import type { ComponentType } from "svelte";
 import { onDestroy } from "svelte";
-import { goto } from "$app/navigation";
+import { Select } from "bits-ui";
 import ArchitectureDiagram from "$lib/components/ArchitectureDiagram.svelte";
 import DataTable from "$lib/components/DataTable.svelte";
 import LinkCard from "$lib/components/LinkCard.svelte";
@@ -30,15 +36,90 @@ onDestroy(() => {
 	ws.disconnect();
 });
 
-// Experience catalog — from registry
-const experiences = listExperiences();
+// ── Experience options for Select ──
 
-function launchExperience(id: string): void {
-	setActiveExperienceId(id);
-	goto("/vr");
+interface ExperienceOption {
+	id: string;
+	name: string;
+	description: string;
+	author: string;
+	version: string;
+	paramCount: number;
+	thumbnail?: string;
+	icon: ComponentType;
+	disabled: boolean;
 }
 
-// Route definitions
+const catalogExperiences = listExperiences();
+
+const experienceOptions: ExperienceOption[] = [
+	...catalogExperiences.map((exp) => ({
+		id: exp.id,
+		name: exp.name,
+		description: exp.description,
+		author: exp.author,
+		version: exp.version,
+		paramCount: exp.parameters.length,
+		thumbnail: exp.thumbnail,
+		icon: Mountain,
+		disabled: false,
+	})),
+	{
+		id: "placeholder-rocket",
+		name: "Rocket Launch",
+		description: "Coming soon",
+		author: "TBD",
+		version: "0.0.0",
+		paramCount: 0,
+		icon: Rocket,
+		disabled: true,
+	},
+	{
+		id: "placeholder-fish",
+		name: "Deep Sea",
+		description: "Coming soon",
+		author: "TBD",
+		version: "0.0.0",
+		paramCount: 0,
+		icon: Fish,
+		disabled: true,
+	},
+	{
+		id: "placeholder-orbit",
+		name: "Orbit Station",
+		description: "Coming soon",
+		author: "TBD",
+		version: "0.0.0",
+		paramCount: 0,
+		icon: Orbit,
+		disabled: true,
+	},
+	{
+		id: "placeholder-forest",
+		name: "Forest Glide",
+		description: "Coming soon",
+		author: "TBD",
+		version: "0.0.0",
+		paramCount: 0,
+		icon: TreePine,
+		disabled: true,
+	},
+];
+
+let selectedExperience = $state("");
+
+function handleExperienceSelect(value: string | undefined): void {
+	if (!value) return;
+	selectedExperience = value;
+	setActiveExperienceId(value);
+}
+
+const selectedOption = $derived(
+	experienceOptions.find((o) => o.id === selectedExperience),
+);
+
+// ── Routes ──
+
 const routes = [
 	{
 		path: "/vr",
@@ -62,6 +143,13 @@ const routes = [
 		planned: false,
 	},
 	{
+		path: "/node-editor",
+		icon: Workflow,
+		title: "Node Editor",
+		description: "Visual programming for VR scene",
+		planned: false,
+	},
+	{
 		path: "/spectator",
 		icon: Eye,
 		title: "Spectator Monitor",
@@ -69,15 +157,16 @@ const routes = [
 		planned: true,
 	},
 	{
-		path: "/node-editor",
-		icon: Workflow,
-		title: "Node Editor",
-		description: "Visual programming for VR scene",
-		planned: false,
+		path: "/dmx",
+		icon: Lightbulb,
+		title: "DMX Lighting",
+		description: "Stage lighting integration",
+		planned: true,
 	},
 ];
 
-// Tech stack
+// ── Tech Stack ──
+
 const techStack = [
 	{
 		name: "SvelteKit",
@@ -124,39 +213,98 @@ const techStack = [
 			</p>
 		</section>
 
-		<!-- ═══ Experience Catalog ═══ -->
-		<section class="section">
-			<h2 class="section-title"><Mountain size={14} /> Experiences</h2>
-			<div class="experience-grid">
-				{#each experiences as exp}
-					<button
-						class="experience-card"
-						onclick={() => launchExperience(exp.id)}
-						type="button"
-					>
-						<div class="experience-card-header">
-							<Play size={16} />
-							<span class="experience-card-name">{exp.name}</span>
-						</div>
-						<span class="experience-card-description">{exp.description}</span>
-						<div class="experience-card-meta">
-							<span>{exp.author}</span>
-							<span>v{exp.version}</span>
-							<span>{exp.parameters.length} params</span>
-						</div>
-					</button>
-				{/each}
-			</div>
-		</section>
-
 		<section class="section">
 			<h2 class="section-title"><Network size={14} /> Architecture</h2>
 			<ArchitectureDiagram />
 			<p class="architecture-motto">"The server sits in the center — like a spider in its web."</p>
 		</section>
 
+		<!-- ═══ Experience — 2-Column: Thumbnail | Select + Meta ═══ -->
 		<section class="section">
-			<h2 class="section-title"><MapPin size={14} /> Routes</h2>
+			<h2 class="section-title"><MapPin size={14} /> Experience</h2>
+			<p class="section-intro">
+				Each experience is a modular VR world — built by students as a folder with scene,
+				physics, and parameters. Pick one, then open a route.
+			</p>
+			<div class="experience-panel">
+				<!-- Left: Thumbnail -->
+				<div class="experience-thumbnail">
+					{#if selectedOption?.thumbnail}
+						<img src={selectedOption.thumbnail} alt={selectedOption.name} />
+					{:else}
+						<div class="experience-thumbnail-placeholder">
+							{#if selectedOption}
+								<selectedOption.icon size={48} />
+							{:else}
+								<Mountain size={48} />
+							{/if}
+						</div>
+					{/if}
+				</div>
+
+				<!-- Right: Select + Description + Meta -->
+				<div class="experience-info">
+					<Select.Root type="single" value={selectedExperience} onValueChange={handleExperienceSelect}>
+						<Select.Trigger class="experience-select-trigger">
+							{#if selectedOption}
+								<span class="experience-select-label">
+									<selectedOption.icon size={16} />
+									{selectedOption.name}
+								</span>
+							{:else}
+								<span class="experience-select-placeholder">Choose Experience...</span>
+							{/if}
+							<ChevronDown size={16} />
+						</Select.Trigger>
+
+						<Select.Portal>
+							<Select.Content class="experience-select-content" sideOffset={4} side="bottom">
+								<Select.Viewport>
+									{#each experienceOptions as option (option.id)}
+										<Select.Item
+											value={option.id}
+											label={option.name}
+											class="experience-select-item"
+											disabled={option.disabled}
+										>
+											<span class="experience-select-item-inner">
+												<option.icon size={14} />
+												<span class="experience-select-item-text">
+													<span class="experience-select-item-name">{option.name}</span>
+													<span class="experience-select-item-desc">{option.description}</span>
+												</span>
+											</span>
+											{#if option.disabled}
+												<span class="badge">soon</span>
+											{:else}
+												<Play size={12} />
+											{/if}
+										</Select.Item>
+									{/each}
+								</Select.Viewport>
+							</Select.Content>
+						</Select.Portal>
+					</Select.Root>
+
+					{#if selectedOption}
+						<p class="experience-description">{selectedOption.description}</p>
+						<div class="experience-meta">
+							<span>{selectedOption.author}</span>
+							<span>v{selectedOption.version}</span>
+							<span>{selectedOption.paramCount} params</span>
+						</div>
+					{:else}
+						<p class="experience-description experience-description--empty">
+							Select an experience to see details.
+						</p>
+					{/if}
+				</div>
+			</div>
+		</section>
+
+		<!-- ═══ Routes — Grid ═══ -->
+		<section class="section">
+			<h2 class="section-title"><Glasses size={14} /> Routes</h2>
 			<div class="routes-grid">
 				{#each routes as route}
 					<LinkCard
@@ -171,15 +319,17 @@ const techStack = [
 			</div>
 		</section>
 
+		<!-- ═══ Node Editor ═══ -->
 		<section class="section">
 			<h2 class="section-title"><Workflow size={14} /> Node Editor</h2>
 			<p class="section-intro">
-				Visual programming for real-time VR scene control. Connect LFOs, remaps, and output nodes
-				to animate fog, sun, terrain, and more.
+				Visual programming for real-time VR scene control. Connect signal sources like LFOs and
+				sliders through a mixer to dynamically control experience parameters.
 			</p>
 			<NodeEditorPreview />
 		</section>
 
+		<!-- ═══ Tech Stack ═══ -->
 		<section class="section">
 			<h2 class="section-title"><Wrench size={14} /> Tech Stack</h2>
 			<DataTable items={techStack} />

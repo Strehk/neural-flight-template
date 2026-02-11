@@ -7,34 +7,42 @@ import { FLOW_READONLY_PROPS } from "$lib/flow/config";
 let mounted = $state(false);
 onMount(() => (mounted = true));
 
-/** Static preview nodes: LFO → Remap → Fog Output */
+/** Static preview: LFO + Slider → Mixer → Flight Speed Output */
 const nodes: Node[] = [
 	{
 		id: "lfo",
 		type: "default",
-		position: { x: 50, y: 60 },
+		position: { x: 30, y: 20 },
 		data: { label: "LFO\nwave: 0.5\nspeed: 0.1Hz" },
 		class: "node-input",
 	},
 	{
-		id: "remap",
+		id: "slider",
 		type: "default",
-		position: { x: 220, y: 60 },
-		data: { label: "REMAP\nout: 125.0\n[50-200]" },
+		position: { x: 30, y: 110 },
+		data: { label: "SLIDER\nvalue: 0.6" },
+		class: "node-input",
+	},
+	{
+		id: "mixer",
+		type: "default",
+		position: { x: 220, y: 55 },
+		data: { label: "MIXER\nA: 50%  B: 50%\nout: 0.55" },
 		class: "node-server",
 	},
 	{
-		id: "fog",
+		id: "speed",
 		type: "default",
-		position: { x: 390, y: 60 },
-		data: { label: "FOG OUTPUT\nNear: 125.0\nFar: 500.0" },
+		position: { x: 410, y: 55 },
+		data: { label: "FLIGHT SPEED\n42 m/s\n[5-80]" },
 		class: "node-output",
 	},
 ];
 
 const edges: Edge[] = [
-	{ id: "e1", source: "lfo", target: "remap", animated: true },
-	{ id: "e2", source: "remap", target: "fog", animated: true },
+	{ id: "e1", source: "lfo", target: "mixer", animated: true },
+	{ id: "e2", source: "slider", target: "mixer", animated: true },
+	{ id: "e3", source: "mixer", target: "speed", animated: true },
 ];
 </script>
 

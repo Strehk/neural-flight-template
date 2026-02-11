@@ -249,6 +249,7 @@ export const manifest: ExperienceManifest = {
 	description: "Fly through procedurally generated mountains, collect rings",
 	version: "1.0.0",
 	author: "ICAROS Lab",
+	thumbnail: "/experiences/mountain-flight/preview.webp",
 
 	// I/O Contract
 	parameters,
