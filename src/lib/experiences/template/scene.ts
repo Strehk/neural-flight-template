@@ -33,11 +33,11 @@ function createBlocks(
 
 	for (let i = 0; i < count; i++) {
 		const mesh = new THREE.Mesh(geometry, material);
-		// Zufällige Position auf dem Boden
+		// Zufällige Position auf dem Boden (spread=80 → Bereich -40 bis +40 Meter)
 		mesh.position.set(
-			(Math.random() - 0.5) * 80, // x: -40 bis +40
-			0.5 + Math.random() * 2, //     y: knapp über dem Boden
-			(Math.random() - 0.5) * 80, // z: -40 bis +40
+			(Math.random() - 0.5) * 80,
+			0.5 + Math.random() * 2, // y=0.5 → halbe Block-Höhe, damit Block auf dem Boden steht
+			(Math.random() - 0.5) * 80,
 		);
 		// Zufällige Größe für Variation
 		const scale = 0.5 + Math.random() * 1.5;

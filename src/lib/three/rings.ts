@@ -4,19 +4,12 @@
  * After migration: each experience passes its own config, no defaults here.
  */
 import * as THREE from "three";
+import { seededRandom2D as seededRandom } from "./random";
 import {
 	DEFAULT_HEIGHTMAP,
 	getHeight,
 	type HeightmapConfig,
 } from "./terrain/heightmap";
-
-function seededRandom(a: number, b: number): number {
-	let h = (a * 2654435761) ^ (b * 2246822519);
-	h = ((h >>> 16) ^ h) * 0x45d9f3b;
-	h = ((h >>> 16) ^ h) * 0x45d9f3b;
-	h = (h >>> 16) ^ h;
-	return (h & 0x7fffffff) / 0x7fffffff;
-}
 
 export interface RingConfig {
 	perChunk?: number;

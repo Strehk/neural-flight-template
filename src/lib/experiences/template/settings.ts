@@ -36,6 +36,9 @@ export function applySettings(
 		// ── blockCount ─────────────────────────────────
 		// Strukturelle Änderung: Alte Blöcke entfernen, neue generieren.
 		// Das ist das "Rebuild-Pattern" — nötig wenn sich die Anzahl ändert.
+		//
+		// ⚠️ WICHTIG: Immer alte Geometries disposen bevor neue erstellt werden!
+		// Ohne dispose() bleibt GPU-Speicher belegt → Memory Leak (besonders auf Quest).
 		case "blockCount": {
 			const count = value as number;
 			// Alte Blöcke disposen

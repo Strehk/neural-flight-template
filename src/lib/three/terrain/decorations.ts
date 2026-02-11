@@ -1,19 +1,11 @@
 import * as THREE from "three";
 import { DECORATIONS, TERRAIN } from "$lib/config/flight";
+import { seededRandom2D as seededRandom } from "../random";
 import {
 	DEFAULT_HEIGHTMAP,
 	getHeight,
 	type HeightmapConfig,
 } from "./heightmap";
-
-/** Seeded pseudo-random from two integers (chunk-stable placement). */
-function seededRandom(a: number, b: number): number {
-	let h = (a * 2654435761) ^ (b * 2246822519);
-	h = ((h >>> 16) ^ h) * 0x45d9f3b;
-	h = ((h >>> 16) ^ h) * 0x45d9f3b;
-	h = (h >>> 16) ^ h;
-	return (h & 0x7fffffff) / 0x7fffffff;
-}
 
 export interface ChunkDecorations {
 	group: THREE.Group;
