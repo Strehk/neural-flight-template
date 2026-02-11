@@ -40,7 +40,9 @@ export async function setup(ctx: SetupContext): Promise<MountainFlightState> {
 	});
 	ctx.scene.add(player.rig);
 
-	// Shadow config on sun created by loader
+	// The Loader adds a DirectionalLight from manifest.scene — find it to configure shadows.
+	// Shadow camera frustum (150×150, near 0.5, far 500) defines the area that casts shadows.
+	// 1024×1024 shadow map balances quality vs Quest GPU budget.
 	const sun = ctx.scene.children.find(
 		(c): c is THREE.DirectionalLight => c instanceof THREE.DirectionalLight,
 	);
@@ -106,6 +108,8 @@ export async function setup(ctx: SetupContext): Promise<MountainFlightState> {
 		clouds,
 		score: 0,
 		cloudRebuildTimer: null,
+		// FlightPlayer owns its own camera (attached to rig) — expose it so the
+		// Loader can use it as the active rendering camera for this experience.
 		camera: player.camera,
 		windSpeed: CLOUDS.DRIFT_SPEED,
 		cloudDriftEnabled: true,

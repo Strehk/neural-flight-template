@@ -9,10 +9,12 @@ export function updatePlayer(
 	orientation: { pitch: number; roll: number },
 	speed: { accelerate: boolean; brake: boolean },
 	state: ExperienceState,
-	_delta: number,
+	_delta: number, // unused — FlightPlayer.tick() handles its own delta internally
 ): void {
 	const s = state as MountainFlightState;
 
+	// timestamp: 0 — we pass the latest value each frame, so the timestamp
+	// is irrelevant. FlightPlayer uses the value directly without interpolation.
 	s.player.updateOrientation({
 		type: "orientation",
 		pitch: orientation.pitch,

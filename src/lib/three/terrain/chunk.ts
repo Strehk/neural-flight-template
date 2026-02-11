@@ -2,6 +2,8 @@ import * as THREE from "three";
 import { createTerrainGeometry } from "./geometry";
 import type { HeightmapConfig } from "./heightmap";
 
+// Singleton material shared by all terrain chunks — saves GPU memory.
+// vertexColors: height-based coloring is baked into geometry vertex attributes.
 const MATERIAL = new THREE.MeshStandardMaterial({
 	vertexColors: true,
 	flatShading: true,

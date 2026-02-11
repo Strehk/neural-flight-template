@@ -12,6 +12,8 @@ export interface ChunkDecorations {
 	dispose(): void;
 }
 
+// Singleton geometries + materials — shared across all chunks via InstancedMesh.
+// Only one GPU buffer per shape; chunks use setMatrixAt() to place instances.
 const crownGeo = new THREE.ConeGeometry(2, 5, 6);
 const trunkGeo = new THREE.CylinderGeometry(0.3, 0.5, 2, 5);
 const rockGeo = new THREE.DodecahedronGeometry(1.5, 0);
@@ -54,6 +56,7 @@ export function createChunkDecorations(
 		const wz = lz + worldZ;
 		const h = getHeight(wx, wz, config);
 
+		// Trees only grow in the mid-altitude band (5–35m): above water, below snow line
 		if (h < 5 || h > 35) continue;
 
 		const scale = 0.8 + seededRandom(seed + i, 2) * 0.6;
@@ -102,6 +105,7 @@ export function createChunkDecorations(
 		const wz = lz + worldZ;
 		const h = getHeight(wx, wz, config);
 
+		// Rocks span a wider altitude band than trees (3–50m)
 		if (h < 3 || h > 50) continue;
 
 		const scale = 0.5 + seededRandom(seed + i + 5000, 2) * 1.0;

@@ -1,7 +1,9 @@
 /**
- * ⚠️ TEMPORARY DEFAULTS — Will move to experience manifest (Step 2).
- * These values currently mirror config/flight.ts RINGS + TERRAIN constants.
- * After migration: each experience passes its own config, no defaults here.
+ * Collectible ring system — shared building block for experiences.
+ *
+ * Rings are placed per terrain chunk using seededRandom2D for deterministic
+ * positioning. A lazy geometry cache ensures only one TorusGeometry exists
+ * per unique config (radius × tube × segments).
  */
 import * as THREE from "three";
 import { seededRandom2D as seededRandom } from "./random";
@@ -55,7 +57,8 @@ export interface ChunkRings {
 	dispose(): void;
 }
 
-// Lazy geometry cache — one TorusGeometry per unique config
+// Lazy geometry cache — one TorusGeometry per unique config.
+// Avoids creating duplicate geometries when multiple chunks share the same ring config.
 const geoCache = new Map<string, THREE.TorusGeometry>();
 
 function getRingGeometry(c: Required<RingConfig>): THREE.TorusGeometry {

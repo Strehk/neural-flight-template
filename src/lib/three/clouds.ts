@@ -1,7 +1,9 @@
 /**
- * ⚠️ TEMPORARY DEFAULTS — Will move to experience manifest (Step 2).
- * These values currently mirror config/flight.ts CLOUDS constants.
- * After migration: each experience passes its own config, no defaults here.
+ * Procedural cloud system — shared building block for experiences.
+ *
+ * Clouds are created from clustered DodecahedronGeometry blobs using
+ * deterministic seededRandom() for reproducible placement.
+ * Each experience passes its own CloudConfig; DEFAULTS are fallbacks only.
  */
 import * as THREE from "three";
 import { seededRandom } from "./random";

@@ -60,6 +60,8 @@ export function applySettings(
 
 		case "sunElevation":
 			if (sun) {
+				// Convert elevation angle (degrees) to radians, then place the sun
+				// on a circular arc at distance 170 units. x=80 offsets the sun sideways.
 				const elevRad = ((value as number) * Math.PI) / 180;
 				const dist = 170;
 				sun.position.set(80, Math.sin(elevRad) * dist, Math.cos(elevRad) * dist);
@@ -113,10 +115,12 @@ export function applySettings(
 			});
 			break;
 
-		// ── Cloud rebuild (debounced) ───────────────────
+		// ── Cloud rebuild (debounced 500ms) ────────────────
+		// Cloud count/height changes require a full rebuild (dispose + recreate).
+		// Debounced to 500ms so rapid slider drags don't spam GPU allocations.
+		// We stash the latest values in userData as a mini-store between ticks.
 		case "cloudCount":
 		case "cloudHeight": {
-			// Store latest value in userData for debounced rebuild
 			if (id === "cloudCount") s.clouds.userData.count = value;
 			if (id === "cloudHeight") s.clouds.userData.height = value;
 			if (s.cloudRebuildTimer) clearTimeout(s.cloudRebuildTimer);

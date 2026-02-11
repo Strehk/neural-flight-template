@@ -97,7 +97,8 @@ export class FlightPlayer {
 		);
 		this.rig.position.addScaledVector(forward, this.velocity * delta);
 
-		// Visual rotation only — YXZ order prevents gimbal-coupling artifacts.
+		// YXZ Euler order: apply Yaw first, then Pitch, then Roll.
+		// This prevents gimbal-lock artifacts that occur with default XYZ in flight sims.
 		this.rig.rotation.set(-pitchRad, this.heading, -rollRad, "YXZ");
 
 		this.clampToTerrain();
@@ -105,9 +106,9 @@ export class FlightPlayer {
 
 	private updateVelocity(): void {
 		if (this.accelerating) {
-			this.velocity = this.baseSpeed * 2;
+			this.velocity = this.baseSpeed * 2; // 2× boost while accelerating
 		} else if (this.braking) {
-			this.velocity = this.baseSpeed * 0.25;
+			this.velocity = this.baseSpeed * 0.25; // 25% speed while braking
 		} else {
 			this.velocity = this.baseSpeed;
 		}
