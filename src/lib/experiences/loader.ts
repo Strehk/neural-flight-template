@@ -63,6 +63,10 @@ export function getActiveExperience(): ActiveExperience | null {
 }
 
 // ── Cross-Route Persistence (localStorage) ──
+//
+// The user picks an experience on the Landing Page (/), then navigates to /vr.
+// Since these are different SvelteKit routes, we persist the chosen ID in
+// localStorage so the VR shell knows which experience to load.
 
 const STORAGE_KEY = "active-experience";
 
@@ -71,6 +75,7 @@ export function setActiveExperienceId(id: string): void {
 }
 
 export function getActiveExperienceId(): string {
+	// SSR guard — localStorage is undefined during server-side rendering
 	if (typeof localStorage === "undefined") return DEFAULT_EXPERIENCE_ID;
 	return localStorage.getItem(STORAGE_KEY) ?? DEFAULT_EXPERIENCE_ID;
 }
@@ -80,10 +85,12 @@ export function getActiveExperienceId(): string {
 function applySceneDefaults(config: SceneConfig, scene: THREE.Scene): void {
 	scene.background = new THREE.Color(config.background);
 
+	// fogNear = 0 means "no fog" — only create fog when a positive distance is set
 	if (config.fogNear > 0) {
 		scene.fog = new THREE.Fog(config.fogColor, config.fogNear, config.fogFar);
 	}
 
+	// 0xffffff = white base color — the actual brightness comes from ambientIntensity
 	const ambient = new THREE.AmbientLight(0xffffff, config.ambientIntensity);
 	scene.add(ambient);
 

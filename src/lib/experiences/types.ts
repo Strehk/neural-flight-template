@@ -96,14 +96,33 @@ export interface SpawnConfig {
 
 // ── Experience State ──
 
-/** Mutable state bag — managed by the experience, opaque to infrastructure */
+/**
+ * Mutable state bag — managed by the experience, opaque to infrastructure.
+ *
+ * Each experience defines its own shape. The Loader passes this through
+ * without reading it — only your experience code touches these values.
+ *
+ * Example (Mountain Flight):
+ *   { terrain: TerrainManager, rings: Ring[], clouds: Group, player: FlightPlayer }
+ *
+ * Example (Template):
+ *   { cubes: Mesh[], rotationSpeed: number }
+ */
 export interface ExperienceState {
 	[key: string]: unknown;
 }
 
 // ── Runtime Values ──
 
-/** Current parameter values at real-world scale — maintained by Loader */
+/**
+ * Current parameter values at **real-world scale** — maintained by Loader.
+ *
+ * The Node Editor sends normalized 0-1 signals. The Loader remaps them using
+ * the parameter's min/max range before storing them here. Your applySettings()
+ * receives the real value directly — no remapping needed.
+ *
+ * Example: { "flight-speed": 42, "fog-density": 0.8, "show-rings": true }
+ */
 export interface RuntimeValues {
 	[parameterId: string]: number | boolean | string;
 }

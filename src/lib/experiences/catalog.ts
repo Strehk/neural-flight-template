@@ -2,7 +2,12 @@ import type { ExperienceManifest } from "./types";
 import { manifest as mountainFlight } from "./mountain-flight";
 
 // ── Registry ──
-// Students: add 1 import + 1 entry here to register your experience
+//
+// Students: To register your experience, add 2 lines:
+//   1. Import:  import { manifest as myExp } from "./my-experience";
+//   2. Entry:   "my-experience": myExp,
+//
+// The ID must match the folder name and the manifest.id field.
 
 const CATALOG: Record<string, ExperienceManifest> = {
 	"mountain-flight": mountainFlight,
@@ -10,10 +15,15 @@ const CATALOG: Record<string, ExperienceManifest> = {
 
 export const DEFAULT_EXPERIENCE_ID = "mountain-flight";
 
-/** Get experience by ID — throws if not found */
+/** Get experience by ID — throws with available IDs if not found */
 export function getExperience(id: string): ExperienceManifest {
 	const exp = CATALOG[id];
-	if (!exp) throw new Error(`Experience not found: ${id}`);
+	if (!exp) {
+		const available = Object.keys(CATALOG).join(", ");
+		throw new Error(
+			`Experience "${id}" not found. Available: [${available}]`,
+		);
+	}
 	return exp;
 }
 
