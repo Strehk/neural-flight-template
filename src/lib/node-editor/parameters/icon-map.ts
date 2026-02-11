@@ -3,6 +3,13 @@
  *
  * Manifests store icon names as strings to stay serializable.
  * This map converts them to actual ComponentType references for rendering.
+ *
+ * Available icons (use these string names in manifest.ts `icon` field):
+ *   Circle, Cloud, CloudFog, CloudUpload, Droplets, Gauge, Maximize,
+ *   Mountain, Palette, RotateCw, Spline, Sun, Sunrise, Waves, Wind
+ *
+ * To add a new icon: import it from lucide-svelte and add it to ICON_MAP.
+ * Fallback: Mountain (if icon name is missing or unrecognized).
  */
 
 import {

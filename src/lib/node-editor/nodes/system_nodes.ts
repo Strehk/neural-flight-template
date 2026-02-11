@@ -1,9 +1,10 @@
 /**
- * System Nodes — Dynamically generated endpoint nodes
+ * System Nodes — Dynamically generated endpoint nodes.
  *
  * Output Nodes: 1 input port (sink), 0 components.
- * Generated from the active experience's manifest parameters.
- * Each number-type parameter gets its own output node.
+ * Generated from the **active experience's manifest.parameters** via
+ * getParameterPresets(). When the experience changes, call refreshOutputNodes()
+ * to regenerate the list. Each number-type parameter becomes its own output node.
  */
 
 import {

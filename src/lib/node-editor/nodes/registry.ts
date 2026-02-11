@@ -35,7 +35,7 @@ const STANDARD_NODES: NodeDef[] = [
 	NODE_MIXER,
 ];
 
-/** Get all nodes: standard + dynamically generated output nodes */
+/** Get all nodes: standard + dynamically generated output nodes from active manifest */
 export function getAllNodes(): NodeDef[] {
 	return [...STANDARD_NODES, ...generateOutputNodes()];
 }

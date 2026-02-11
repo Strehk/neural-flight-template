@@ -380,9 +380,9 @@ The user sees only the UI panel and the exposed ports. Internal wiring is invisi
 | `NODE_COLOR_BLEND` | `color_blend_node.ts` | process | Color UI + Mixer + Multiply |
 | `NODE_MIXER` | `mixer_node.ts` | process | Mixer UI (dynamic 2–8 channels) |
 
-**Output Nodes (8, auto-generated):**
+**Output Nodes (dynamic, auto-generated):**
 
-Generated from `PARAMETER_PRESETS` in `system_nodes.ts`. Each VR parameter becomes a sink node with a slider:
+Generated dynamically from the **active experience's manifest parameters** via `system_nodes.ts`. Each number-type parameter becomes a sink node with one input port. The output node list changes when a different experience is loaded:
 
 | Label | Parameter | Range |
 |-------|-----------|-------|
@@ -555,6 +555,24 @@ The **Bridge** (`bridge.ts`) sends only changed values over WebSocket to `/vr`.
 4. Register in `nodes/registry.ts` → add to `ALL_NODES`
 
 Reference: `nodes/lfo_modulator_node.ts`
+
+---
+
+## Experience System Integration
+
+The Node Editor and Experience System are connected through the **manifest parameter pipeline**:
+
+```
+manifest.parameters → getParameterPresets() → system_nodes.ts → Output Nodes
+```
+
+1. **Each experience** declares its steerable parameters in `manifest.ts` as `ParameterDef[]`
+2. **`parameters/registry.ts`** reads the active manifest and converts parameters to `ParameterPreset` entries
+3. **`system_nodes.ts`** generates one Output Node per parameter (sink with 1 input port)
+4. **`registry.ts`** merges standard nodes + dynamic output nodes in `getAllNodes()`
+5. **`bridge.ts`** reads the 0–1 signal value from each output node, remaps it using the parameter's `min`/`max`, and sends the real value via WebSocket to the VR scene
+
+When the active experience changes, call `refreshOutputNodes()` to regenerate the output node list.
 
 ---
 
