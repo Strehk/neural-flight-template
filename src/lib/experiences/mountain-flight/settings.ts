@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { createClouds, disposeClouds } from "$lib/three/clouds";
+import { runtimeConfig } from "$lib/config/flight";
 import { updateSkyColors } from "$lib/three/sky";
 import type { ExperienceState } from "../types";
 import type { MountainFlightState } from "./scene";
@@ -99,7 +100,12 @@ export function applySettings(
 
 		// ── Terrain rebuild ─────────────────────────────
 		case "terrainAmplitude":
+			runtimeConfig.terrainAmplitude = value as number;
+			s.terrain.rebuildAllChunks();
+			break;
+
 		case "terrainFrequency":
+			runtimeConfig.terrainFrequency = value as number;
 			s.terrain.rebuildAllChunks();
 			break;
 
