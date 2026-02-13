@@ -1,0 +1,79 @@
+<script lang="ts">
+	const experiments: { name: string; path: string; description: string }[] = [
+		{
+			name: 'Gradient Prism',
+			path: 'gradient-prism',
+			description: 'Monolith field with gradient shaders, bloom, starfield, and film grain',
+		},
+	];
+</script>
+
+<main>
+	<h1>Lab — Visual Experiments</h1>
+	<p>Temporary sandbox for Three.js shader tests. Not part of the production system.</p>
+
+	{#if experiments.length === 0}
+		<p class="empty">No experiments yet. Create a subfolder with a +page.svelte to start.</p>
+	{:else}
+		<ul>
+			{#each experiments as exp}
+				<li>
+					<a href="/lab/{exp.path}">{exp.name}</a>
+					<span>{exp.description}</span>
+				</li>
+			{/each}
+		</ul>
+	{/if}
+</main>
+
+<style>
+	main {
+		max-width: 600px;
+		margin: 4rem auto;
+		font-family: system-ui, sans-serif;
+		padding: 0 1rem;
+	}
+
+	h1 {
+		font-size: 1.5rem;
+		margin-bottom: 0.5rem;
+	}
+
+	p {
+		color: #888;
+		margin-bottom: 2rem;
+	}
+
+	.empty {
+		font-style: italic;
+	}
+
+	ul {
+		list-style: none;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	li {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+
+	a {
+		color: #7c6ef0;
+		font-weight: 600;
+		text-decoration: none;
+	}
+
+	a:hover {
+		text-decoration: underline;
+	}
+
+	span {
+		color: #666;
+		font-size: 0.875rem;
+	}
+</style>
