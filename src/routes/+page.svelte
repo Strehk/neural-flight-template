@@ -8,6 +8,7 @@ import {
 	Lightbulb,
 	MapPin,
 	Mountain,
+	Palette,
 	Network,
 	Orbit,
 	Plane,
@@ -147,6 +148,13 @@ const routes = [
 		icon: Workflow,
 		title: "Node Editor",
 		description: "Visual programming for VR scene",
+		planned: false,
+	},
+	{
+		path: "/shader-playground",
+		icon: Palette,
+		title: "Shader Playground",
+		description: "GLSL shader editor with live preview",
 		planned: false,
 	},
 	{

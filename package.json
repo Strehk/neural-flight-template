@@ -24,8 +24,10 @@
 		"ws": "^8.19.0"
 	},
 	"dependencies": {
+		"@codemirror/lang-cpp": "^6.0.3",
 		"@xyflow/svelte": "^1.5.0",
 		"bits-ui": "^2.15.4",
+		"codemirror": "^6.0.2",
 		"lucide-svelte": "^0.563.0",
 		"simplex-noise": "^4.0.3",
 		"three": "^0.182.0"
