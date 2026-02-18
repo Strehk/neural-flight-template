@@ -19,11 +19,7 @@ import type {
 	SignalValue,
 	ComputeResult,
 } from "$lib/node-editor/graph/types";
-import { COMPONENT_LFO } from "$lib/node-editor/components/lfo";
-import { COMPONENT_ENVELOPE } from "$lib/node-editor/components/envelope";
-import { COMPONENT_NOISE } from "$lib/node-editor/components/noise";
-import { COMPONENT_SPRING } from "$lib/node-editor/components/spring";
-import { COMPONENT_MULTIPLY } from "$lib/node-editor/components/multiply";
+import { MOD_SOURCES } from "./modulation_nodes";
 import type { UniformDef } from "./types";
 import type * as THREE from "three";
 
@@ -45,22 +41,6 @@ const ENDPOINT_SIGNAL: SignalDef = {
 	}),
 };
 
-// ── Available source types for the palette ──
-
-export interface ModulationSourceType {
-	type: string;
-	label: string;
-	signal: SignalDef;
-}
-
-export const SOURCE_TYPES: ModulationSourceType[] = [
-	{ type: "lfo", label: "LFO", signal: COMPONENT_LFO },
-	{ type: "envelope", label: "Envelope", signal: COMPONENT_ENVELOPE },
-	{ type: "noise", label: "Noise", signal: COMPONENT_NOISE },
-	{ type: "spring", label: "Spring", signal: COMPONENT_SPRING },
-	{ type: "multiply", label: "Multiply", signal: COMPONENT_MULTIPLY },
-];
-
 // ── Registration ──
 
 let registered = false;
@@ -69,13 +49,11 @@ function ensureRegistered(): void {
 	if (registered) return;
 	registered = true;
 
-	// Register endpoint type
 	if (!getNodeType("shader_endpoint")) {
 		registerNodeType(ENDPOINT_SIGNAL);
 	}
 
-	// Register source component types (idempotent check)
-	for (const src of SOURCE_TYPES) {
+	for (const src of MOD_SOURCES) {
 		if (!getNodeType(src.type)) {
 			registerNodeType(src.signal);
 		}
@@ -104,7 +82,7 @@ export interface ModulationBridge {
 	/** Remove a source node */
 	removeSource(nodeId: string): void;
 	/** Connect source output → endpoint input */
-	connect(sourceId: string, sourcePort: string, endpointId: string): void;
+	connect(sourceId: string, sourcePort: string, endpointId: string, edgeId?: string): void;
 	/** Disconnect an edge */
 	disconnect(edgeId: string): void;
 	/** Clean up */
@@ -166,10 +144,11 @@ export function createModulationBridge(
 		sourceId: string,
 		sourcePort: string,
 		endpointId: string,
+		edgeId?: string,
 	): void {
 		edgeCounter++;
 		graph.addEdge({
-			id: `edge_${edgeCounter}`,
+			id: edgeId ?? `edge_${edgeCounter}`,
 			sourceId,
 			sourcePort,
 			targetId: endpointId,

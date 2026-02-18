@@ -3,7 +3,7 @@
 	import {
 		createPlaygroundRenderer,
 		DEFAULT_FRAGMENT,
-	} from "../renderer";
+	} from "../engine/renderer";
 	import type { PlaygroundRenderer } from "../types";
 
 	interface Props {
@@ -45,3 +45,21 @@
 <div class="sp-preview-container">
 	<canvas bind:this={canvasEl}></canvas>
 </div>
+
+<style>
+	.sp-preview-container {
+		width: 100%;
+		height: 100%;
+		min-height: 200px;
+		position: relative;
+		background: var(--bg);
+		border-radius: var(--radius-none);
+		overflow: hidden;
+	}
+
+	.sp-preview-container canvas {
+		width: 100%;
+		height: 100%;
+		display: block;
+	}
+</style>

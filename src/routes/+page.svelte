@@ -337,6 +337,24 @@ const techStack = [
 			<NodeEditorPreview />
 		</section>
 
+		<!-- ═══ Shader Playground ═══ -->
+		<section class="section">
+			<h2 class="section-title"><Palette size={14} /> Shader Playground</h2>
+			<p class="section-intro">
+				GLSL shader editor with live 3D preview. Write fragment and vertex shaders, tweak uniforms
+				via sliders, and wire modulation sources (LFO, Noise, Envelope) to parameters.
+				10 curated presets explore psychological effects — from breath-synced pulses to ego dissolution.
+			</p>
+			<div class="feature-list">
+				<span class="feature-item">Live GLSL Editor</span>
+				<span class="feature-item">5 Geometry Targets</span>
+				<span class="feature-item">Modulation System</span>
+				<span class="feature-item">10 Psych-Effect Presets</span>
+				<span class="feature-item">Snippet Library</span>
+				<span class="feature-item">Shadertoy Compatible</span>
+			</div>
+		</section>
+
 		<!-- ═══ Tech Stack ═══ -->
 		<section class="section">
 			<h2 class="section-title"><Wrench size={14} /> Tech Stack</h2>

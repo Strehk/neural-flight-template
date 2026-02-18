@@ -10,4 +10,18 @@ declare global {
 	}
 }
 
+// GLSL shader files imported via Vite ?raw
+declare module "*.glsl?raw" {
+	const content: string;
+	export default content;
+}
+declare module "*.vert?raw" {
+	const content: string;
+	export default content;
+}
+declare module "*.frag?raw" {
+	const content: string;
+	export default content;
+}
+
 export {};

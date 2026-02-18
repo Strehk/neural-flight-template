@@ -39,6 +39,7 @@ export interface ShaderError {
 	line: number;
 	message: string;
 	raw: string;
+	source?: "fragment" | "vertex";
 }
 
 // ── Shader Module (Save/Export format) ──
@@ -90,7 +91,8 @@ export type SnippetCategory =
 	| "uv"
 	| "animation"
 	| "lighting"
-	| "effects";
+	| "effects"
+	| "modulation";
 
 export interface ShaderSnippet {
 	id: string;
@@ -124,6 +126,10 @@ export interface PlaygroundRenderer {
 	updateShader(fragment: string, vertex: string | null): ShaderError[];
 	updateUniform(name: string, value: number | number[] | boolean): void;
 	setGeometry(type: GeometryType): void;
+	/** Enable/disable auto-rotation (OrbitControls autoRotate) */
+	setRotation(enabled: boolean): void;
+	/** Enable/disable scene lighting (system uniforms uLightDir/uLightIntensity/uAmbient) */
+	setLighting(enabled: boolean): void;
 	getTime(): number;
 	/** Access current ShaderMaterial (for ModulationBridge) */
 	getMaterial(): import("three").ShaderMaterial;

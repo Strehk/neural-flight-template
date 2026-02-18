@@ -16,15 +16,14 @@ export type {
 	PlaygroundRenderer,
 } from "./types";
 
-// Renderer
+// Engine (Renderer + Compiler)
 export {
 	createPlaygroundRenderer,
 	DEFAULT_FRAGMENT,
 	DEFAULT_VERTEX,
-} from "./renderer";
-
-// Compiler
-export { parseShaderErrors, testCompileShader } from "./compiler";
+	parseShaderErrors,
+	testCompileShader,
+} from "./engine/index";
 
 // Uniforms
 export { parseUniforms, parseEndpointAnnotation } from "./uniforms";
@@ -39,7 +38,7 @@ export { TEMPLATES, getTemplateById } from "./templates";
 export { SNIPPETS, SNIPPET_CATEGORIES, getSnippetsByCategory } from "./snippets";
 
 // Presets
-export { PRESETS, getPresetById, getPresetsByDifficulty } from "./presets/index";
+export { PRESETS, getPresetById, getPresetsByDifficulty } from "./data/presets/index";
 
 // Store
 export {
@@ -52,8 +51,11 @@ export {
 } from "./store";
 
 // Modulation
-export {
-	createModulationBridge,
-	SOURCE_TYPES,
-} from "./modulation";
-export type { ModulationBridge, ModulationSourceType } from "./modulation";
+export { createModulationBridge } from "./modulation";
+export type { ModulationBridge } from "./modulation";
+export { MOD_SOURCES } from "./modulation_nodes";
+export type { ModSourceDef } from "./modulation_nodes";
+
+// Playground State
+export { createPlaygroundState } from "./playground_state.svelte";
+export type { PlaygroundState, EditorTab } from "./playground_state.svelte";

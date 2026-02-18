@@ -12,9 +12,14 @@
 		defaultKeymap,
 		history,
 		historyKeymap,
+		indentWithTab,
 	} from "@codemirror/commands";
+	import { foldGutter, foldKeymap, bracketMatching, indentOnInput } from "@codemirror/language";
+	import { autocompletion, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
 	import { cpp } from "@codemirror/lang-cpp";
 	import type { ShaderError } from "../types";
+	import { DEFAULT_VERTEX } from "../engine/renderer";
+	import { getSnippetCompletions } from "../snippets";
 	import {
 		StateField,
 		StateEffect,
@@ -26,20 +31,25 @@
 		fragmentCode: string;
 		vertexCode: string | null;
 		errors: ShaderError[];
+		mode: "fragment" | "vertex";
 		onchange: (fragment: string, vertex: string | null) => void;
+		oncompile?: () => void;
 	}
 
 	let {
 		fragmentCode = $bindable(),
 		vertexCode = $bindable(),
 		errors,
+		mode,
 		onchange,
+		oncompile,
 	}: Props = $props();
 
 	let editorContainer: HTMLDivElement | undefined = $state();
 	let view: EditorView | undefined = $state();
-	let activeTab = $state<"fragment" | "vertex">("fragment");
+	let currentMode = $state<"fragment" | "vertex">("fragment");
 	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+	let suppressSync = false; // Prevent sync loop when user types
 
 	// ── Dark Theme ──
 
@@ -115,12 +125,47 @@
 
 	// ── Editor Setup ──
 
+	// ── Slash-Command Completion Source ──
+
+	function slashCompletionSource(context: CompletionContext): CompletionResult | null {
+		const line = context.state.doc.lineAt(context.pos);
+		const textBefore = line.text.slice(0, context.pos - line.from);
+		const match = textBefore.match(/^\s*\/(\w*)$/);
+		if (!match) return null;
+
+		const completions = getSnippetCompletions();
+		return {
+			from: line.from + (match.index ?? 0),
+			options: completions,
+			filter: true,
+		};
+	}
+
 	function createExtensions(): Extension[] {
 		return [
 			lineNumbers(),
 			highlightActiveLine(),
 			history(),
-			keymap.of([...defaultKeymap, ...historyKeymap]),
+			foldGutter(),
+			bracketMatching(),
+			indentOnInput(),
+			keymap.of([
+				...defaultKeymap,
+				...historyKeymap,
+				...foldKeymap,
+				indentWithTab,
+				{
+					key: "Mod-Enter",
+					run: () => {
+						oncompile?.();
+						return true;
+					},
+				},
+			]),
+			autocompletion({
+				override: [slashCompletionSource],
+				activateOnTyping: true,
+			}),
 			cpp(),
 			darkTheme,
 			errorLineField,
@@ -135,7 +180,8 @@
 	function handleDocChange(code: string): void {
 		if (debounceTimer) clearTimeout(debounceTimer);
 		debounceTimer = setTimeout(() => {
-			if (activeTab === "fragment") {
+			suppressSync = true;
+			if (currentMode === "fragment") {
 				fragmentCode = code;
 				onchange(code, vertexCode);
 			} else {
@@ -153,53 +199,65 @@
 		return new EditorView({ state, parent: container });
 	}
 
-	// ── Tab Switching ──
+	// ── Mode Switching (driven by parent via prop) ──
 
-	function switchTab(tab: "fragment" | "vertex"): void {
-		if (tab === activeTab) return;
+	$effect(() => {
+		if (mode === currentMode) return;
+		if (!view) return;
 
 		// Save current code
-		if (view) {
-			const currentCode = view.state.doc.toString();
-			if (activeTab === "fragment") {
-				fragmentCode = currentCode;
-			} else {
-				vertexCode = currentCode;
-			}
+		const currentCode = view.state.doc.toString();
+		if (currentMode === "fragment") {
+			fragmentCode = currentCode;
+		} else {
+			vertexCode = currentCode;
 		}
 
-		activeTab = tab;
+		currentMode = mode;
 
 		// Load new code
-		if (view && editorContainer) {
-			const newCode =
-				tab === "fragment"
-					? fragmentCode
-					: (vertexCode ?? defaultVertexShader());
+		const newCode =
+			mode === "fragment"
+				? fragmentCode
+				: (vertexCode ?? DEFAULT_VERTEX);
+		view.dispatch({
+			changes: {
+				from: 0,
+				to: view.state.doc.length,
+				insert: newCode,
+			},
+		});
+	});
+
+	// ── Sync external code changes into CodeMirror ──
+	// When fragmentCode/vertexCode change externally (template load, preset, etc.)
+	// we must push the new content into the imperative CodeMirror editor.
+
+	$effect(() => {
+		const code = currentMode === "fragment" ? fragmentCode : (vertexCode ?? DEFAULT_VERTEX);
+		if (!view) return;
+		if (suppressSync) {
+			suppressSync = false;
+			return;
+		}
+		const current = view.state.doc.toString();
+		if (code !== current) {
 			view.dispatch({
-				changes: {
-					from: 0,
-					to: view.state.doc.length,
-					insert: newCode,
-				},
+				changes: { from: 0, to: view.state.doc.length, insert: code },
 			});
 		}
-	}
-
-	function defaultVertexShader(): string {
-		return `varying vec2 vUv;
-void main() {
-  vUv = uv;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-}
-`;
-	}
+	});
 
 	// ── Lifecycle ──
 
 	onMount(() => {
 		if (!editorContainer) return;
-		view = createEditor(editorContainer, fragmentCode);
+		currentMode = mode;
+		const initialCode =
+			mode === "fragment"
+				? fragmentCode
+				: (vertexCode ?? DEFAULT_VERTEX);
+		view = createEditor(editorContainer, initialCode);
 	});
 
 	onDestroy(() => {
@@ -225,29 +283,43 @@ void main() {
 			changes: { from: cursor, insert: `\n${code}\n` },
 		});
 	}
+
+	/** Scroll editor to a specific line and highlight it */
+	export function scrollToLine(line: number): void {
+		if (!view) return;
+		const doc = view.state.doc;
+		if (line < 1 || line > doc.lines) return;
+		const lineInfo = doc.line(line);
+		view.dispatch({
+			selection: { anchor: lineInfo.from },
+			effects: EditorView.scrollIntoView(lineInfo.from, { y: "center" }),
+		});
+		view.focus();
+	}
 </script>
 
 <div class="sp-shader-editor">
-	<!-- Tabs -->
-	<div class="sp-editor-tabs">
-		<button
-			class="sp-editor-tab"
-			class:active={activeTab === "fragment"}
-			onclick={() => switchTab("fragment")}
-			type="button"
-		>
-			Fragment
-		</button>
-		<button
-			class="sp-editor-tab"
-			class:active={activeTab === "vertex"}
-			onclick={() => switchTab("vertex")}
-			type="button"
-		>
-			Vertex
-		</button>
-	</div>
-
-	<!-- CodeMirror Container -->
 	<div class="sp-editor-cm-wrap" bind:this={editorContainer}></div>
 </div>
+
+<style>
+	.sp-shader-editor {
+		display: flex;
+		flex-direction: column;
+		height: 100%;
+		background: var(--surface);
+	}
+
+	.sp-editor-cm-wrap {
+		flex: 1;
+		overflow: hidden;
+	}
+
+	.sp-editor-cm-wrap :global(.cm-editor) {
+		height: 100%;
+	}
+
+	.sp-editor-cm-wrap :global(.cm-scroller) {
+		overflow: auto;
+	}
+</style>

@@ -563,6 +563,26 @@ vec3 chromaticAberration(vec2 uv, float amount) {
 			{ name: "uTime", type: "float", value: 0 },
 		],
 	},
+	// ═══ MODULATION ═══
+
+	{
+		id: "endpoint_float",
+		name: "@endpoint Float",
+		category: "modulation",
+		description: "Float uniform exposed to the Node Editor via @endpoint",
+		difficulty: 1,
+		hint: "Add @endpoint to any uniform to make it controllable from the Node Editor. min/max define the range.",
+		code: `uniform float myParam; // @endpoint min:0 max:1 label:"My Parameter"`,
+	},
+	{
+		id: "endpoint_color",
+		name: "@endpoint Color",
+		category: "modulation",
+		description: "Color uniform exposed to the Node Editor via @endpoint",
+		difficulty: 1,
+		hint: "Use the color flag to render a color picker. default sets the initial hex color.",
+		code: `uniform vec3 myColor; // @endpoint default:#FF00FF color`,
+	},
 ];
 
 /** Get snippets filtered by category */
@@ -582,4 +602,22 @@ export const SNIPPET_CATEGORIES: string[] = [
 	"animation",
 	"lighting",
 	"effects",
+	"modulation",
 ];
+
+/** CodeMirror completion items from snippets — triggered by `/` at line start */
+export function getSnippetCompletions(): {
+	label: string;
+	detail: string;
+	info: string;
+	apply: string;
+	type: string;
+}[] {
+	return SNIPPETS.map((s) => ({
+		label: `/${s.id}`,
+		detail: `[${s.category}]`,
+		info: s.description,
+		apply: s.code,
+		type: "function",
+	}));
+}

@@ -638,6 +638,37 @@ body {
 	gap: 1rem;
 }
 
+/* ── Tabs (bits-ui) ── */
+[data-tabs-list] {
+	display: flex;
+	align-items: stretch;
+}
+
+[data-tabs-trigger] {
+	all: unset;
+	display: flex;
+	align-items: center;
+	padding: 0 1rem;
+	font-family: var(--font-mono);
+	font-size: 0.75rem;
+	font-weight: 700;
+	color: var(--text-subtle);
+	cursor: pointer;
+	border-bottom: 2px solid transparent;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	transition: color var(--transition-fast);
+}
+
+[data-tabs-trigger]:hover {
+	color: var(--text-muted);
+}
+
+[data-tabs-trigger][data-state="active"] {
+	color: var(--accent);
+	border-bottom-color: var(--accent);
+}
+
 /* ── Text Input ── */
 input[type="text"],
 input[type="email"],
@@ -1222,6 +1253,21 @@ input[type="color"] {
 	.routes-grid {
 		grid-template-columns: 1fr;
 	}
+}
+
+/* Feature List */
+.feature-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+}
+
+.feature-item {
+	font-size: 0.75rem;
+	padding: 0.25rem 0.625rem;
+	background: var(--surface);
+	border: 1px solid var(--border);
+	color: var(--text-muted);
 }
 
 /* Landing Footer */

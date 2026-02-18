@@ -18,6 +18,9 @@ const SYSTEM_UNIFORMS = new Set([
 	"iTime",
 	"iResolution",
 	"iMouse",
+	"uLightDir",
+	"uLightIntensity",
+	"uAmbient",
 ]);
 
 /** Supported GLSL uniform types */
