@@ -597,6 +597,11 @@ body {
 	transform: translateX(18px);
 }
 
+/* ── Accordion (bits-ui) ── */
+[data-accordion-content][data-state="closed"] {
+	display: none;
+}
+
 /* ── Collapsible (bits-ui) ── */
 [data-collapsible-content][data-state="closed"] {
 	display: none;

@@ -56,6 +56,17 @@
 
 /* ═══ Tab Bar (layout only — trigger styles in app.css) ═══ */
 
+.sp-editor-tabs-row {
+	display: flex;
+	align-items: stretch;
+	border-bottom: 1px solid var(--border);
+	background: var(--bg);
+}
+
+.sp-editor-tabs-row .sp-editor-tabs {
+	border-bottom: none;
+}
+
 .sp-editor-tabs {
 	display: flex;
 	background: var(--bg);
@@ -64,6 +75,47 @@
 	gap: 0;
 	height: 2.5rem;
 	align-items: stretch;
+}
+
+/* ═══ View Toggle (bits-ui ToggleGroup) ═══ */
+
+.sp-view-toggle {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	margin-left: auto;
+	padding-right: var(--space-md);
+}
+
+.sp-view-toggle [data-toggle-group-item] {
+	all: unset;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-subtle);
+	cursor: pointer;
+	padding: var(--space-xs);
+	transition: color var(--transition-fast);
+}
+
+.sp-view-toggle [data-toggle-group-item]:hover {
+	color: var(--text-muted);
+}
+
+.sp-view-toggle [data-toggle-group-item][data-state="on"] {
+	color: var(--accent);
+}
+
+/* ═══ Header Subtitle ═══ */
+
+.sp-header-sub {
+	font-size: 0.5625rem;
+	font-family: var(--font-mono);
+	color: var(--text-subtle);
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	padding: 2px 6px;
+	background: var(--border-subtle);
 }
 
 /* ═══ Right Panel (Preview) ═══ */

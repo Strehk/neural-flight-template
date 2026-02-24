@@ -10,16 +10,30 @@
 	import { EditorState } from "@codemirror/state";
 	import { EditorView, type ViewUpdate } from "@codemirror/view";
 	import { createBaseExtensions, setErrorLines } from "../editor_extensions";
+	import {
+		inlineBadges,
+		updateLiveValues,
+		updateControlSources,
+	} from "../lab/inline_badges";
 	import type { ShaderError } from "../types";
 
 	interface Props {
 		code: string;
 		errors?: ShaderError[];
 		editable?: boolean;
+		liveValues?: Map<string, number | number[]>;
+		controlSources?: Map<string, string>;
 		onchange?: (code: string) => void;
 	}
 
-	let { code, errors = [], editable = true, onchange }: Props = $props();
+	let {
+		code,
+		errors = [],
+		editable = true,
+		liveValues,
+		controlSources,
+		onchange,
+	}: Props = $props();
 
 	let container: HTMLDivElement | undefined = $state();
 	let view: EditorView | undefined = $state();
@@ -40,6 +54,7 @@
 				doc: code,
 				extensions: [
 					...createBaseExtensions(),
+					inlineBadges(),
 					EditorState.readOnly.of(!editable),
 					EditorView.updateListener.of((update: ViewUpdate) => {
 						if (update.docChanged && onchange) {
@@ -72,6 +87,18 @@
 		if (!view) return;
 		const lineNums = errors.filter((e) => e.line > 0).map((e) => e.line);
 		view.dispatch({ effects: setErrorLines.of(lineNums) });
+	});
+
+	// Sync live uniform values into badges
+	$effect(() => {
+		if (!view || !liveValues) return;
+		view.dispatch({ effects: updateLiveValues.of(liveValues) });
+	});
+
+	// Sync control source mapping into badges
+	$effect(() => {
+		if (!view || !controlSources) return;
+		view.dispatch({ effects: updateControlSources.of(controlSources) });
 	});
 
 	onMount(() => {

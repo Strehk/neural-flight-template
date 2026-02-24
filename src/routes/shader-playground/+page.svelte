@@ -1,18 +1,22 @@
 <script lang="ts">
-	import { Tabs } from "bits-ui";
+	import { Tabs, ToggleGroup } from "bits-ui";
 	import "$lib/shader-playground/shader-playground.css";
 	import PreviewCanvas from "$lib/shader-playground/components/PreviewCanvas.svelte";
 	import ErrorConsole from "$lib/shader-playground/components/ErrorConsole.svelte";
 	import ShaderEditor from "$lib/shader-playground/components/ShaderEditor.svelte";
+	import ShaderRack from "$lib/shader-playground/components/ShaderRack.svelte";
 	import PlaygroundSidebar from "$lib/shader-playground/components/PlaygroundSidebar.svelte";
 	import ModulationCanvas from "$lib/shader-playground/components/ModulationCanvas.svelte";
 	import PageHeader from "$lib/components/PageHeader.svelte";
 	import { createPlaygroundState } from "$lib/shader-playground/playground_state.svelte";
-	import { Palette, Menu } from "lucide-svelte";
+	import { createRackState } from "$lib/shader-playground/rack/state.svelte";
+	import { Palette, Menu, Rows3, Code, Zap } from "lucide-svelte";
 
 	const pg = createPlaygroundState();
+	const rackState = createRackState(pg);
 
 	let editorRef: ShaderEditor | undefined = $state();
+	let viewMode = $state<"rack" | "raw">("rack");
 
 	function handleSnippetInsert(code: string): void {
 		editorRef?.insertCode(code);
@@ -20,12 +24,15 @@
 </script>
 
 <svelte:head>
-	<title>Shader Playground | ICAROS</title>
+	<title>SHADERRACK | ICAROS</title>
 </svelte:head>
 
 <div class="sp-page" class:fullscreen={pg.isFullscreen}>
-	<PageHeader icon={Palette} label="Shader Playground">
+	<PageHeader icon={Zap} label="SHADERRACK" status={pg.compileOk ? "connected" : "error"}>
 		{#snippet actions()}
+			<span class="sp-header-sub">
+				{pg.activeTab === "fragment" ? (viewMode === "rack" ? "M-FRAG" : "RAW") : pg.activeTab === "vertex" ? "VERTEX" : "NODES"}
+			</span>
 			<button
 				class="header-settings-btn"
 				onclick={() => (pg.sidebarOpen = !pg.sidebarOpen)}
@@ -39,15 +46,58 @@
 	<main class="sp-main">
 		{#if !pg.isFullscreen}
 			<div class="sp-left">
-				<Tabs.Root bind:value={pg.activeTab}>
-					<Tabs.List class="sp-editor-tabs">
-						<Tabs.Trigger value="fragment">Fragment</Tabs.Trigger>
-						<Tabs.Trigger value="vertex">Vertex</Tabs.Trigger>
-						<Tabs.Trigger value="nodes">Node Editor</Tabs.Trigger>
-					</Tabs.List>
-				</Tabs.Root>
+				<div class="sp-editor-tabs-row">
+					<Tabs.Root bind:value={pg.activeTab}>
+						<Tabs.List class="sp-editor-tabs">
+							<Tabs.Trigger value="fragment">Fragment</Tabs.Trigger>
+							<Tabs.Trigger value="vertex">Vertex</Tabs.Trigger>
+							<Tabs.Trigger value="nodes">Node Editor</Tabs.Trigger>
+						</Tabs.List>
+					</Tabs.Root>
 
-				{#if pg.activeTab === "fragment" || pg.activeTab === "vertex"}
+					{#if pg.activeTab === "fragment"}
+						<ToggleGroup.Root
+							type="single"
+							bind:value={viewMode}
+							class="sp-view-toggle"
+						>
+							<ToggleGroup.Item value="rack" aria-label="Rack view">
+								<Rows3 size={14} />
+							</ToggleGroup.Item>
+							<ToggleGroup.Item value="raw" aria-label="Raw editor">
+								<Code size={14} />
+							</ToggleGroup.Item>
+						</ToggleGroup.Root>
+					{/if}
+				</div>
+
+				{#if pg.activeTab === "fragment"}
+					{#if viewMode === "rack"}
+						<div class="sp-editor-wrap">
+							<ShaderRack {rackState} {pg} />
+						</div>
+					{:else}
+						<div class="sp-editor-wrap">
+							<ShaderEditor
+								bind:this={editorRef}
+								bind:fragmentCode={pg.fragmentCode}
+								bind:vertexCode={pg.vertexCode}
+								errors={pg.errors}
+								mode={pg.editorMode}
+								onchange={pg.changeEditor}
+								oncompile={pg.compile}
+							/>
+						</div>
+					{/if}
+					{#if pg.errors.length > 0}
+						<div class="sp-errors-wrap">
+							<ErrorConsole
+								errors={pg.errors}
+								onclick={(line) => editorRef?.scrollToLine(line)}
+							/>
+						</div>
+					{/if}
+				{:else if pg.activeTab === "vertex"}
 					<div class="sp-editor-wrap">
 						<ShaderEditor
 							bind:this={editorRef}

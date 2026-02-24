@@ -29,7 +29,10 @@ import {
 	foldKeymap,
 	bracketMatching,
 	indentOnInput,
+	syntaxHighlighting,
+	HighlightStyle,
 } from "@codemirror/language";
+import { tags } from "@lezer/highlight";
 import { cpp } from "@codemirror/lang-cpp";
 
 // ── Dark Theme ──
@@ -68,6 +71,42 @@ export const glslDarkTheme = EditorView.theme(
 	},
 	{ dark: true },
 );
+
+// ── GLSL Syntax Highlighting (via cpp() parser tokens) ──
+
+const glslHighlightStyle = HighlightStyle.define([
+	// Keywords: uniform, void, return, if, for, etc.
+	{ tag: tags.keyword, color: "#a78bfa" },
+	{ tag: tags.controlKeyword, color: "#a78bfa" },
+	{ tag: tags.modifier, color: "#a78bfa" },
+	// Types: float, vec3, mat4, int, bool, sampler2D
+	{ tag: tags.typeName, color: "#fbbf24" },
+	{ tag: tags.standard(tags.typeName), color: "#fbbf24" },
+	// Numbers: 0.5, 3.14, 1
+	{ tag: tags.number, color: "#fb923c" },
+	{ tag: tags.integer, color: "#fb923c" },
+	{ tag: tags.float, color: "#fb923c" },
+	// Comments
+	{ tag: tags.comment, color: "#71717a", fontStyle: "italic" },
+	{ tag: tags.lineComment, color: "#71717a", fontStyle: "italic" },
+	{ tag: tags.blockComment, color: "#71717a", fontStyle: "italic" },
+	// Strings
+	{ tag: tags.string, color: "#4ade80" },
+	// Function names / calls (sin, normalize, texture, etc.)
+	{ tag: tags.function(tags.variableName), color: "#67e8f9" },
+	// Preprocessor directives (#define, #ifdef)
+	{ tag: tags.processingInstruction, color: "#f87171" },
+	{ tag: tags.meta, color: "#f87171" },
+	// Operators
+	{ tag: tags.operator, color: "#e0e0e0" },
+	// Punctuation
+	{ tag: tags.paren, color: "#a1a1aa" },
+	{ tag: tags.brace, color: "#a1a1aa" },
+	{ tag: tags.bracket, color: "#a1a1aa" },
+	// Variable names
+	{ tag: tags.variableName, color: "#e0e0e0" },
+	{ tag: tags.definition(tags.variableName), color: "#c4b5fd" },
+]);
 
 // ── Error Line Decorations ──
 
@@ -117,6 +156,7 @@ export function createBaseExtensions(): Extension[] {
 			indentWithTab,
 		]),
 		cpp(),
+		syntaxHighlighting(glslHighlightStyle),
 		glslDarkTheme,
 		errorLineField,
 	];

@@ -49,6 +49,11 @@ export interface PlaygroundState {
 	sidebarOpen: boolean;
 	isFullscreen: boolean;
 
+	// ── Live Telemetry ──
+	readonly liveUniformValues: Map<string, number | number[]>;
+	readonly fps: number;
+	readonly compileOk: boolean;
+
 	// ── Modules ──
 	savedModules: ShaderModule[];
 	bridge: ModulationBridge | null;
@@ -99,6 +104,13 @@ export function createPlaygroundState(): PlaygroundState {
 	const modSourceMap = new Map<string, string>();
 	let renderer: PlaygroundRenderer | undefined;
 
+	// ── Live Telemetry ──
+	let liveUniformValues = $state(new Map<string, number | number[]>());
+	let fps = $state(60);
+	let compileOk = $state(true);
+	let frameCount = 0;
+	let fpsLastTime = 0;
+
 	const editorMode = $derived(
 		activeTab === "vertex" ? ("vertex" as const) : ("fragment" as const),
 	);
@@ -114,6 +126,7 @@ export function createPlaygroundState(): PlaygroundState {
 		}
 
 		errors = renderer.updateShader(frag, vertexCode);
+		compileOk = errors.length === 0;
 
 		const parsed = parseUniforms(fragmentCode);
 		uniforms = parsed;
@@ -187,6 +200,9 @@ export function createPlaygroundState(): PlaygroundState {
 		get modEdges() { return modEdges; },
 		set modEdges(v: Edge[]) { modEdges = v; },
 		get modSourceMap() { return modSourceMap; },
+		get liveUniformValues() { return liveUniformValues; },
+		get fps() { return fps; },
+		get compileOk() { return compileOk; },
 		get editorMode() { return editorMode; },
 
 		initRenderer(r: PlaygroundRenderer): void {
@@ -197,7 +213,35 @@ export function createPlaygroundState(): PlaygroundState {
 			// Bridge setup
 			const b = createModulationBridge(r.getMaterial());
 			bridge = b;
-			r.onTick((dt) => b.update(dt));
+
+			r.onTick((dt) => {
+				b.update(dt);
+
+				// FPS tracking (~4 Hz update rate)
+				frameCount++;
+				const now = performance.now();
+				const elapsed = now - fpsLastTime;
+				if (elapsed >= 250) {
+					fps = Math.round((frameCount / elapsed) * 1000);
+					frameCount = 0;
+					fpsLastTime = now;
+
+					// Read live uniform values (~4 fps for perf)
+					const mat = r.getMaterial();
+					const next = new Map<string, number | number[]>();
+					for (const [key, u] of Object.entries(mat.uniforms)) {
+						const v = u.value;
+						if (typeof v === "number") {
+							next.set(key, v);
+						} else if (v && typeof v === "object" && "x" in v) {
+							if ("w" in v) next.set(key, [v.x, v.y, v.z, v.w]);
+							else if ("z" in v) next.set(key, [v.x, v.y, v.z]);
+							else next.set(key, [v.x, v.y]);
+						}
+					}
+					liveUniformValues = next;
+				}
+			});
 		},
 
 		compile,

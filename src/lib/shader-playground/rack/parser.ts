@@ -11,6 +11,7 @@
  */
 
 import { SYSTEM_UNIFORMS } from "../uniforms";
+import { MODULE_CLASS } from "./types";
 import type { RackSlot, RackSlotType, SlotTag } from "./types";
 
 // ── Patterns ──
@@ -90,14 +91,16 @@ export function parseToSlots(glsl: string): RackSlot[] {
 		lineOffset: number,
 		overrides?: Partial<RackSlot>,
 	): RackSlot {
+		const moduleClass = MODULE_CLASS[type];
 		return {
 			id: `slot-${slotIndex++}`,
 			type,
+			moduleClass,
 			title,
 			code: trimEmptyLines(codeLines).join("\n"),
 			enabled: true,
-			collapsed: type === "header",
-			editable: type !== "header",
+			collapsed: moduleClass === "fixed",
+			editable: moduleClass === "focus",
 			lineOffset,
 			tags: [],
 			...overrides,
@@ -163,10 +166,11 @@ export function parseToSlots(glsl: string): RackSlot[] {
 			slots.push({
 				id: `slot-${slotIndex++}`,
 				type: "uniforms",
+				moduleClass: "fixed",
 				title: "UNIFORMS",
 				code,
 				enabled: true,
-				collapsed: false,
+				collapsed: true,
 				editable: hasUserUniforms,
 				lineOffset: uniformBucket.firstLine,
 				tags,
@@ -307,7 +311,10 @@ export function parseToSlots(glsl: string): RackSlot[] {
 
 export function slotsToGlsl(slots: RackSlot[]): string {
 	return slots
-		.filter((slot) => slot.enabled)
-		.map((slot) => slot.code)
+		.map((slot) => {
+			if (slot.enabled) return slot.code;
+			// Bypassed: wrap as block comment to avoid compile errors
+			return `/* BYPASSED: ${slot.title}\n${slot.code}\n*/`;
+		})
 		.join("\n\n");
 }

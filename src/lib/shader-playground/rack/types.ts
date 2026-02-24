@@ -16,9 +16,22 @@ export type RackSlotType =
 	| "main"
 	| "custom";
 
+export type ModuleClass = "fixed" | "focus";
+
+export const MODULE_CLASS: Record<RackSlotType, ModuleClass> = {
+	header: "fixed",
+	uniforms: "fixed",
+	varyings: "fixed",
+	defines: "fixed",
+	function: "focus",
+	main: "focus",
+	custom: "focus",
+};
+
 export interface RackSlot {
 	id: string;
 	type: RackSlotType;
+	moduleClass: ModuleClass;
 	title: string;
 	code: string;
 	enabled: boolean;
@@ -36,4 +49,49 @@ export interface SlotTag {
 export interface ParsedSlotUniforms {
 	system: string[];
 	user: UniformDef[];
+}
+
+// ── Control Modules ──
+
+export type ControlModuleType = "lfo" | "xy" | "slider" | "color";
+
+export type Waveform = "sine" | "square" | "saw" | "triangle";
+
+export interface LFOConfig {
+	waveform: Waveform;
+	rate: number;
+	min: number;
+	max: number;
+}
+
+export interface XYConfig {
+	x: number;
+	y: number;
+	minX: number;
+	maxX: number;
+	minY: number;
+	maxY: number;
+}
+
+export interface SliderConfig {
+	value: number;
+	min: number;
+	max: number;
+	step: number;
+}
+
+export interface ColorConfig {
+	hex: string;
+}
+
+export type ControlConfig = LFOConfig | XYConfig | SliderConfig | ColorConfig;
+
+export interface RackControlModule {
+	id: string;
+	type: ControlModuleType;
+	title: string;
+	targetUniform: string;
+	enabled: boolean;
+	collapsed: boolean;
+	config: ControlConfig;
 }
