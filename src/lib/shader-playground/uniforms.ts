@@ -6,7 +6,7 @@
 import type { UniformDef, UniformType } from "./types";
 
 /** System uniforms that should not appear in the UI */
-const SYSTEM_UNIFORMS = new Set([
+export const SYSTEM_UNIFORMS = new Set([
 	"projectionMatrix",
 	"modelViewMatrix",
 	"viewMatrix",

@@ -64,6 +64,7 @@ export interface PlaygroundState {
 	// ── Actions ──
 	initRenderer(r: PlaygroundRenderer): void;
 	compile(): void;
+	updateUniform(name: string, value: number | number[] | boolean): void;
 	changeEditor(frag: string, vert: string | null): void;
 	setGeometry(type: GeometryType): void;
 	loadTemplate(id: string): void;
@@ -200,6 +201,10 @@ export function createPlaygroundState(): PlaygroundState {
 		},
 
 		compile,
+
+		updateUniform(name: string, value: number | number[] | boolean): void {
+			renderer?.updateUniform(name, value);
+		},
 
 		changeEditor(frag: string, vert: string | null): void {
 			fragmentCode = frag;

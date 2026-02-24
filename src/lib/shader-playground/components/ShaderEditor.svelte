@@ -1,31 +1,12 @@
 <script lang="ts">
 	import { onMount, onDestroy } from "svelte";
 	import { EditorState, type Extension } from "@codemirror/state";
-	import {
-		EditorView,
-		keymap,
-		lineNumbers,
-		highlightActiveLine,
-		type ViewUpdate,
-	} from "@codemirror/view";
-	import {
-		defaultKeymap,
-		history,
-		historyKeymap,
-		indentWithTab,
-	} from "@codemirror/commands";
-	import { foldGutter, foldKeymap, bracketMatching, indentOnInput } from "@codemirror/language";
+	import { EditorView, keymap, type ViewUpdate } from "@codemirror/view";
 	import { autocompletion, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
-	import { cpp } from "@codemirror/lang-cpp";
 	import type { ShaderError } from "../types";
 	import { DEFAULT_VERTEX } from "../engine/renderer";
 	import { getSnippetCompletions } from "../snippets";
-	import {
-		StateField,
-		StateEffect,
-		type Range,
-	} from "@codemirror/state";
-	import { Decoration, type DecorationSet } from "@codemirror/view";
+	import { createBaseExtensions, setErrorLines } from "../editor_extensions";
 
 	interface Props {
 		fragmentCode: string;
@@ -51,80 +32,6 @@
 	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 	let suppressSync = false; // Prevent sync loop when user types
 
-	// ── Dark Theme ──
-
-	const darkTheme = EditorView.theme(
-		{
-			"&": {
-				backgroundColor: "#1a1a2e",
-				color: "#e0e0e0",
-				fontSize: "0.8rem",
-				height: "100%",
-			},
-			".cm-content": {
-				caretColor: "#7766cc",
-				fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-			},
-			"&.cm-focused .cm-cursor": {
-				borderLeftColor: "#7766cc",
-			},
-			"&.cm-focused .cm-selectionBackground, .cm-selectionBackground":
-				{
-					backgroundColor: "#2a2a4e",
-				},
-			".cm-gutters": {
-				backgroundColor: "#141420",
-				color: "#555",
-				border: "none",
-			},
-			".cm-activeLineGutter": {
-				backgroundColor: "#1e1e34",
-			},
-			".cm-activeLine": {
-				backgroundColor: "#1e1e30",
-			},
-			".cm-line-error": {
-				backgroundColor: "#3a1111",
-			},
-		},
-		{ dark: true },
-	);
-
-	// ── Error Line Decorations ──
-
-	const setErrorLines = StateEffect.define<number[]>();
-
-	const errorLineField = StateField.define<DecorationSet>({
-		create() {
-			return Decoration.none;
-		},
-		update(decos, tr) {
-			for (const effect of tr.effects) {
-				if (effect.is(setErrorLines)) {
-					const decorations: Range<Decoration>[] = [];
-					const doc = tr.state.doc;
-					for (const lineNum of effect.value) {
-						if (lineNum >= 1 && lineNum <= doc.lines) {
-							const line = doc.line(lineNum);
-							decorations.push(
-								Decoration.line({
-									class: "cm-line-error",
-								}).range(line.from),
-							);
-						}
-					}
-					return Decoration.set(
-						decorations.sort((a, b) => a.from - b.from),
-					);
-				}
-			}
-			return decos;
-		},
-		provide: (f) => EditorView.decorations.from(f),
-	});
-
-	// ── Editor Setup ──
-
 	// ── Slash-Command Completion Source ──
 
 	function slashCompletionSource(context: CompletionContext): CompletionResult | null {
@@ -143,17 +50,8 @@
 
 	function createExtensions(): Extension[] {
 		return [
-			lineNumbers(),
-			highlightActiveLine(),
-			history(),
-			foldGutter(),
-			bracketMatching(),
-			indentOnInput(),
+			...createBaseExtensions(),
 			keymap.of([
-				...defaultKeymap,
-				...historyKeymap,
-				...foldKeymap,
-				indentWithTab,
 				{
 					key: "Mod-Enter",
 					run: () => {
@@ -166,9 +64,6 @@
 				override: [slashCompletionSource],
 				activateOnTyping: true,
 			}),
-			cpp(),
-			darkTheme,
-			errorLineField,
 			EditorView.updateListener.of((update: ViewUpdate) => {
 				if (update.docChanged) {
 					handleDocChange(update.state.doc.toString());
