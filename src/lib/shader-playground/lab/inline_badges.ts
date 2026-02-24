@@ -86,6 +86,7 @@ class UniformBadgeWidget extends WidgetType {
 	toDOM(): HTMLElement {
 		const badge = document.createElement("span");
 		badge.className = "cm-uniform-badge";
+		badge.dataset.uniform = this.info.name;
 
 		if (this.info.isSystem) {
 			badge.classList.add("cm-badge-system");
@@ -117,21 +118,33 @@ const SYSTEM_DISPLAY = new Set(["uTime", "uResolution", "uMouse"]);
 function formatValue(v: number | number[] | undefined): string {
 	if (v === undefined) return "\u2014";
 	if (typeof v === "number") return v.toFixed(2);
-	return v.map((n) => n.toFixed(2)).join(", ");
+	const decimals = v.length >= 3 ? 1 : 2;
+	return v.map((n) => n.toFixed(decimals)).join(", ");
 }
 
 function isSystemUniform(name: string): boolean {
 	return SYSTEM_UNIFORMS.has(name) || SYSTEM_DISPLAY.has(name);
 }
 
-// ── ViewPlugin: scans doc + builds decorations ──
+// ── Cached uniform positions (O1: avoid full rescan on value-only updates) ──
 
-function buildDecorations(view: EditorView): DecorationSet {
-	const liveValues = view.state.field(liveValuesField);
+interface CachedUniform {
+	info: UniformInfo;
+	lineEnd: number;
+}
+
+interface CachedRef {
+	from: number;
+	to: number;
+	cssClass: string;
+}
+
+function scanDocument(view: EditorView): {
+	uniforms: CachedUniform[];
+	refs: CachedRef[];
+} {
 	const controlSources = view.state.field(controlSourcesField);
-	const decorations: Range<Decoration>[] = [];
-
-	// Collect all uniform names declared in the document
+	const uniforms: CachedUniform[] = [];
 	const declaredUniforms = new Map<string, UniformInfo>();
 
 	for (let i = 1; i <= view.state.doc.lines; i++) {
@@ -142,24 +155,13 @@ function buildDecorations(view: EditorView): DecorationSet {
 		const [, type, name] = match;
 		const isSys = isSystemUniform(name);
 		const source = controlSources.get(name);
+		const info = { name, type, isSystem: isSys, source };
 
-		declaredUniforms.set(name, { name, type, isSystem: isSys, source });
-
-		// Add end-of-line badge widget
-		const value = liveValues.get(name);
-		const displayValue = formatValue(value);
-
-		const widget = Decoration.widget({
-			widget: new UniformBadgeWidget(
-				{ name, type, isSystem: isSys, source },
-				displayValue,
-			),
-			side: 1,
-		});
-		decorations.push(widget.range(line.to));
+		declaredUniforms.set(name, info);
+		uniforms.push({ info, lineEnd: line.to });
 	}
 
-	// Mark references to uniforms in code body
+	const refs: CachedRef[] = [];
 	const uniformNames = [...declaredUniforms.keys()];
 	if (uniformNames.length > 0) {
 		const refPattern = new RegExp(
@@ -169,7 +171,6 @@ function buildDecorations(view: EditorView): DecorationSet {
 
 		for (let i = 1; i <= view.state.doc.lines; i++) {
 			const line = view.state.doc.line(i);
-			// Skip declaration lines
 			if (UNIFORM_DECL_RE.test(line.text)) continue;
 
 			let m: RegExpExecArray | null;
@@ -179,20 +180,41 @@ function buildDecorations(view: EditorView): DecorationSet {
 				const info = declaredUniforms.get(name);
 				if (!info) continue;
 
-				const from = line.from + m.index;
-				const to = from + name.length;
-
 				const cssClass = info.isSystem
 					? "cm-uniform-ref-system"
 					: info.source
 						? "cm-uniform-ref-linked"
 						: "cm-uniform-ref-endpoint";
 
-				decorations.push(
-					Decoration.mark({ class: cssClass }).range(from, to),
-				);
+				refs.push({
+					from: line.from + m.index,
+					to: line.from + m.index + name.length,
+					cssClass,
+				});
 			}
 		}
+	}
+
+	return { uniforms, refs };
+}
+
+function buildDecorationsFromCache(
+	cache: { uniforms: CachedUniform[]; refs: CachedRef[] },
+	liveValues: Map<string, number | number[]>,
+): DecorationSet {
+	const decorations: Range<Decoration>[] = [];
+
+	for (const { info, lineEnd } of cache.uniforms) {
+		const value = liveValues.get(info.name);
+		const widget = Decoration.widget({
+			widget: new UniformBadgeWidget(info, formatValue(value)),
+			side: 1,
+		});
+		decorations.push(widget.range(lineEnd));
+	}
+
+	for (const { from, to, cssClass } of cache.refs) {
+		decorations.push(Decoration.mark({ class: cssClass }).range(from, to));
 	}
 
 	return Decoration.set(
@@ -207,23 +229,30 @@ function escapeRegex(s: string): string {
 const badgePlugin = ViewPlugin.fromClass(
 	class {
 		decorations: DecorationSet;
+		private cache: { uniforms: CachedUniform[]; refs: CachedRef[] };
 
 		constructor(view: EditorView) {
-			this.decorations = buildDecorations(view);
+			this.cache = scanDocument(view);
+			const liveValues = view.state.field(liveValuesField);
+			this.decorations = buildDecorationsFromCache(this.cache, liveValues);
 		}
 
 		update(update: ViewUpdate): void {
-			if (
-				update.docChanged ||
-				update.transactions.some((t) =>
-					t.effects.some(
-						(e) =>
-							e.is(updateLiveValues) ||
-							e.is(updateControlSources),
-					),
-				)
-			) {
-				this.decorations = buildDecorations(update.view);
+			const hasDocChange = update.docChanged;
+			const hasSourceChange = update.transactions.some((t) =>
+				t.effects.some((e) => e.is(updateControlSources)),
+			);
+			const hasValueChange = update.transactions.some((t) =>
+				t.effects.some((e) => e.is(updateLiveValues)),
+			);
+
+			if (hasDocChange || hasSourceChange) {
+				this.cache = scanDocument(update.view);
+			}
+
+			if (hasDocChange || hasSourceChange || hasValueChange) {
+				const liveValues = update.view.state.field(liveValuesField);
+				this.decorations = buildDecorationsFromCache(this.cache, liveValues);
 			}
 		}
 	},
@@ -243,6 +272,9 @@ const badgeTheme = EditorView.theme({
 		lineHeight: "1.6",
 		verticalAlign: "middle",
 		whiteSpace: "nowrap",
+		maxWidth: "180px",
+		overflow: "hidden",
+		textOverflow: "ellipsis",
 	},
 	".cm-badge-system": {
 		background: "#27272a",
