@@ -43,7 +43,6 @@ export interface PlaygroundState {
 
 	// ── UI ──
 	activeTab: EditorTab;
-	sidebarOpen: boolean;
 	isFullscreen: boolean;
 
 	// ── Live Telemetry ──
@@ -86,7 +85,6 @@ export function createPlaygroundState(): PlaygroundState {
 	let rotationEnabled = $state(true);
 	let lightingEnabled = $state(true);
 	let activeTab = $state<EditorTab>("fragment");
-	let sidebarOpen = $state(true);
 	let isFullscreen = $state(false);
 	let savedModules = $state<ShaderModule[]>(loadModules());
 	let renderer: PlaygroundRenderer | undefined;
@@ -164,8 +162,6 @@ export function createPlaygroundState(): PlaygroundState {
 		get lightingEnabled() { return lightingEnabled; },
 		get activeTab() { return activeTab; },
 		set activeTab(v: EditorTab) { activeTab = v; },
-		get sidebarOpen() { return sidebarOpen; },
-		set sidebarOpen(v: boolean) { sidebarOpen = v; },
 		get isFullscreen() { return isFullscreen; },
 		get savedModules() { return savedModules; },
 		set savedModules(v: ShaderModule[]) { savedModules = v; },

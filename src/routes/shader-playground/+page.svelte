@@ -5,13 +5,12 @@
 	import ErrorConsole from "$lib/shader-playground/components/ErrorConsole.svelte";
 	import ShaderEditor from "$lib/shader-playground/components/ShaderEditor.svelte";
 	import ShaderRack from "$lib/shader-playground/components/ShaderRack.svelte";
-	import PlaygroundSidebar from "$lib/shader-playground/components/PlaygroundSidebar.svelte";
 	import PreviewToolbar from "$lib/shader-playground/components/PreviewToolbar.svelte";
 	import ContentBrowser from "$lib/shader-playground/components/ContentBrowser.svelte";
 	import PageHeader from "$lib/components/PageHeader.svelte";
 	import { createPlaygroundState } from "$lib/shader-playground/playground_state.svelte";
 	import { createRackState } from "$lib/shader-playground/rack/state.svelte";
-	import { Palette, Menu, Rows3, Code, Zap } from "lucide-svelte";
+	import { Rows3, Code, Zap } from "lucide-svelte";
 
 	const pg = createPlaygroundState();
 	const rackState = createRackState(pg);
@@ -56,7 +55,6 @@
 						<Tabs.List class="sp-editor-tabs">
 							<Tabs.Trigger value="fragment">Fragment</Tabs.Trigger>
 							<Tabs.Trigger value="vertex">Vertex</Tabs.Trigger>
-
 						</Tabs.List>
 					</Tabs.Root>
 
@@ -144,17 +142,4 @@
 		</div>
 	</main>
 
-	<PlaygroundSidebar
-		open={pg.sidebarOpen}
-		onclose={() => (pg.sidebarOpen = false)}
-		ontemplate={pg.loadTemplate}
-		oninsert={handleSnippetInsert}
-		savedModules={pg.savedModules}
-		onloadmodule={pg.loadModule}
-		ondeletemodule={pg.deleteModule}
-		onsave={pg.save}
-		onexport={pg.exportToClipboard}
-		onimport={pg.importFromClipboard}
-		onpreset={pg.loadPreset}
-	/>
 </div>
