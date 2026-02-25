@@ -6,6 +6,7 @@
 	import ShaderEditor from "$lib/shader-playground/components/ShaderEditor.svelte";
 	import ShaderRack from "$lib/shader-playground/components/ShaderRack.svelte";
 	import PlaygroundSidebar from "$lib/shader-playground/components/PlaygroundSidebar.svelte";
+	import PreviewToolbar from "$lib/shader-playground/components/PreviewToolbar.svelte";
 	import PageHeader from "$lib/components/PageHeader.svelte";
 	import { createPlaygroundState } from "$lib/shader-playground/playground_state.svelte";
 	import { createRackState } from "$lib/shader-playground/rack/state.svelte";
@@ -121,6 +122,17 @@
 		{/if}
 
 		<div class="sp-right">
+			<PreviewToolbar
+				oncompile={pg.compile}
+				rotationEnabled={pg.rotationEnabled}
+				onrotation={pg.toggleRotation}
+				lightingEnabled={pg.lightingEnabled}
+				onlighting={pg.toggleLighting}
+				isFullscreen={pg.isFullscreen}
+				onfullscreen={pg.toggleFullscreen}
+				currentGeometry={pg.currentGeometry}
+				ongeometry={pg.setGeometry}
+			/>
 			<div class="sp-preview-wrap">
 				<PreviewCanvas onrenderer={pg.initRenderer} />
 			</div>
@@ -131,16 +143,7 @@
 		open={pg.sidebarOpen}
 		onclose={() => (pg.sidebarOpen = false)}
 		ontemplate={pg.loadTemplate}
-		currentGeometry={pg.currentGeometry}
-		ongeometry={pg.setGeometry}
 		oninsert={handleSnippetInsert}
-		oncompile={pg.compile}
-		rotationEnabled={pg.rotationEnabled}
-		onrotation={pg.toggleRotation}
-		lightingEnabled={pg.lightingEnabled}
-		onlighting={pg.toggleLighting}
-		isFullscreen={pg.isFullscreen}
-		onfullscreen={pg.toggleFullscreen}
 		savedModules={pg.savedModules}
 		onloadmodule={pg.loadModule}
 		ondeletemodule={pg.deleteModule}

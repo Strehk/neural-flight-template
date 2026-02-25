@@ -10,25 +10,16 @@
 		ChevronDown,
 		ChevronRight,
 		FileCode,
-		Box,
 		Code,
 		Archive,
 		Settings,
 		BookOpen,
-		Play,
-		RotateCcw,
-		Pause,
-		Lightbulb,
-		LightbulbOff,
-		Maximize,
-		Minimize,
 	} from "lucide-svelte";
 	import { TEMPLATES } from "../templates";
 	import { SNIPPETS, SNIPPET_CATEGORIES } from "../snippets";
 	import { PRESETS } from "../data/presets/index";
 	import { ShaderButton } from "../controls/index";
 	import type {
-		GeometryType,
 		UniformDef,
 		ShaderModule,
 		PresetDef,
@@ -39,16 +30,7 @@
 		open: boolean;
 		onclose: () => void;
 		ontemplate: (value: string) => void;
-		currentGeometry: GeometryType;
-		ongeometry: (type: GeometryType) => void;
 		oninsert: (code: string, requiredUniforms?: UniformDef[]) => void;
-		oncompile: () => void;
-		rotationEnabled: boolean;
-		onrotation: () => void;
-		lightingEnabled: boolean;
-		onlighting: () => void;
-		isFullscreen: boolean;
-		onfullscreen: () => void;
 		savedModules: ShaderModule[];
 		onloadmodule: (mod: ShaderModule) => void;
 		ondeletemodule: (id: string) => void;
@@ -62,16 +44,7 @@
 		open,
 		onclose,
 		ontemplate,
-		currentGeometry,
-		ongeometry,
 		oninsert,
-		oncompile,
-		rotationEnabled,
-		onrotation,
-		lightingEnabled,
-		onlighting,
-		isFullscreen,
-		onfullscreen,
 		savedModules,
 		onloadmodule,
 		ondeletemodule,
@@ -84,9 +57,7 @@
 	// ── Section open state ──
 
 	let sections = $state({
-		controls: true,
 		templates: true,
-		geometry: false,
 		snippets: false,
 		saved: false,
 		presets: false,
@@ -125,16 +96,6 @@
 			: PRESETS.filter((p) => p.difficulty === presetFilter),
 	);
 
-	// ── Geometry options ──
-
-	const geometries: { value: GeometryType; label: string }[] = [
-		{ value: "plane", label: "Plane" },
-		{ value: "sphere", label: "Sphere" },
-		{ value: "cube", label: "Cube" },
-		{ value: "torus", label: "Torus" },
-		{ value: "cylinder", label: "Cylinder" },
-	];
-
 
 </script>
 
@@ -151,59 +112,7 @@
 		</div>
 
 		<div class="sidebar-content">
-			<!-- 1. Controls -->
-			<Collapsible.Root bind:open={sections.controls}>
-				<Collapsible.Trigger class="sp-section-trigger">
-					<span class="sp-section-icon">
-						{#if sections.controls}<ChevronDown size={14} />{:else}<ChevronRight size={14} />{/if}
-						<Settings size={14} />
-						Controls
-					</span>
-				</Collapsible.Trigger>
-				<Collapsible.Content>
-					<div class="sp-section-body sp-controls-grid">
-						<ShaderButton onclick={oncompile}>
-							<Play size={12} />
-							Compile
-						</ShaderButton>
-						<ShaderButton
-							active={rotationEnabled}
-							onclick={onrotation}
-						>
-							{#if rotationEnabled}
-								<Pause size={12} />
-								Pause Rotation
-							{:else}
-								<RotateCcw size={12} />
-								Start Rotation
-							{/if}
-						</ShaderButton>
-						<ShaderButton
-							active={lightingEnabled}
-							onclick={onlighting}
-						>
-							{#if lightingEnabled}
-								<LightbulbOff size={12} />
-								Disable Lighting
-							{:else}
-								<Lightbulb size={12} />
-								Enable Lighting
-							{/if}
-						</ShaderButton>
-						<ShaderButton onclick={onfullscreen}>
-							{#if isFullscreen}
-								<Minimize size={12} />
-								Exit Fullscreen
-							{:else}
-								<Maximize size={12} />
-								Fullscreen
-							{/if}
-						</ShaderButton>
-					</div>
-				</Collapsible.Content>
-			</Collapsible.Root>
-
-			<!-- 2. Templates -->
+			<!-- 1. Templates -->
 			<Collapsible.Root bind:open={sections.templates}>
 				<Collapsible.Trigger class="sp-section-trigger">
 					<span class="sp-section-icon">
@@ -228,32 +137,7 @@
 				</Collapsible.Content>
 			</Collapsible.Root>
 
-			<!-- 3. Geometry -->
-			<Collapsible.Root bind:open={sections.geometry}>
-				<Collapsible.Trigger class="sp-section-trigger">
-					<span class="sp-section-icon">
-						{#if sections.geometry}<ChevronDown size={14} />{:else}<ChevronRight size={14} />{/if}
-						<Box size={14} />
-						Geometry
-					</span>
-				</Collapsible.Trigger>
-				<Collapsible.Content>
-					<div class="sp-section-body">
-						{#each geometries as g}
-							<button
-								class="sp-radio-item"
-								class:active={currentGeometry === g.value}
-								onclick={() => ongeometry(g.value)}
-								type="button"
-							>
-								<span class="sp-radio-name">{g.label}</span>
-							</button>
-						{/each}
-					</div>
-				</Collapsible.Content>
-			</Collapsible.Root>
-
-			<!-- 4. Snippets -->
+			<!-- 2. Snippets -->
 			<Collapsible.Root bind:open={sections.snippets}>
 				<Collapsible.Trigger class="sp-section-trigger">
 					<span class="sp-section-icon">
@@ -418,15 +302,7 @@
 		padding: var(--space-xs) var(--space-sm);
 	}
 
-	/* ── Controls ── */
-
-	.sp-controls-grid {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-xs);
-	}
-
-	/* ── Templates / Geometry Radio Items ── */
+	/* ── Templates Radio Items ── */
 
 	.sp-radio-item {
 		all: unset;
@@ -443,11 +319,6 @@
 
 	.sp-radio-item:hover {
 		background: var(--surface);
-	}
-
-	.sp-radio-item.active {
-		background: var(--surface-active);
-		border-left: 2px solid var(--accent-muted);
 	}
 
 	.sp-radio-name {
