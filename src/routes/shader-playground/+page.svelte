@@ -7,6 +7,7 @@
 	import ShaderRack from "$lib/shader-playground/components/ShaderRack.svelte";
 	import PlaygroundSidebar from "$lib/shader-playground/components/PlaygroundSidebar.svelte";
 	import PreviewToolbar from "$lib/shader-playground/components/PreviewToolbar.svelte";
+	import ContentBrowser from "$lib/shader-playground/components/ContentBrowser.svelte";
 	import PageHeader from "$lib/components/PageHeader.svelte";
 	import { createPlaygroundState } from "$lib/shader-playground/playground_state.svelte";
 	import { createRackState } from "$lib/shader-playground/rack/state.svelte";
@@ -33,13 +34,17 @@
 			<span class="sp-header-sub">
 				{pg.activeTab === "fragment" ? (viewMode === "rack" ? "M-FRAG" : "RAW") : "VERTEX"}
 			</span>
-			<button
-				class="header-settings-btn"
-				onclick={() => (pg.sidebarOpen = !pg.sidebarOpen)}
-				title="Menu"
-			>
-				<Menu size={14} />
-			</button>
+			<ContentBrowser
+				ontemplate={pg.loadTemplate}
+				onpreset={pg.loadPreset}
+				savedModules={pg.savedModules}
+				onloadmodule={pg.loadModule}
+				ondeletemodule={pg.deleteModule}
+				onsave={pg.save}
+				onexport={pg.exportToClipboard}
+				onimport={pg.importFromClipboard}
+				oninsert={handleSnippetInsert}
+			/>
 		{/snippet}
 	</PageHeader>
 
