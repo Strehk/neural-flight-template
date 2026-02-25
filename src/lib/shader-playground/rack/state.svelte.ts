@@ -86,6 +86,28 @@ function computeSlotErrors(
 	return result;
 }
 
+// ── Persistence ──
+
+const CONTROLS_STORAGE_KEY = "shader-rack-controls";
+
+function saveControls(modules: RackControlModule[]): void {
+	try {
+		localStorage.setItem(CONTROLS_STORAGE_KEY, JSON.stringify(modules));
+	} catch {
+		// Storage full or unavailable — silently skip
+	}
+}
+
+function loadControls(): RackControlModule[] {
+	try {
+		const raw = localStorage.getItem(CONTROLS_STORAGE_KEY);
+		if (!raw) return [];
+		return JSON.parse(raw) as RackControlModule[];
+	} catch {
+		return [];
+	}
+}
+
 // ── Factory ──
 
 let controlIdCounter = 0;
@@ -106,8 +128,17 @@ const CONTROL_TITLES: Record<ControlModuleType, string> = {
 
 export function createRackState(pg: PlaygroundState): RackState {
 	let slots = $state<RackSlot[]>(parseToSlots(pg.fragmentCode));
-	let controlModules = $state<RackControlModule[]>([]);
+	const restored = loadControls();
+	let controlModules = $state<RackControlModule[]>(restored);
 	let lastSyncedGlsl = pg.fragmentCode;
+
+	// Ensure counter doesn't clash with restored IDs
+	for (const mod of restored) {
+		const match = mod.id.match(/^ctrl-(\d+)$/);
+		if (match) {
+			controlIdCounter = Math.max(controlIdCounter, Number(match[1]) + 1);
+		}
+	}
 
 	const slotErrors = $derived.by(() =>
 		computeSlotErrors(pg.errors, slots),
@@ -195,25 +226,30 @@ export function createRackState(pg: PlaygroundState): RackState {
 					config: DEFAULT_CONFIGS[type](),
 				},
 			];
+			saveControls(controlModules);
 		},
 
 		removeControlModule(id: string): void {
 			controlModules = controlModules.filter((m) => m.id !== id);
+			saveControls(controlModules);
 		},
 
 		toggleControlEnabled(id: string): void {
 			const mod = controlModules.find((m) => m.id === id);
 			if (mod) mod.enabled = !mod.enabled;
+			saveControls(controlModules);
 		},
 
 		toggleControlCollapsed(id: string): void {
 			const mod = controlModules.find((m) => m.id === id);
 			if (mod) mod.collapsed = !mod.collapsed;
+			saveControls(controlModules);
 		},
 
 		updateControlConfig(id: string, config: ControlConfig): void {
 			const mod = controlModules.find((m) => m.id === id);
 			if (mod) mod.config = config;
+			saveControls(controlModules);
 		},
 	};
 }

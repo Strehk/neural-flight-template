@@ -121,6 +121,13 @@
 	let selectedControlType = $state<ControlModuleType>("lfo");
 	let selectedTarget = $state("");
 
+	// Auto-select when only one target available
+	$effect(() => {
+		if (availableTargets.length === 1 && !selectedTarget) {
+			selectedTarget = availableTargets[0];
+		}
+	});
+
 	function handleAddModule(): void {
 		if (!selectedTarget) return;
 		rackState.addControlModule(selectedControlType, selectedTarget);
@@ -243,7 +250,12 @@
 			</div>
 		</div>
 	{:else}
-		<button class="sp-add-btn" onclick={() => (addMenuOpen = true)}>
+		<button
+			class="sp-add-btn"
+			onclick={() => (addMenuOpen = true)}
+			disabled={availableTargets.length === 0}
+			title={availableTargets.length === 0 ? "Add @endpoint annotation to a uniform first" : "Add control module"}
+		>
 			<Plus size={14} />
 			Add Module
 		</button>
@@ -291,9 +303,14 @@
 		box-sizing: border-box;
 	}
 
-	.sp-add-btn:hover {
+	.sp-add-btn:hover:not(:disabled) {
 		border-color: var(--accent-muted);
 		color: var(--accent);
+	}
+
+	.sp-add-btn:disabled {
+		opacity: 0.35;
+		cursor: not-allowed;
 	}
 
 	.sp-add-menu {
