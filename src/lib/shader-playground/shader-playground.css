@@ -49,11 +49,6 @@
 	border-top: 1px solid var(--border-subtle);
 }
 
-.sp-modulation-wrap {
-	flex: 1;
-	min-height: 0;
-}
-
 /* ═══ Tab Bar (layout only — trigger styles in app.css) ═══ */
 
 .sp-editor-tabs-row {
@@ -132,8 +127,3 @@
 	min-height: 0;
 }
 
-/* ═══ Modulation Layout ═══ */
-
-.sp-left :global(.modulation-layout) {
-	height: 100%;
-}

@@ -55,7 +55,6 @@ export interface ShaderModule {
 	uniforms: UniformDef[];
 	geometry: GeometryType;
 	tags: string[];
-	modulationGraph?: { nodes: unknown[]; edges: unknown[] };
 	presetId?: string;
 }
 
@@ -71,7 +70,6 @@ export interface PresetDef {
 	vertexShader: string | null;
 	uniforms: UniformDef[];
 	geometry: GeometryType;
-	modulationGraph?: { nodes: unknown[]; edges: unknown[] };
 	tutorial: {
 		explore: string[];
 		challenge: string;

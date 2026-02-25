@@ -50,12 +50,6 @@ export {
 	generateId,
 } from "./store";
 
-// Modulation
-export { createModulationBridge } from "./modulation";
-export type { ModulationBridge } from "./modulation";
-export { MOD_SOURCES } from "./modulation_nodes";
-export type { ModSourceDef } from "./modulation_nodes";
-
 // Playground State
 export { createPlaygroundState } from "./playground_state.svelte";
 export type { PlaygroundState, EditorTab } from "./playground_state.svelte";

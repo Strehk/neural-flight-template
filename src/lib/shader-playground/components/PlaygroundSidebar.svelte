@@ -22,12 +22,10 @@
 		LightbulbOff,
 		Maximize,
 		Minimize,
-		Zap,
 	} from "lucide-svelte";
 	import { TEMPLATES } from "../templates";
 	import { SNIPPETS, SNIPPET_CATEGORIES } from "../snippets";
 	import { PRESETS } from "../data/presets/index";
-	import { MOD_SOURCES } from "../modulation_nodes";
 	import { ShaderButton } from "../controls/index";
 	import type {
 		GeometryType,
@@ -35,7 +33,6 @@
 		ShaderModule,
 		PresetDef,
 	} from "../types";
-	import type { EditorTab } from "../playground_state.svelte";
 	import { difficultyColor, difficultyLabel } from "../difficulty";
 
 	interface Props {
@@ -59,8 +56,6 @@
 		onexport: () => void;
 		onimport: () => void;
 		onpreset: (preset: PresetDef) => void;
-		activeTab?: EditorTab;
-		endpointUniforms?: UniformDef[];
 	}
 
 	let {
@@ -84,8 +79,6 @@
 		onexport,
 		onimport,
 		onpreset,
-		activeTab = "fragment",
-		endpointUniforms = [],
 	}: Props = $props();
 
 	// ── Section open state ──
@@ -97,7 +90,6 @@
 		snippets: false,
 		saved: false,
 		presets: false,
-		modulation: true,
 	});
 
 	// ── Snippet search ──
@@ -143,11 +135,7 @@
 		{ value: "cylinder", label: "Cylinder" },
 	];
 
-	// ── Modulation source drag ──
 
-	function handleModDragStart(e: DragEvent, sourceType: string): void {
-		e.dataTransfer?.setData("application/reactflow", sourceType);
-	}
 </script>
 
 {#if open}
@@ -214,52 +202,6 @@
 					</div>
 				</Collapsible.Content>
 			</Collapsible.Root>
-
-			<!-- 1b. Modulation Sources (only visible on Node Editor tab) -->
-			{#if activeTab === "nodes"}
-				<Collapsible.Root bind:open={sections.modulation}>
-					<Collapsible.Trigger class="sp-section-trigger">
-						<span class="sp-section-icon">
-							{#if sections.modulation}<ChevronDown size={14} />{:else}<ChevronRight size={14} />{/if}
-							<Zap size={14} />
-							Modulation Sources
-						</span>
-					</Collapsible.Trigger>
-					<Collapsible.Content>
-						<div class="sp-section-body">
-							<div class="sp-mod-sources">
-								{#each MOD_SOURCES as source}
-									{@const Icon = source.icon}
-									<div
-										class="sp-mod-source-item"
-										draggable="true"
-										ondragstart={(e) => handleModDragStart(e, source.type)}
-										role="button"
-										tabindex="0"
-									>
-										<Icon size={14} />
-										<span>{source.label}</span>
-									</div>
-								{/each}
-							</div>
-
-							{#if endpointUniforms.length > 0}
-								<div class="sp-mod-endpoints">
-									<span class="sp-mod-endpoints-label">Active Endpoints</span>
-									{#each endpointUniforms as ep}
-										<div class="sp-endpoint-row">
-											<span class="sp-endpoint-name">{ep.label ?? ep.name}</span>
-											<span class="sp-endpoint-type">{ep.type}</span>
-										</div>
-									{/each}
-								</div>
-							{:else}
-								<p class="sp-hint">No @endpoint uniforms found in shader code.</p>
-							{/if}
-						</div>
-					</Collapsible.Content>
-				</Collapsible.Root>
-			{/if}
 
 			<!-- 2. Templates -->
 			<Collapsible.Root bind:open={sections.templates}>
@@ -702,63 +644,4 @@
 		color: var(--text-subtle);
 	}
 
-	/* ── Modulation Sources ── */
-
-	.sp-mod-sources {
-		display: flex;
-		flex-direction: column;
-		gap: 0.1rem;
-		margin-bottom: var(--space-xs);
-	}
-
-	.sp-mod-source-item {
-		display: flex;
-		align-items: center;
-		gap: var(--space-xs);
-		padding: var(--space-xs);
-		cursor: grab;
-		font-size: 0.7rem;
-		color: var(--text-muted);
-		border-radius: var(--radius-sm);
-		font-family: var(--font-main);
-	}
-
-	.sp-mod-source-item:hover {
-		background: var(--surface);
-	}
-
-	.sp-mod-source-item:active {
-		cursor: grabbing;
-	}
-
-	.sp-mod-endpoints {
-		border-top: 1px solid var(--border-subtle);
-		padding-top: var(--space-xs);
-	}
-
-	.sp-mod-endpoints-label {
-		display: block;
-		font-size: 0.65rem;
-		font-weight: 600;
-		color: var(--text-subtle);
-		margin-bottom: 0.2rem;
-	}
-
-	.sp-endpoint-row {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: 0.15rem var(--space-xs);
-		font-size: 0.7rem;
-	}
-
-	.sp-endpoint-name {
-		color: var(--accent);
-		font-weight: 500;
-	}
-
-	.sp-endpoint-type {
-		color: var(--text-subtle);
-		font-size: 0.6rem;
-	}
 </style>

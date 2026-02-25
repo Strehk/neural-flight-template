@@ -6,7 +6,6 @@
 	import ShaderEditor from "$lib/shader-playground/components/ShaderEditor.svelte";
 	import ShaderRack from "$lib/shader-playground/components/ShaderRack.svelte";
 	import PlaygroundSidebar from "$lib/shader-playground/components/PlaygroundSidebar.svelte";
-	import ModulationCanvas from "$lib/shader-playground/components/ModulationCanvas.svelte";
 	import PageHeader from "$lib/components/PageHeader.svelte";
 	import { createPlaygroundState } from "$lib/shader-playground/playground_state.svelte";
 	import { createRackState } from "$lib/shader-playground/rack/state.svelte";
@@ -31,7 +30,7 @@
 	<PageHeader icon={Zap} label="SHADERRACK" status={pg.compileOk ? "connected" : "error"}>
 		{#snippet actions()}
 			<span class="sp-header-sub">
-				{pg.activeTab === "fragment" ? (viewMode === "rack" ? "M-FRAG" : "RAW") : pg.activeTab === "vertex" ? "VERTEX" : "NODES"}
+				{pg.activeTab === "fragment" ? (viewMode === "rack" ? "M-FRAG" : "RAW") : "VERTEX"}
 			</span>
 			<button
 				class="header-settings-btn"
@@ -51,7 +50,7 @@
 						<Tabs.List class="sp-editor-tabs">
 							<Tabs.Trigger value="fragment">Fragment</Tabs.Trigger>
 							<Tabs.Trigger value="vertex">Vertex</Tabs.Trigger>
-							<Tabs.Trigger value="nodes">Node Editor</Tabs.Trigger>
+
 						</Tabs.List>
 					</Tabs.Root>
 
@@ -117,16 +116,6 @@
 							/>
 						</div>
 					{/if}
-				{:else}
-					<div class="sp-modulation-wrap">
-						<ModulationCanvas
-							bridge={pg.bridge}
-							endpointUniforms={pg.endpointUniforms}
-							bind:nodes={pg.modNodes}
-							bind:edges={pg.modEdges}
-							sourceEngineMap={pg.modSourceMap}
-						/>
-					</div>
 				{/if}
 			</div>
 		{/if}
@@ -159,7 +148,5 @@
 		onexport={pg.exportToClipboard}
 		onimport={pg.importFromClipboard}
 		onpreset={pg.loadPreset}
-		activeTab={pg.activeTab}
-		endpointUniforms={pg.endpointUniforms}
 	/>
 </div>

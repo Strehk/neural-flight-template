@@ -8,7 +8,6 @@
 import { DEFAULT_FRAGMENT } from "./engine/renderer";
 import { parseUniforms } from "./uniforms";
 import { isShadertoyFormat, wrapShadertoyCode } from "./shadertoy_compat";
-import { createModulationBridge } from "./modulation";
 import {
 	saveModule,
 	loadModules,
@@ -18,7 +17,6 @@ import {
 	generateId,
 } from "./store";
 import { TEMPLATES } from "./templates";
-import type { Node, Edge } from "@xyflow/svelte";
 import type {
 	PlaygroundRenderer,
 	ShaderError,
@@ -27,9 +25,8 @@ import type {
 	ShaderModule,
 	PresetDef,
 } from "./types";
-import type { ModulationBridge } from "./modulation";
 
-export type EditorTab = "fragment" | "vertex" | "nodes";
+export type EditorTab = "fragment" | "vertex";
 
 export interface PlaygroundState {
 	// ── Shader ──
@@ -56,12 +53,6 @@ export interface PlaygroundState {
 
 	// ── Modules ──
 	savedModules: ShaderModule[];
-	bridge: ModulationBridge | null;
-
-	// ── Modulation Canvas ──
-	modNodes: Node[];
-	modEdges: Edge[];
-	modSourceMap: Map<string, string>;
 
 	// ── Derived ──
 	readonly editorMode: "fragment" | "vertex";
@@ -98,10 +89,6 @@ export function createPlaygroundState(): PlaygroundState {
 	let sidebarOpen = $state(true);
 	let isFullscreen = $state(false);
 	let savedModules = $state<ShaderModule[]>(loadModules());
-	let bridge = $state<ModulationBridge | null>(null);
-	let modNodes = $state<Node[]>([]);
-	let modEdges = $state<Edge[]>([]);
-	const modSourceMap = new Map<string, string>();
 	let renderer: PlaygroundRenderer | undefined;
 
 	// ── Live Telemetry ──
@@ -135,17 +122,6 @@ export function createPlaygroundState(): PlaygroundState {
 		for (const u of parsed) {
 			renderer.updateUniform(u.name, u.value);
 		}
-
-		if (bridge && renderer) {
-			bridge.updateMaterial(renderer.getMaterial());
-		}
-
-		if (bridge) {
-			bridge.clearEndpoints();
-			for (const ep of endpointUniforms) {
-				bridge.registerEndpoint(ep);
-			}
-		}
 	}
 
 	function applyShader(frag: string, vert: string | null, geo?: GeometryType): void {
@@ -170,7 +146,6 @@ export function createPlaygroundState(): PlaygroundState {
 			uniforms,
 			geometry: currentGeometry,
 			tags: [],
-			modulationGraph: { nodes: modNodes, edges: modEdges },
 		};
 	}
 
@@ -194,12 +169,6 @@ export function createPlaygroundState(): PlaygroundState {
 		get isFullscreen() { return isFullscreen; },
 		get savedModules() { return savedModules; },
 		set savedModules(v: ShaderModule[]) { savedModules = v; },
-		get bridge() { return bridge; },
-		get modNodes() { return modNodes; },
-		set modNodes(v: Node[]) { modNodes = v; },
-		get modEdges() { return modEdges; },
-		set modEdges(v: Edge[]) { modEdges = v; },
-		get modSourceMap() { return modSourceMap; },
 		get liveUniformValues() { return liveUniformValues; },
 		get fps() { return fps; },
 		get compileOk() { return compileOk; },
@@ -210,13 +179,7 @@ export function createPlaygroundState(): PlaygroundState {
 			r.setRotation(rotationEnabled);
 			compile();
 
-			// Bridge setup
-			const b = createModulationBridge(r.getMaterial());
-			bridge = b;
-
-			r.onTick((dt) => {
-				b.update(dt);
-
+			r.onTick((_dt) => {
 				// FPS tracking (~4 Hz update rate)
 				frameCount++;
 				const now = performance.now();
@@ -293,10 +256,6 @@ export function createPlaygroundState(): PlaygroundState {
 
 		loadModule(mod: ShaderModule): void {
 			applyShader(mod.fragmentShader, mod.vertexShader, mod.geometry);
-			if (mod.modulationGraph) {
-				modNodes = mod.modulationGraph.nodes as Node[];
-				modEdges = mod.modulationGraph.edges as Edge[];
-			}
 		},
 
 		deleteModule(id: string): void {
