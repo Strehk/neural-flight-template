@@ -7,28 +7,12 @@
 
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import DEFAULT_VERTEX from "../shaders/default.vert?raw";
+import DEFAULT_FRAGMENT from "../shaders/defaults/default.frag?raw";
+import DEFAULT_VERTEX from "../shaders/defaults/default.vert?raw";
 import type { GeometryType, PlaygroundRenderer, ShaderError } from "../types";
 import { testCompileFragment, testCompileVertex } from "./compiler";
 
-export { DEFAULT_VERTEX };
-
-/** Minimal fallback fragment shader — cosine palette with lighting. */
-const DEFAULT_FRAGMENT = `
-uniform float uTime;
-uniform vec2 uResolution;
-uniform vec3 uLightDir;
-uniform float uLightIntensity;
-uniform float uAmbient;
-varying vec2 vUv;
-varying vec3 vNormal;
-void main() {
-  vec3 color = 0.5 + 0.5 * cos(uTime + vUv.xyx + vec3(0.0, 2.0, 4.0));
-  float diffuse = max(dot(vNormal, uLightDir), 0.0);
-  float light = uAmbient + diffuse * uLightIntensity;
-  gl_FragColor = vec4(color * light, 1.0);
-}
-`;
+export { DEFAULT_FRAGMENT, DEFAULT_VERTEX };
 
 // ── Geometry Factory ──
 

@@ -13,5 +13,6 @@ export {
 } from "./compiler";
 export {
 	createPlaygroundRenderer,
+	DEFAULT_FRAGMENT,
 	DEFAULT_VERTEX,
 } from "./renderer";

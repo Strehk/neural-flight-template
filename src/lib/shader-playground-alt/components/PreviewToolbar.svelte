@@ -1,4 +1,11 @@
 <script lang="ts">
+/**
+ * PreviewToolbar — Compact toolbar above the 3D preview canvas.
+ *
+ * Contains scene controls: Compile, Rotation, Lighting, Fullscreen, Geometry.
+ * All styling via shader-rack.css — no local <style> block.
+ */
+
 import { Select } from "bits-ui";
 import {
 	ChevronDown,
@@ -7,11 +14,13 @@ import {
 	Maximize,
 	Minimize,
 	Pause,
+	Play,
 	RotateCcw,
 } from "lucide-svelte";
 import type { GeometryType } from "../types";
 
 interface Props {
+	oncompile: () => void;
 	rotationEnabled: boolean;
 	onrotation: () => void;
 	lightingEnabled: boolean;
@@ -23,6 +32,7 @@ interface Props {
 }
 
 let {
+	oncompile,
 	rotationEnabled,
 	onrotation,
 	lightingEnabled,
@@ -44,6 +54,11 @@ const geometries: { value: GeometryType; label: string }[] = [
 
 <div class="sp-toolbar">
 	<div class="sp-toolbar-group">
+		<button class="sp-toolbar-btn sp-toolbar-compile" onclick={oncompile} title="Compile (Ctrl+Enter)">
+			<Play size={12} />
+			<span>Compile</span>
+		</button>
+
 		<button
 			class="sp-toolbar-btn"
 			data-active={rotationEnabled}

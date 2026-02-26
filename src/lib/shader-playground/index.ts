@@ -1,57 +1,34 @@
 /**
- * Shader Playground — Barrel Export
+ * Shader Playground v2 — Barrel Export
+ *
+ * Signal-based module system with typed ports and codegen.
  */
 
-// Presets
-export {
-	getPresetById,
-	getPresetsByDifficulty,
-	PRESETS,
-} from "./data/presets/index";
+// Engine
+export { createPlaygroundRenderer, DEFAULT_VERTEX } from "./engine/index";
 
-// Engine (Renderer + Compiler)
-export {
-	createPlaygroundRenderer,
-	DEFAULT_FRAGMENT,
-	DEFAULT_VERTEX,
-	parseShaderErrors,
-	testCompileShader,
-} from "./engine/index";
-export type { EditorTab, PlaygroundState } from "./playground_state.svelte";
-// Playground State
-export { createPlaygroundState } from "./playground_state.svelte";
-// Shadertoy Compat
-export { isShadertoyFormat, wrapShadertoyCode } from "./shadertoy_compat";
+// State
+export { createShaderRackState } from "./state.svelte";
+export type { ShaderRackState } from "./state.svelte";
 
-// Snippets
-export {
-	getSnippetsByCategory,
-	SNIPPET_CATEGORIES,
-	SNIPPETS,
-} from "./snippets";
-// Store
-export {
-	deleteModule,
-	exportModuleJSON,
-	generateId,
-	importModuleJSON,
-	loadModules,
-	saveModule,
-} from "./store";
-// Templates
-export { getTemplateById, TEMPLATES } from "./templates";
+// Codegen
+export { assembleGlsl } from "./codegen";
+
+// Module types
+export type {
+	ModuleDefinition,
+	ModulePort,
+	RackModuleInstance,
+	RackModuleType,
+	SignalType,
+} from "./modules/types";
+export { MODULE_REGISTRY, MODULE_TYPES } from "./modules/registry";
+export { SIGNAL_COLORS, SIGNAL_GLSL_TYPE } from "./modules/types";
+
 // Types
 export type {
 	GeometryType,
 	PlaygroundRenderer,
-	PresetDef,
 	ShaderError,
-	ShaderModule,
-	ShaderSnippet,
-	ShaderTemplate,
-	SnippetCategory,
 	UniformDef,
-	UniformType,
 } from "./types";
-// Uniforms
-export { parseEndpointAnnotation, parseUniforms } from "./uniforms";

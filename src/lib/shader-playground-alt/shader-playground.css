@@ -1,0 +1,140 @@
+/**
+ * Shader Playground — Layout Stylesheet
+ *
+ * Only page-level layout grid + panel sizing.
+ * Component-specific styles live in their respective <style> blocks.
+ * All colors use design tokens from app.css.
+ */
+
+/* ═══ Page Layout ═══ */
+
+.sp-page {
+	display: flex;
+	flex-direction: column;
+	height: 100dvh;
+	background: var(--bg);
+	color: var(--text);
+	font-family: var(--font-main);
+	overflow: hidden;
+}
+
+.sp-main {
+	flex: 1;
+	display: flex;
+	min-height: 0;
+	background: var(--bg);
+}
+
+.sp-page.fullscreen .sp-main {
+	flex-direction: column;
+}
+
+/* ═══ Left Panel (Tabs + Editor/Nodes) ═══ */
+
+.sp-left {
+	display: flex;
+	flex-direction: column;
+	width: 50%;
+	min-width: 300px;
+	border-right: 1px solid var(--border);
+}
+
+.sp-editor-wrap {
+	flex: 1;
+	min-height: 0;
+}
+
+.sp-errors-wrap {
+	flex-shrink: 0;
+	border-top: 1px solid var(--border-subtle);
+}
+
+/* ═══ Tab Bar (layout only — trigger styles in app.css) ═══ */
+
+.sp-editor-tabs-row {
+	display: flex;
+	align-items: stretch;
+	border-bottom: 1px solid var(--border);
+	background: var(--bg);
+}
+
+.sp-editor-tabs-row .sp-editor-tabs {
+	border-bottom: none;
+}
+
+.sp-editor-tabs {
+	display: flex;
+	background: var(--bg);
+	border-bottom: 1px solid var(--border);
+	padding: 0 var(--space-md);
+	gap: 0;
+	height: 2.5rem;
+	align-items: stretch;
+}
+
+/* ═══ View Toggle (bits-ui ToggleGroup) ═══ */
+
+.sp-view-toggle {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	margin-left: auto;
+	padding-right: var(--space-md);
+}
+
+.sp-view-toggle [data-toggle-group-item] {
+	all: unset;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-subtle);
+	cursor: pointer;
+	padding: var(--space-xs);
+	transition: color var(--transition-fast);
+}
+
+.sp-view-toggle [data-toggle-group-item]:hover {
+	color: var(--text-muted);
+}
+
+.sp-view-toggle [data-toggle-group-item][data-state="on"] {
+	color: var(--accent);
+}
+
+/* ═══ Header Subtitle ═══ */
+
+.sp-header-sub {
+	font-size: 0.5625rem;
+	font-family: var(--font-mono);
+	color: var(--text-subtle);
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	padding: 2px 6px;
+	background: var(--border-subtle);
+}
+
+/* ═══ Right Panel (Preview) ═══ */
+
+.sp-right {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.sp-preview-wrap {
+	flex: 1;
+	min-height: 0;
+}
+
+.sp-preview-container {
+	width: 100%;
+	height: 100%;
+	position: relative;
+}
+
+.sp-preview-container canvas {
+	display: block;
+	width: 100%;
+	height: 100%;
+}

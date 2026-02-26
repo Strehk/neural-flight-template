@@ -1,146 +1,73 @@
 <script lang="ts">
-import { Tabs, ToggleGroup } from "bits-ui";
+import { Tabs } from "bits-ui";
 import "$lib/shader-playground/shader-playground.css";
-import "$lib/shader-playground/shader-rack.css";
 import { Code, Rows3, Zap } from "lucide-svelte";
+import { onDestroy } from "svelte";
 import PageHeader from "$lib/components/PageHeader.svelte";
-import ContentBrowser from "$lib/shader-playground/components/ContentBrowser.svelte";
-import ErrorConsole from "$lib/shader-playground/components/ErrorConsole.svelte";
-import PreviewCanvas from "$lib/shader-playground/components/PreviewCanvas.svelte";
+import Rack from "$lib/shader-playground/components/Rack.svelte";
+import CodeView from "$lib/shader-playground/components/CodeView.svelte";
+import Preview from "$lib/shader-playground/components/Preview.svelte";
 import PreviewToolbar from "$lib/shader-playground/components/PreviewToolbar.svelte";
-import ShaderEditor from "$lib/shader-playground/components/ShaderEditor.svelte";
-import ShaderRack from "$lib/shader-playground/components/ShaderRack.svelte";
-import { createPlaygroundState } from "$lib/shader-playground/playground_state.svelte";
-import { createRackState } from "$lib/shader-playground/rack/state.svelte";
+import { createShaderRackState } from "$lib/shader-playground/state.svelte";
 
-const pg = createPlaygroundState();
-const rackState = createRackState(pg);
+const rackState = createShaderRackState();
 
-let editorRef: ShaderEditor | undefined = $state();
-let viewMode = $state<"rack" | "raw">("rack");
+let activeTab = $state<"rack" | "code">("rack");
 
-function handleSnippetInsert(code: string): void {
-	editorRef?.insertCode(code);
-}
+onDestroy(() => rackState.dispose());
 </script>
 
 <svelte:head>
-	<title>SHADERRACK | ICAROS</title>
+	<title>SHADERRACK v2 | ICAROS</title>
 </svelte:head>
 
-<div class="sp-page" class:fullscreen={pg.isFullscreen}>
-	<PageHeader icon={Zap} label="SHADERRACK" status={pg.compileOk ? "connected" : "error"}>
+<div class="sp-page" class:fullscreen={rackState.isFullscreen}>
+	<PageHeader icon={Zap} label="SHADERRACK" status={rackState.compileOk ? "connected" : "error"}>
 		{#snippet actions()}
 			<span class="sp-header-sub">
-				{pg.activeTab === "fragment" ? (viewMode === "rack" ? "M-FRAG" : "RAW") : "VERTEX"}
+				{activeTab === "rack" ? "RACK" : "GLSL"}
 			</span>
-			<ContentBrowser
-				ontemplate={pg.loadTemplate}
-				onpreset={pg.loadPreset}
-				savedModules={pg.savedModules}
-				onloadmodule={pg.loadModule}
-				ondeletemodule={pg.deleteModule}
-				onsave={pg.save}
-				onexport={pg.exportToClipboard}
-				onimport={pg.importFromClipboard}
-				oninsert={handleSnippetInsert}
-			/>
 		{/snippet}
 	</PageHeader>
 
 	<main class="sp-main">
-		{#if !pg.isFullscreen}
+		{#if !rackState.isFullscreen}
 			<div class="sp-left">
-				<div class="sp-editor-tabs-row">
-					<Tabs.Root bind:value={pg.activeTab}>
-						<Tabs.List class="sp-editor-tabs">
-							<Tabs.Trigger value="fragment">Fragment</Tabs.Trigger>
-							<Tabs.Trigger value="vertex">Vertex</Tabs.Trigger>
-						</Tabs.List>
-					</Tabs.Root>
+				<Tabs.Root bind:value={activeTab}>
+					<Tabs.List class="sp-tabs-row">
+						<Tabs.Trigger value="rack">
+							<Rows3 size={14} />
+							Rack
+						</Tabs.Trigger>
+						<Tabs.Trigger value="code">
+							<Code size={14} />
+							Code
+						</Tabs.Trigger>
+					</Tabs.List>
+				</Tabs.Root>
 
-					{#if pg.activeTab === "fragment"}
-						<ToggleGroup.Root
-							type="single"
-							bind:value={viewMode}
-							class="sp-view-toggle"
-						>
-							<ToggleGroup.Item value="rack" aria-label="Rack view">
-								<Rows3 size={14} />
-							</ToggleGroup.Item>
-							<ToggleGroup.Item value="raw" aria-label="Raw editor">
-								<Code size={14} />
-							</ToggleGroup.Item>
-						</ToggleGroup.Root>
-					{/if}
-				</div>
-
-				{#if pg.activeTab === "fragment"}
-					{#if viewMode === "rack"}
-						<div class="sp-editor-wrap">
-							<ShaderRack {rackState} {pg} />
-						</div>
-					{:else}
-						<div class="sp-editor-wrap">
-							<ShaderEditor
-								bind:this={editorRef}
-								bind:fragmentCode={pg.fragmentCode}
-								bind:vertexCode={pg.vertexCode}
-								errors={pg.errors}
-								mode={pg.editorMode}
-								onchange={pg.changeEditor}
-								oncompile={pg.compile}
-							/>
-						</div>
-					{/if}
-					{#if pg.errors.length > 0}
-						<div class="sp-errors-wrap">
-							<ErrorConsole
-								errors={pg.errors}
-								onclick={(line) => editorRef?.scrollToLine(line)}
-							/>
-						</div>
-					{/if}
-				{:else if pg.activeTab === "vertex"}
-					<div class="sp-editor-wrap">
-						<ShaderEditor
-							bind:this={editorRef}
-							bind:fragmentCode={pg.fragmentCode}
-							bind:vertexCode={pg.vertexCode}
-							errors={pg.errors}
-							mode={pg.editorMode}
-							onchange={pg.changeEditor}
-							oncompile={pg.compile}
-						/>
-					</div>
-					{#if pg.errors.length > 0}
-						<div class="sp-errors-wrap">
-							<ErrorConsole
-								errors={pg.errors}
-								onclick={(line) => editorRef?.scrollToLine(line)}
-							/>
-						</div>
-					{/if}
+				{#if activeTab === "rack"}
+					<Rack rack={rackState} />
+				{:else}
+					<CodeView code={rackState.generatedGlsl} />
 				{/if}
 			</div>
 		{/if}
 
 		<div class="sp-right">
 			<PreviewToolbar
-				oncompile={pg.compile}
-				rotationEnabled={pg.rotationEnabled}
-				onrotation={pg.toggleRotation}
-				lightingEnabled={pg.lightingEnabled}
-				onlighting={pg.toggleLighting}
-				isFullscreen={pg.isFullscreen}
-				onfullscreen={pg.toggleFullscreen}
-				currentGeometry={pg.currentGeometry}
-				ongeometry={pg.setGeometry}
+				rotationEnabled={rackState.rotationEnabled}
+				onrotation={rackState.toggleRotation}
+				lightingEnabled={rackState.lightingEnabled}
+				onlighting={rackState.toggleLighting}
+				isFullscreen={rackState.isFullscreen}
+				onfullscreen={rackState.toggleFullscreen}
+				currentGeometry={rackState.currentGeometry}
+				ongeometry={rackState.setGeometry}
 			/>
 			<div class="sp-preview-wrap">
-				<PreviewCanvas onrenderer={pg.initRenderer} />
+				<Preview onrenderer={rackState.initRenderer} />
 			</div>
 		</div>
 	</main>
-
 </div>
