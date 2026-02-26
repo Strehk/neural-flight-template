@@ -83,7 +83,13 @@ export function testCompileFragment(
 	source: string,
 ): ShaderError[] {
 	const prefixed = `${PRECISION_PREFIX}${source}`;
-	return compileAndParse(gl, prefixed, gl.FRAGMENT_SHADER, PRECISION_LINE_COUNT, "fragment");
+	return compileAndParse(
+		gl,
+		prefixed,
+		gl.FRAGMENT_SHADER,
+		PRECISION_LINE_COUNT,
+		"fragment",
+	);
 }
 
 /**
@@ -95,7 +101,13 @@ export function testCompileVertex(
 	source: string,
 ): ShaderError[] {
 	const prefixed = `${PRECISION_PREFIX}${THREEJS_VERTEX_PREFIX}${source}`;
-	return compileAndParse(gl, prefixed, gl.VERTEX_SHADER, VERTEX_PREFIX_LINE_COUNT, "vertex");
+	return compileAndParse(
+		gl,
+		prefixed,
+		gl.VERTEX_SHADER,
+		VERTEX_PREFIX_LINE_COUNT,
+		"vertex",
+	);
 }
 
 /**
@@ -107,8 +119,7 @@ export function testCompileShader(
 	type: "vertex" | "fragment",
 	lineOffset = 0,
 ): ShaderError[] {
-	const glType =
-		type === "vertex" ? gl.VERTEX_SHADER : gl.FRAGMENT_SHADER;
+	const glType = type === "vertex" ? gl.VERTEX_SHADER : gl.FRAGMENT_SHADER;
 	return compileAndParse(gl, source, glType, lineOffset, type);
 }
 
@@ -123,7 +134,14 @@ function compileAndParse(
 ): ShaderError[] {
 	const shader = gl.createShader(glType);
 	if (!shader)
-		return [{ line: 0, message: "Failed to create shader", raw: "", source: shaderSource }];
+		return [
+			{
+				line: 0,
+				message: "Failed to create shader",
+				raw: "",
+				source: shaderSource,
+			},
+		];
 
 	gl.shaderSource(shader, source);
 	gl.compileShader(shader);

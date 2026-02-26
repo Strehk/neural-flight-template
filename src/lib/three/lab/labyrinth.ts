@@ -209,10 +209,8 @@ function subdivide(
 
 	// Center-biased split position (average of two randoms)
 	const bias = (rand() + rand()) * 0.5; // peaks at 0.5
-	const min =
-		axis === "x" ? box.minX : axis === "y" ? box.minY : box.minZ;
-	const max =
-		axis === "x" ? box.maxX : axis === "y" ? box.maxY : box.maxZ;
+	const min = axis === "x" ? box.minX : axis === "y" ? box.minY : box.minZ;
+	const max = axis === "x" ? box.maxX : axis === "y" ? box.maxY : box.maxZ;
 	const splitPos = min + bias * (max - min);
 
 	// Build two sub-boxes
@@ -267,7 +265,7 @@ function placeWall(
 	// Wall coverage depends on depth — early splits = large blocking panels
 	// Depth 0-1: 60-90% coverage, depth 4+: 25-55% coverage
 	const depthFactor = Math.max(0, 1.0 - depth * 0.25);
-	const coverage = (0.2 + depthFactor * 0.3) + rand() * (0.2 + depthFactor * 0.2);
+	const coverage = 0.2 + depthFactor * 0.3 + rand() * (0.2 + depthFactor * 0.2);
 	// Gap position along the wall (normalized 0-1)
 	const gapPos = rand();
 
@@ -432,8 +430,7 @@ export function generateLabyrinthChunk(
 	group.userData.bounds = bounds;
 
 	const pals = c.palettes;
-	const pick = (): [number, number] =>
-		pals[Math.floor(rand() * pals.length)];
+	const pick = (): [number, number] => pals[Math.floor(rand() * pals.length)];
 
 	subdivide(bounds, 0, group, c, rand, pick);
 

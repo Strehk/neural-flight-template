@@ -37,9 +37,8 @@ interface UniformInfo {
 
 // ── State Effect for external value updates ──
 
-export const updateLiveValues = StateEffect.define<
-	Map<string, number | number[]>
->();
+export const updateLiveValues =
+	StateEffect.define<Map<string, number | number[]>>();
 
 // ── Live Values StateField ──
 
@@ -57,9 +56,7 @@ const liveValuesField = StateField.define<Map<string, number | number[]>>({
 
 // ── Control Sources StateField (which uniform is controlled by what) ──
 
-export const updateControlSources = StateEffect.define<
-	Map<string, string>
->();
+export const updateControlSources = StateEffect.define<Map<string, string>>();
 
 const controlSourcesField = StateField.define<Map<string, string>>({
 	create() {
@@ -104,9 +101,7 @@ class UniformBadgeWidget extends WidgetType {
 	}
 
 	eq(other: UniformBadgeWidget): boolean {
-		return (
-			this.info.name === other.info.name && this.value === other.value
-		);
+		return this.info.name === other.info.name && this.value === other.value;
 	}
 }
 
@@ -217,9 +212,7 @@ function buildDecorationsFromCache(
 		decorations.push(Decoration.mark({ class: cssClass }).range(from, to));
 	}
 
-	return Decoration.set(
-		decorations.sort((a, b) => a.from - b.from),
-	);
+	return Decoration.set(decorations.sort((a, b) => a.from - b.from));
 }
 
 function escapeRegex(s: string): string {

@@ -2,13 +2,13 @@
  * Shader Templates — Starter templates for different shader styles.
  */
 
-import type { ShaderTemplate } from "./types";
 import emptyFrag from "./shaders/templates/empty.frag?raw";
-import uvGradientFrag from "./shaders/templates/uv-gradient.frag?raw";
+import raymarchingFrag from "./shaders/templates/raymarching.frag?raw";
 import shadertoyFrag from "./shaders/templates/shadertoy.frag?raw";
+import uvGradientFrag from "./shaders/templates/uv-gradient.frag?raw";
 import vertexFragmentFrag from "./shaders/templates/vertex-fragment.frag?raw";
 import vertexFragmentVert from "./shaders/templates/vertex-fragment.vert?raw";
-import raymarchingFrag from "./shaders/templates/raymarching.frag?raw";
+import type { ShaderTemplate } from "./types";
 
 export const TEMPLATES: ShaderTemplate[] = [
 	{
@@ -28,7 +28,8 @@ export const TEMPLATES: ShaderTemplate[] = [
 	{
 		id: "shadertoy",
 		name: "Shadertoy Compatible",
-		description: "Template using Shadertoy conventions (iTime, iResolution, mainImage)",
+		description:
+			"Template using Shadertoy conventions (iTime, iResolution, mainImage)",
 		fragmentShader: shadertoyFrag,
 		vertexShader: null,
 	},
@@ -48,8 +49,6 @@ export const TEMPLATES: ShaderTemplate[] = [
 	},
 ];
 
-export function getTemplateById(
-	id: string,
-): ShaderTemplate | undefined {
+export function getTemplateById(id: string): ShaderTemplate | undefined {
 	return TEMPLATES.find((t) => t.id === id);
 }

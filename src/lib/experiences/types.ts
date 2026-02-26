@@ -182,7 +182,10 @@ export interface ExperienceManifest {
 	tick: (
 		state: ExperienceState,
 		ctx: TickContext,
-	) => { state: ExperienceState; outputs?: Record<string, SignalValue | ColorValue> };
+	) => {
+		state: ExperienceState;
+		outputs?: Record<string, SignalValue | ColorValue>;
+	};
 
 	/** Called when a parameter changes. Map parameter ID to scene changes. */
 	applySettings: (

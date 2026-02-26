@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { createClouds, disposeClouds } from "$lib/three/clouds";
 import { runtimeConfig } from "$lib/config/flight";
+import { createClouds, disposeClouds } from "$lib/three/clouds";
 import { updateSkyColors } from "$lib/three/sky";
 import type { ExperienceState } from "../types";
 import type { MountainFlightState } from "./scene";
@@ -65,7 +65,11 @@ export function applySettings(
 				// on a circular arc at distance 170 units. x=80 offsets the sun sideways.
 				const elevRad = ((value as number) * Math.PI) / 180;
 				const dist = 170;
-				sun.position.set(80, Math.sin(elevRad) * dist, Math.cos(elevRad) * dist);
+				sun.position.set(
+					80,
+					Math.sin(elevRad) * dist,
+					Math.cos(elevRad) * dist,
+				);
 			}
 			break;
 

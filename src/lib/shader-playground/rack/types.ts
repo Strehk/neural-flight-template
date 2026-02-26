@@ -16,7 +16,7 @@ export type RackSlotType =
 	| "main"
 	| "custom";
 
-export type ModuleClass = "fixed" | "focus";
+export type ModuleClass = "fixed" | "focus" | "main";
 
 export const MODULE_CLASS: Record<RackSlotType, ModuleClass> = {
 	header: "fixed",
@@ -24,7 +24,7 @@ export const MODULE_CLASS: Record<RackSlotType, ModuleClass> = {
 	varyings: "fixed",
 	defines: "fixed",
 	function: "focus",
-	main: "focus",
+	main: "main",
 	custom: "focus",
 };
 

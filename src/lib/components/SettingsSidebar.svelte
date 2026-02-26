@@ -78,7 +78,9 @@ function emit(key: string, value: number | boolean | string): void {
 
 // ── Preset system ──
 let presetName = $state("");
-let presets = $state<Record<string, Record<string, number | boolean | string>>>({});
+let presets = $state<Record<string, Record<string, number | boolean | string>>>(
+	{},
+);
 
 function savePreset(): void {
 	if (!presetName.trim()) return;

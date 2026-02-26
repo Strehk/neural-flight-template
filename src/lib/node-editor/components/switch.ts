@@ -80,4 +80,3 @@ export const COMPONENT_SWITCH: SignalDef = {
 		};
 	},
 };
-

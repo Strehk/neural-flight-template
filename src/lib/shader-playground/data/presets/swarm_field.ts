@@ -1,5 +1,5 @@
-import type { PresetDef } from "../../types";
 import fragmentShader from "../../shaders/presets/swarm_field.frag?raw";
+import type { PresetDef } from "../../types";
 
 export const PRESET_SWARM_FIELD: PresetDef = {
 	id: "swarm-field",
@@ -11,10 +11,37 @@ export const PRESET_SWARM_FIELD: PresetDef = {
 	fragmentShader,
 	vertexShader: null,
 	uniforms: [
-		{ name: "uSwarmSpeed", type: "float", value: 1.0, min: 0.0, max: 5.0, endpoint: true },
-		{ name: "uCoherence", type: "float", value: 0.5, min: 0.0, max: 1.0, endpoint: true },
-		{ name: "uParticleSize", type: "float", value: 0.02, min: 0.001, max: 0.1, endpoint: true },
-		{ name: "uFieldColor", type: "vec3", value: [0.53, 0.0, 1.0], endpoint: true, color: true },
+		{
+			name: "uSwarmSpeed",
+			type: "float",
+			value: 1.0,
+			min: 0.0,
+			max: 5.0,
+			endpoint: true,
+		},
+		{
+			name: "uCoherence",
+			type: "float",
+			value: 0.5,
+			min: 0.0,
+			max: 1.0,
+			endpoint: true,
+		},
+		{
+			name: "uParticleSize",
+			type: "float",
+			value: 0.02,
+			min: 0.001,
+			max: 0.1,
+			endpoint: true,
+		},
+		{
+			name: "uFieldColor",
+			type: "vec3",
+			value: [0.53, 0.0, 1.0],
+			endpoint: true,
+			color: true,
+		},
 	],
 	geometry: "plane",
 	tutorial: {

@@ -1,6 +1,6 @@
 import type { ExperienceManifest, ParameterDef } from "../types";
 import { updatePlayer } from "./player";
-import { setup, tick, dispose } from "./scene";
+import { dispose, setup, tick } from "./scene";
 import { applySettings } from "./settings";
 
 // ── Parameter Definitions ──────────────────────────────────────

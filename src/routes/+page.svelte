@@ -1,4 +1,5 @@
 <script lang="ts">
+import { Select } from "bits-ui";
 import {
 	ChevronDown,
 	Eye,
@@ -8,9 +9,9 @@ import {
 	Lightbulb,
 	MapPin,
 	Mountain,
-	Palette,
 	Network,
 	Orbit,
+	Palette,
 	Plane,
 	Play,
 	Rocket,
@@ -21,7 +22,6 @@ import {
 } from "lucide-svelte";
 import type { ComponentType } from "svelte";
 import { onDestroy } from "svelte";
-import { Select } from "bits-ui";
 import ArchitectureDiagram from "$lib/components/ArchitectureDiagram.svelte";
 import DataTable from "$lib/components/DataTable.svelte";
 import LinkCard from "$lib/components/LinkCard.svelte";

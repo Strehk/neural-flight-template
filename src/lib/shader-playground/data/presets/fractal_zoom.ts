@@ -1,5 +1,5 @@
-import type { PresetDef } from "../../types";
 import fragmentShader from "../../shaders/presets/fractal_zoom.frag?raw";
+import type { PresetDef } from "../../types";
 
 export const PRESET_FRACTAL_ZOOM: PresetDef = {
 	id: "fractal-zoom",
@@ -11,11 +11,46 @@ export const PRESET_FRACTAL_ZOOM: PresetDef = {
 	fragmentShader,
 	vertexShader: null,
 	uniforms: [
-		{ name: "uZoom", type: "float", value: 1.0, min: 0.5, max: 50.0, endpoint: true },
-		{ name: "uCx", type: "float", value: -0.7, min: -2.0, max: 2.0, endpoint: true },
-		{ name: "uCy", type: "float", value: 0.27015, min: -2.0, max: 2.0, endpoint: true },
-		{ name: "uMaxIter", type: "float", value: 100.0, min: 10.0, max: 200.0, endpoint: true },
-		{ name: "uColorSpeed", type: "float", value: 1.0, min: 0.0, max: 5.0, endpoint: true },
+		{
+			name: "uZoom",
+			type: "float",
+			value: 1.0,
+			min: 0.5,
+			max: 50.0,
+			endpoint: true,
+		},
+		{
+			name: "uCx",
+			type: "float",
+			value: -0.7,
+			min: -2.0,
+			max: 2.0,
+			endpoint: true,
+		},
+		{
+			name: "uCy",
+			type: "float",
+			value: 0.27015,
+			min: -2.0,
+			max: 2.0,
+			endpoint: true,
+		},
+		{
+			name: "uMaxIter",
+			type: "float",
+			value: 100.0,
+			min: 10.0,
+			max: 200.0,
+			endpoint: true,
+		},
+		{
+			name: "uColorSpeed",
+			type: "float",
+			value: 1.0,
+			min: 0.0,
+			max: 5.0,
+			endpoint: true,
+		},
 	],
 	geometry: "plane",
 	tutorial: {

@@ -1,17 +1,17 @@
 <script lang="ts">
-	import type { ShaderError } from "../types";
-	import { ShaderButton } from "../controls/index";
+import { ShaderButton } from "../controls/index";
+import type { ShaderError } from "../types";
 
-	interface Props {
-		errors: ShaderError[];
-		onclick?: (line: number) => void;
-	}
+interface Props {
+	errors: ShaderError[];
+	onclick?: (line: number) => void;
+}
 
-	let { errors, onclick }: Props = $props();
+let { errors, onclick }: Props = $props();
 
-	let collapsed = $state(false);
+let collapsed = $state(false);
 
-	const hasErrors = $derived(errors.length > 0);
+const hasErrors = $derived(errors.length > 0);
 </script>
 
 {#if hasErrors}
@@ -48,64 +48,3 @@
 	</div>
 {/if}
 
-<style>
-	.sp-error-console {
-		background: color-mix(in srgb, var(--error) 8%, var(--bg));
-		border: 1px solid color-mix(in srgb, var(--error) 25%, transparent);
-		border-radius: var(--radius-none);
-		font-family: var(--font-mono);
-		font-size: 0.75rem;
-		overflow: hidden;
-	}
-
-	.sp-error-header {
-		all: unset;
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		width: 100%;
-		padding: var(--space-xs) var(--space-sm);
-		cursor: pointer;
-		color: var(--error);
-		font-weight: 600;
-		font-size: 0.75rem;
-	}
-
-	.sp-error-header:hover {
-		background: color-mix(in srgb, var(--error) 12%, var(--bg));
-	}
-
-	.sp-error-toggle {
-		opacity: 0.5;
-	}
-
-	.sp-error-list {
-		list-style: none;
-		padding: 0;
-		margin: 0;
-		max-height: 120px;
-		overflow-y: auto;
-	}
-
-	.sp-error-list li {
-		border-top: 1px solid color-mix(in srgb, var(--error) 15%, transparent);
-	}
-
-	.sp-error-source {
-		color: var(--text-subtle);
-		font-size: 0.6rem;
-		font-weight: 600;
-		text-transform: uppercase;
-		opacity: 0.7;
-	}
-
-	.sp-error-line-num {
-		color: var(--error);
-		font-weight: 600;
-		min-width: 2rem;
-	}
-
-	.sp-error-msg {
-		color: var(--error-muted);
-	}
-</style>

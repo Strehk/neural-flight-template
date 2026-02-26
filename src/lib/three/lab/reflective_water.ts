@@ -27,7 +27,9 @@ export interface ReflectiveWaterResult {
 }
 
 /** Create a dark reflective water plane with wave distortion and fresnel. */
-export function createReflectiveWater(config?: ReflectiveWaterConfig): ReflectiveWaterResult {
+export function createReflectiveWater(
+	config?: ReflectiveWaterConfig,
+): ReflectiveWaterResult {
 	const c = { ...DEFAULTS, ...config };
 
 	const geometry = new THREE.PlaneGeometry(c.size, c.size, 1, 1);
@@ -118,7 +120,9 @@ export function createReflectiveWater(config?: ReflectiveWaterConfig): Reflectiv
 	function dispose(): void {
 		geometry.dispose();
 		reflectorMaterial.dispose();
-		const renderTarget = (reflector as unknown as { getRenderTarget: () => THREE.WebGLRenderTarget }).getRenderTarget?.();
+		const renderTarget = (
+			reflector as unknown as { getRenderTarget: () => THREE.WebGLRenderTarget }
+		).getRenderTarget?.();
 		renderTarget?.dispose();
 	}
 

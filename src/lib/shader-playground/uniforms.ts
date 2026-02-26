@@ -35,9 +35,7 @@ const VALID_TYPES = new Set([
 ]);
 
 /** Default values per uniform type */
-function defaultValue(
-	type: UniformType,
-): number | number[] | boolean {
+function defaultValue(type: UniformType): number | number[] | boolean {
 	switch (type) {
 		case "float":
 			return 0.5;
@@ -57,9 +55,7 @@ function defaultValue(
 }
 
 /** Parse @endpoint annotations from a GLSL comment */
-export function parseEndpointAnnotation(
-	comment: string,
-): Partial<UniformDef> {
+export function parseEndpointAnnotation(comment: string): Partial<UniformDef> {
 	const result: Partial<UniformDef> = { endpoint: true };
 
 	// min:NUMBER
@@ -111,9 +107,7 @@ export function parseUniforms(source: string): UniformDef[] {
 		const trimmed = line.trim();
 
 		// Match: uniform TYPE NAME;  (optionally with // comment)
-		const match = trimmed.match(
-			/^uniform\s+(\w+)\s+(\w+)\s*;(.*)$/,
-		);
+		const match = trimmed.match(/^uniform\s+(\w+)\s+(\w+)\s*;(.*)$/);
 		if (!match) continue;
 
 		const [, typeStr, name, rest] = match;

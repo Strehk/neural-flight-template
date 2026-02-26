@@ -40,7 +40,10 @@ function ensureShadertoyUniforms(code: string): string {
 	if (!/uniform\s+vec2\s+iResolution\b/.test(code)) {
 		declarations.push("uniform vec2 iResolution;");
 	}
-	if (!/uniform\s+vec4\s+iMouse\b/.test(code) && !/uniform\s+vec2\s+iMouse\b/.test(code)) {
+	if (
+		!/uniform\s+vec4\s+iMouse\b/.test(code) &&
+		!/uniform\s+vec2\s+iMouse\b/.test(code)
+	) {
 		declarations.push("uniform vec2 iMouse;");
 	}
 

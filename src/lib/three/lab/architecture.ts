@@ -285,11 +285,7 @@ export function generateChunk(
 			const mat = new THREE.MeshBasicMaterial({ color: 0x08060e });
 			const block = new THREE.Mesh(geo, mat);
 			const side = rand() > 0.5 ? 1 : -1;
-			block.position.set(
-				side * (halfW - sw * 0.25),
-				sh / 2 + rand() * 2,
-				zOff,
-			);
+			block.position.set(side * (halfW - sw * 0.25), sh / 2 + rand() * 2, zOff);
 			group.add(block);
 		}
 	}

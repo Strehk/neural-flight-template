@@ -32,10 +32,9 @@ import {
 	sendSettings,
 	signalGraph,
 } from "$lib/node-editor";
-
+import { remap } from "$lib/node-editor/graph/types";
 import { getNodeDef } from "$lib/node-editor/nodes/registry";
 import { getPreset } from "$lib/node-editor/parameters/registry";
-import { remap } from "$lib/node-editor/graph/types";
 
 const nodeTypes: NodeTypes = { module: ModuleRenderer };
 
@@ -266,12 +265,18 @@ function syncBridge(): void {
 		);
 		if (!edge) continue;
 
-		const source = resolveExposedPort(edge.source, edge.sourceHandle ?? "", "output");
+		const source = resolveExposedPort(
+			edge.source,
+			edge.sourceHandle ?? "",
+			"output",
+		);
 		if (!source) continue;
 
 		const signal = signalGraph.getOutput(source.engineNodeId, source.portId);
 		const preset = getPreset(paramKey);
-		settings[paramKey] = preset ? remap(signal, preset.min, preset.max) : signal;
+		settings[paramKey] = preset
+			? remap(signal, preset.min, preset.max)
+			: signal;
 	}
 
 	if (Object.keys(settings).length > 0) {

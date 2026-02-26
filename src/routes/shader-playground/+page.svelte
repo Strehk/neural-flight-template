@@ -1,26 +1,27 @@
 <script lang="ts">
-	import { Tabs, ToggleGroup } from "bits-ui";
-	import "$lib/shader-playground/shader-playground.css";
-	import PreviewCanvas from "$lib/shader-playground/components/PreviewCanvas.svelte";
-	import ErrorConsole from "$lib/shader-playground/components/ErrorConsole.svelte";
-	import ShaderEditor from "$lib/shader-playground/components/ShaderEditor.svelte";
-	import ShaderRack from "$lib/shader-playground/components/ShaderRack.svelte";
-	import PreviewToolbar from "$lib/shader-playground/components/PreviewToolbar.svelte";
-	import ContentBrowser from "$lib/shader-playground/components/ContentBrowser.svelte";
-	import PageHeader from "$lib/components/PageHeader.svelte";
-	import { createPlaygroundState } from "$lib/shader-playground/playground_state.svelte";
-	import { createRackState } from "$lib/shader-playground/rack/state.svelte";
-	import { Rows3, Code, Zap } from "lucide-svelte";
+import { Tabs, ToggleGroup } from "bits-ui";
+import "$lib/shader-playground/shader-playground.css";
+import "$lib/shader-playground/shader-rack.css";
+import { Code, Rows3, Zap } from "lucide-svelte";
+import PageHeader from "$lib/components/PageHeader.svelte";
+import ContentBrowser from "$lib/shader-playground/components/ContentBrowser.svelte";
+import ErrorConsole from "$lib/shader-playground/components/ErrorConsole.svelte";
+import PreviewCanvas from "$lib/shader-playground/components/PreviewCanvas.svelte";
+import PreviewToolbar from "$lib/shader-playground/components/PreviewToolbar.svelte";
+import ShaderEditor from "$lib/shader-playground/components/ShaderEditor.svelte";
+import ShaderRack from "$lib/shader-playground/components/ShaderRack.svelte";
+import { createPlaygroundState } from "$lib/shader-playground/playground_state.svelte";
+import { createRackState } from "$lib/shader-playground/rack/state.svelte";
 
-	const pg = createPlaygroundState();
-	const rackState = createRackState(pg);
+const pg = createPlaygroundState();
+const rackState = createRackState(pg);
 
-	let editorRef: ShaderEditor | undefined = $state();
-	let viewMode = $state<"rack" | "raw">("rack");
+let editorRef: ShaderEditor | undefined = $state();
+let viewMode = $state<"rack" | "raw">("rack");
 
-	function handleSnippetInsert(code: string): void {
-		editorRef?.insertCode(code);
-	}
+function handleSnippetInsert(code: string): void {
+	editorRef?.insertCode(code);
+}
 </script>
 
 <svelte:head>

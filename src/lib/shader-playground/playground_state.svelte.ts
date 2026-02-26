@@ -6,25 +6,25 @@
  */
 
 import { DEFAULT_FRAGMENT } from "./engine/renderer";
-import { parseUniforms } from "./uniforms";
 import { isShadertoyFormat, wrapShadertoyCode } from "./shadertoy_compat";
 import {
-	saveModule,
-	loadModules,
 	deleteModule,
 	exportModuleJSON,
-	importModuleJSON,
 	generateId,
+	importModuleJSON,
+	loadModules,
+	saveModule,
 } from "./store";
 import { TEMPLATES } from "./templates";
 import type {
-	PlaygroundRenderer,
-	ShaderError,
-	UniformDef,
 	GeometryType,
-	ShaderModule,
+	PlaygroundRenderer,
 	PresetDef,
+	ShaderError,
+	ShaderModule,
+	UniformDef,
 } from "./types";
+import { parseUniforms } from "./uniforms";
 
 export type EditorTab = "fragment" | "vertex";
 
@@ -122,7 +122,11 @@ export function createPlaygroundState(): PlaygroundState {
 		}
 	}
 
-	function applyShader(frag: string, vert: string | null, geo?: GeometryType): void {
+	function applyShader(
+		frag: string,
+		vert: string | null,
+		geo?: GeometryType,
+	): void {
 		fragmentCode = frag;
 		vertexCode = vert;
 		if (geo) {
@@ -150,25 +154,63 @@ export function createPlaygroundState(): PlaygroundState {
 	// ── Public API ──
 
 	return {
-		get fragmentCode() { return fragmentCode; },
-		set fragmentCode(v: string) { fragmentCode = v; },
-		get vertexCode() { return vertexCode; },
-		set vertexCode(v: string | null) { vertexCode = v; },
-		get errors() { return errors; },
-		get uniforms() { return uniforms; },
-		get endpointUniforms() { return endpointUniforms; },
-		get currentGeometry() { return currentGeometry; },
-		get rotationEnabled() { return rotationEnabled; },
-		get lightingEnabled() { return lightingEnabled; },
-		get activeTab() { return activeTab; },
-		set activeTab(v: EditorTab) { activeTab = v; },
-		get isFullscreen() { return isFullscreen; },
-		get savedModules() { return savedModules; },
-		set savedModules(v: ShaderModule[]) { savedModules = v; },
-		get liveUniformValues() { return liveUniformValues; },
-		get fps() { return fps; },
-		get compileOk() { return compileOk; },
-		get editorMode() { return editorMode; },
+		get fragmentCode() {
+			return fragmentCode;
+		},
+		set fragmentCode(v: string) {
+			fragmentCode = v;
+		},
+		get vertexCode() {
+			return vertexCode;
+		},
+		set vertexCode(v: string | null) {
+			vertexCode = v;
+		},
+		get errors() {
+			return errors;
+		},
+		get uniforms() {
+			return uniforms;
+		},
+		get endpointUniforms() {
+			return endpointUniforms;
+		},
+		get currentGeometry() {
+			return currentGeometry;
+		},
+		get rotationEnabled() {
+			return rotationEnabled;
+		},
+		get lightingEnabled() {
+			return lightingEnabled;
+		},
+		get activeTab() {
+			return activeTab;
+		},
+		set activeTab(v: EditorTab) {
+			activeTab = v;
+		},
+		get isFullscreen() {
+			return isFullscreen;
+		},
+		get savedModules() {
+			return savedModules;
+		},
+		set savedModules(v: ShaderModule[]) {
+			savedModules = v;
+		},
+		get liveUniformValues() {
+			return liveUniformValues;
+		},
+		get fps() {
+			return fps;
+		},
+		get compileOk() {
+			return compileOk;
+		},
+		get editorMode() {
+			return editorMode;
+		},
 
 		initRenderer(r: PlaygroundRenderer): void {
 			renderer = r;

@@ -5,8 +5,9 @@
  * Reads `data.envelope` for animation.
  * Sets A/D/S/R inputs via signalGraph.setInput().
  */
-import { signalGraph } from "../graph/engine";
+
 import { Slider, WaveBar } from "../controls";
+import { signalGraph } from "../graph/engine";
 
 interface Props {
 	id: string;

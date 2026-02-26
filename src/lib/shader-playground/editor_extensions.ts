@@ -5,35 +5,35 @@
  */
 
 import {
-	StateField,
-	StateEffect,
-	type Extension,
-	type Range,
-} from "@codemirror/state";
-import {
-	EditorView,
-	keymap,
-	lineNumbers,
-	highlightActiveLine,
-	Decoration,
-	type DecorationSet,
-} from "@codemirror/view";
-import {
 	defaultKeymap,
 	history,
 	historyKeymap,
 	indentWithTab,
 } from "@codemirror/commands";
+import { cpp } from "@codemirror/lang-cpp";
 import {
+	bracketMatching,
 	foldGutter,
 	foldKeymap,
-	bracketMatching,
+	HighlightStyle,
 	indentOnInput,
 	syntaxHighlighting,
-	HighlightStyle,
 } from "@codemirror/language";
+import {
+	type Extension,
+	type Range,
+	StateEffect,
+	StateField,
+} from "@codemirror/state";
+import {
+	Decoration,
+	type DecorationSet,
+	EditorView,
+	highlightActiveLine,
+	keymap,
+	lineNumbers,
+} from "@codemirror/view";
 import { tags } from "@lezer/highlight";
-import { cpp } from "@codemirror/lang-cpp";
 
 // ── Dark Theme ──
 
@@ -129,9 +129,7 @@ export const errorLineField = StateField.define<DecorationSet>({
 						);
 					}
 				}
-				return Decoration.set(
-					decorations.sort((a, b) => a.from - b.from),
-				);
+				return Decoration.set(decorations.sort((a, b) => a.from - b.from));
 			}
 		}
 		return decos;

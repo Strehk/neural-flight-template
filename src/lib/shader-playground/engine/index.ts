@@ -6,14 +6,13 @@
  */
 
 export {
+	parseShaderErrors,
+	testCompileFragment,
+	testCompileShader,
+	testCompileVertex,
+} from "./compiler";
+export {
 	createPlaygroundRenderer,
 	DEFAULT_FRAGMENT,
 	DEFAULT_VERTEX,
 } from "./renderer";
-
-export {
-	parseShaderErrors,
-	testCompileShader,
-	testCompileFragment,
-	testCompileVertex,
-} from "./compiler";

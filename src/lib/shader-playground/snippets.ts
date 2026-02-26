@@ -414,9 +414,7 @@ vec2 hash2(vec2 p) {
 		code: `float sineWave(float t, float freq, float amp) {
   return amp * sin(t * freq * 6.28318);
 }`,
-		requiredUniforms: [
-			{ name: "uTime", type: "float", value: 0 },
-		],
+		requiredUniforms: [{ name: "uTime", type: "float", value: 0 }],
 	},
 	{
 		id: "sawtooth",
@@ -464,7 +462,8 @@ vec2 hash2(vec2 p) {
 		id: "lambert",
 		name: "Lambert Diffuse",
 		category: "lighting",
-		description: "Basic diffuse lighting from surface normal and light direction",
+		description:
+			"Basic diffuse lighting from surface normal and light direction",
 		difficulty: 2,
 		hint: "Lambert = dot(normal, lightDir). The simplest physically-plausible diffuse shading model.",
 		code: `float lambert(vec3 normal, vec3 lightDir) {
@@ -559,9 +558,7 @@ vec3 chromaticAberration(vec2 uv, float amount) {
   float offset = lineJitter * amount * blockShift;
   return vec2(uv.x + offset, uv.y);
 }`,
-		requiredUniforms: [
-			{ name: "uTime", type: "float", value: 0 },
-		],
+		requiredUniforms: [{ name: "uTime", type: "float", value: 0 }],
 	},
 	// ═══ MODULATION ═══
 
@@ -586,9 +583,7 @@ vec3 chromaticAberration(vec2 uv, float amount) {
 ];
 
 /** Get snippets filtered by category */
-export function getSnippetsByCategory(
-	category: string,
-): ShaderSnippet[] {
+export function getSnippetsByCategory(category: string): ShaderSnippet[] {
 	return SNIPPETS.filter((s) => s.category === category);
 }
 

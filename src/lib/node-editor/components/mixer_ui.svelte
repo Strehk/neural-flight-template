@@ -8,8 +8,8 @@
  * Calls `useUpdateNodeInternals()` so SvelteFlow recalculates handle positions.
  */
 import { useSvelteFlow, useUpdateNodeInternals } from "@xyflow/svelte";
-import { signalGraph } from "../graph/engine";
 import { AddButton, Slider, WaveBar } from "../controls";
+import { signalGraph } from "../graph/engine";
 
 interface Props {
 	id: string;

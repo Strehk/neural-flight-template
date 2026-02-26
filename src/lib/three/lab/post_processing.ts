@@ -1,12 +1,12 @@
 // LAB EXPERIMENT — temporary, not production code
 import * as THREE from "three";
+import { AfterimagePass } from "three/addons/postprocessing/AfterimagePass.js";
+import { BokehPass } from "three/addons/postprocessing/BokehPass.js";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
-import { BokehPass } from "three/addons/postprocessing/BokehPass.js";
-import { AfterimagePass } from "three/addons/postprocessing/AfterimagePass.js";
 
 export interface PostProcessingConfig {
 	bloomStrength?: number;

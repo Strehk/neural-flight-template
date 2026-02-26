@@ -7,14 +7,10 @@
 
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import type {
-	GeometryType,
-	PlaygroundRenderer,
-	ShaderError,
-} from "../types";
-import { testCompileFragment, testCompileVertex } from "./compiler";
-import DEFAULT_VERTEX from "../shaders/defaults/default.vert?raw";
 import DEFAULT_FRAGMENT from "../shaders/defaults/default.frag?raw";
+import DEFAULT_VERTEX from "../shaders/defaults/default.vert?raw";
+import type { GeometryType, PlaygroundRenderer, ShaderError } from "../types";
+import { testCompileFragment, testCompileVertex } from "./compiler";
 
 export { DEFAULT_FRAGMENT, DEFAULT_VERTEX };
 
@@ -74,7 +70,7 @@ export function createPlaygroundRenderer(
 	};
 
 	// User uniforms (from shader code)
-	let userUniforms: Record<string, THREE.IUniform> = {};
+	const userUniforms: Record<string, THREE.IUniform> = {};
 
 	let material = new THREE.ShaderMaterial({
 		vertexShader: DEFAULT_VERTEX,
@@ -262,4 +258,3 @@ function uniformValue(
 		return new THREE.Vector4(value[0], value[1], value[2], value[3]);
 	return value[0];
 }
-

@@ -1,5 +1,5 @@
-import type { PresetDef } from "../../types";
 import fragmentShader from "../../shaders/presets/neon_waves.frag?raw";
+import type { PresetDef } from "../../types";
 
 export const PRESET_NEON_WAVES: PresetDef = {
 	id: "neon-waves",
@@ -11,9 +11,30 @@ export const PRESET_NEON_WAVES: PresetDef = {
 	fragmentShader,
 	vertexShader: null,
 	uniforms: [
-		{ name: "uWaveScale", type: "float", value: 5.0, min: 1.0, max: 20.0, endpoint: true },
-		{ name: "uSpeed", type: "float", value: 1.0, min: 0.1, max: 3.0, endpoint: true },
-		{ name: "uColorShift", type: "float", value: 0.0, min: 0.0, max: 6.28, endpoint: true },
+		{
+			name: "uWaveScale",
+			type: "float",
+			value: 5.0,
+			min: 1.0,
+			max: 20.0,
+			endpoint: true,
+		},
+		{
+			name: "uSpeed",
+			type: "float",
+			value: 1.0,
+			min: 0.1,
+			max: 3.0,
+			endpoint: true,
+		},
+		{
+			name: "uColorShift",
+			type: "float",
+			value: 0.0,
+			min: 0.0,
+			max: 6.28,
+			endpoint: true,
+		},
 	],
 	geometry: "plane",
 	tutorial: {

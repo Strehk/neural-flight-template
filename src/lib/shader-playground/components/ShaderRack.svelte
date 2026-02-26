@@ -1,141 +1,152 @@
 <script lang="ts">
-	/**
-	 * ShaderRack — Vertical Accordion + Drag & Drop container.
-	 *
-	 * Three zones inside a single Accordion.Root:
-	 *   1. Fixed zone (top) — header, uniforms, varyings, defines. Static.
-	 *   2. Focus zone (middle) — functions, main, custom. Draggable.
-	 *   3. Control zone (bottom) — LFO, Slider, XY, Color. Interactive.
-	 *
-	 * "+ Add Module" button at the bottom for adding control modules.
-	 */
+/**
+ * ShaderRack — Vertical Accordion + Drag & Drop container.
+ *
+ * Three zones inside a single Accordion.Root:
+ *   1. Fixed zone (top) — header, uniforms, varyings, defines. Static.
+ *   2. Focus zone (middle) — functions, main, custom. Draggable.
+ *   3. Control zone (bottom) — LFO, Slider, XY, Color via RackModule.
+ *
+ * All styling via shader-rack.css — no local <style> block.
+ */
 
-	import { Accordion } from "bits-ui";
-	import { dragHandleZone, TRIGGERS } from "svelte-dnd-action";
-	import { Plus } from "lucide-svelte";
-	import RackModule from "./RackModule.svelte";
-	import RackControlModule from "./RackControlModule.svelte";
-	import StatusBar from "./StatusBar.svelte";
-	import type { RackState } from "../rack/state.svelte";
-	import type { PlaygroundState } from "../playground_state.svelte";
-	import type { UniformDef } from "../types";
-	import type { RackSlot, ControlModuleType } from "../rack/types";
-	import { parseUniforms } from "../uniforms";
+import { Accordion, Popover, ToggleGroup } from "bits-ui";
+import { Plus } from "lucide-svelte";
+import { dragHandleZone, TRIGGERS } from "svelte-dnd-action";
+import type { PlaygroundState } from "../playground_state.svelte";
+import type { RackState } from "../rack/state.svelte";
+import type { ControlModuleType, RackSlot } from "../rack/types";
+import type { UniformDef } from "../types";
+import { parseUniforms } from "../uniforms";
+import ColorModule from "./controls/ColorModule.svelte";
+import LFOModule from "./controls/LFOModule.svelte";
+import SliderModule from "./controls/SliderModule.svelte";
+import XYPadModule from "./controls/XYPadModule.svelte";
+import RackModule from "./RackModule.svelte";
+import StatusBar from "./StatusBar.svelte";
 
-	interface Props {
-		rackState: RackState;
-		pg: PlaygroundState;
+interface Props {
+	rackState: RackState;
+	pg: PlaygroundState;
+}
+
+let { rackState, pg }: Props = $props();
+
+const FLIP_DURATION_MS = 200;
+
+// ── Slot Zones ──
+
+const fixedSlots = $derived(
+	rackState.slots.filter((s) => s.moduleClass === "fixed"),
+);
+
+let focusSlots = $state<RackSlot[]>([]);
+
+$effect(() => {
+	const newFocus = rackState.slots.filter((s) => s.moduleClass !== "fixed");
+	const currentIds = focusSlots.map((s) => s.id).join(",");
+	const newIds = newFocus.map((s) => s.id).join(",");
+	if (currentIds !== newIds) {
+		focusSlots = newFocus;
 	}
+});
 
-	let { rackState, pg }: Props = $props();
+// ── Accordion State ──
 
-	const FLIP_DURATION_MS = 200;
+const openSlotIds = $derived([
+	...rackState.slots.filter((s) => !s.collapsed).map((s) => s.id),
+	...rackState.controlModules.filter((m) => !m.collapsed).map((m) => m.id),
+]);
 
-	// ── Slot Zones ──
-
-	const fixedSlots = $derived(
-		rackState.slots.filter((s) => s.moduleClass === "fixed"),
-	);
-
-	let focusSlots = $state<RackSlot[]>([]);
-
-	$effect(() => {
-		const newFocus = rackState.slots.filter((s) => s.moduleClass === "focus");
-		const currentIds = focusSlots.map((s) => s.id).join(",");
-		const newIds = newFocus.map((s) => s.id).join(",");
-		if (currentIds !== newIds) {
-			focusSlots = newFocus;
-		}
-	});
-
-	// ── Accordion State ──
-
-	const openSlotIds = $derived([
-		...rackState.slots.filter((s) => !s.collapsed).map((s) => s.id),
-		...rackState.controlModules.filter((m) => !m.collapsed).map((m) => m.id),
-	]);
-
-	function handleValueChange(value: string[]): void {
-		for (const slot of rackState.slots) {
-			const shouldBeOpen = value.includes(slot.id);
-			if (slot.collapsed === shouldBeOpen) {
-				rackState.toggleSlotCollapsed(slot.id);
-			}
-		}
-		for (const mod of rackState.controlModules) {
-			const shouldBeOpen = value.includes(mod.id);
-			if (mod.collapsed === shouldBeOpen) {
-				rackState.toggleControlCollapsed(mod.id);
-			}
+function handleValueChange(value: string[]): void {
+	for (const slot of rackState.slots) {
+		const shouldBeOpen = value.includes(slot.id);
+		if (slot.collapsed === shouldBeOpen) {
+			rackState.toggleSlotCollapsed(slot.id);
 		}
 	}
-
-	// ── DnD Handlers ──
-
-	function handleDndConsider(e: CustomEvent<{ items: RackSlot[] }>): void {
-		focusSlots = e.detail.items;
-	}
-
-	function handleDndFinalize(e: CustomEvent<{ items: RackSlot[]; info: { trigger: string } }>): void {
-		focusSlots = e.detail.items;
-		if (e.detail.info.trigger === TRIGGERS.DROPPED_INTO_ZONE) {
-			rackState.reorderSlots(focusSlots);
+	for (const mod of rackState.controlModules) {
+		const shouldBeOpen = value.includes(mod.id);
+		if (mod.collapsed === shouldBeOpen) {
+			rackState.toggleControlCollapsed(mod.id);
 		}
 	}
+}
 
-	// ── Helpers ──
+// ── DnD Handlers ──
 
-	function getEndpointUniforms(code: string): UniformDef[] {
-		return parseUniforms(code).filter((u) => u.endpoint);
+function handleDndConsider(e: CustomEvent<{ items: RackSlot[] }>): void {
+	focusSlots = e.detail.items;
+}
+
+function handleDndFinalize(
+	e: CustomEvent<{ items: RackSlot[]; info: { trigger: string } }>,
+): void {
+	focusSlots = e.detail.items;
+	if (e.detail.info.trigger === TRIGGERS.DROPPED_INTO_ZONE) {
+		rackState.reorderSlots(focusSlots);
 	}
+}
 
-	function globalIndex(slot: RackSlot): number {
-		return rackState.slots.indexOf(slot);
-	}
+// ── Helpers ──
 
-	// Build control sources map: uniform name → module title
-	const controlSources = $derived.by(() => {
-		const map = new Map<string, string>();
-		for (const mod of rackState.controlModules) {
-			if (mod.enabled) {
-				map.set(mod.targetUniform, mod.title);
-			}
+function getEndpointUniforms(code: string): UniformDef[] {
+	return parseUniforms(code).filter((u) => u.endpoint);
+}
+
+function globalIndex(slot: RackSlot): number {
+	return rackState.slots.indexOf(slot);
+}
+
+const controlSources = $derived.by(() => {
+	const map = new Map<string, string>();
+	for (const mod of rackState.controlModules) {
+		if (mod.enabled) {
+			map.set(mod.targetUniform, mod.title);
 		}
-		return map;
-	});
-
-	// ── Add Module ──
-
-	let addMenuOpen = $state(false);
-
-	const CONTROL_TYPES: { type: ControlModuleType; label: string; icon: string }[] = [
-		{ type: "lfo", label: "LFO", icon: "〰" },
-		{ type: "slider", label: "Slider", icon: "─" },
-		{ type: "xy", label: "XY Pad", icon: "✛" },
-		{ type: "color", label: "Color", icon: "◆" },
-	];
-
-	// Available target uniforms from endpoint uniforms
-	const availableTargets = $derived(pg.endpointUniforms.map((u) => u.name));
-
-	let selectedControlType = $state<ControlModuleType>("lfo");
-	let selectedTarget = $state("");
-
-	// Auto-select when only one target available
-	$effect(() => {
-		if (availableTargets.length === 1 && !selectedTarget) {
-			selectedTarget = availableTargets[0];
-		}
-	});
-
-	function handleAddModule(): void {
-		if (!selectedTarget) return;
-		rackState.addControlModule(selectedControlType, selectedTarget);
-		addMenuOpen = false;
-		selectedTarget = "";
 	}
+	return map;
+});
+
+// ── Add Module ──
+
+let addMenuOpen = $state(false);
+
+const CONTROL_TYPES: {
+	type: ControlModuleType;
+	label: string;
+	icon: string;
+}[] = [
+	{ type: "lfo", label: "LFO", icon: "\u301C" },
+	{ type: "slider", label: "Slider", icon: "\u2500" },
+	{ type: "xy", label: "XY Pad", icon: "\u271B" },
+	{ type: "color", label: "Color", icon: "\u25C6" },
+];
+
+const availableTargets = $derived(pg.endpointUniforms.map((u) => u.name));
+
+let selectedControlType = $state<ControlModuleType>("lfo");
+let selectedTarget = $state("");
+
+$effect(() => {
+	if (availableTargets.length === 1 && !selectedTarget) {
+		selectedTarget = availableTargets[0];
+	}
+});
+
+function handleAddModule(): void {
+	if (!selectedTarget) return;
+	rackState.addControlModule(selectedControlType, selectedTarget);
+	addMenuOpen = false;
+	selectedTarget = "";
+}
+
+function handleTypeChange(value: string): void {
+	if (value) selectedControlType = value as ControlModuleType;
+}
 </script>
 
+<div class="sp-rack-wrap">
 <Accordion.Root
 	type="multiple"
 	value={openSlotIds}
@@ -159,7 +170,7 @@
 
 	<!-- Focus Zone (draggable) -->
 	<div
-		class="sp-rack-dnd-zone"
+		class="sp-dnd-zone"
 		use:dragHandleZone={{
 			items: focusSlots,
 			flipDurationMs: FLIP_DURATION_MS,
@@ -191,36 +202,79 @@
 		errorCount={pg.errors.length}
 	/>
 
-	<!-- Control Modules Zone -->
+	<!-- Control Modules Zone (via RackModule + children snippet) -->
 	{#each rackState.controlModules as mod (mod.id)}
-		<RackControlModule
-			module={mod}
+		<RackModule
+			controlMod={mod}
 			onToggleEnabled={rackState.toggleControlEnabled}
 			onRemove={rackState.removeControlModule}
 			onConfigChange={rackState.updateControlConfig}
 			onUniformChange={pg.updateUniform}
-		/>
+		>
+			{#if mod.type === "lfo"}
+				<LFOModule
+					config={mod.config}
+					enabled={mod.enabled}
+					targetUniform={mod.targetUniform}
+					onConfigChange={(c) => rackState.updateControlConfig(mod.id, c)}
+					onUniformChange={pg.updateUniform}
+				/>
+			{:else if mod.type === "xy"}
+				<XYPadModule
+					config={mod.config}
+					enabled={mod.enabled}
+					targetUniform={mod.targetUniform}
+					onConfigChange={(c) => rackState.updateControlConfig(mod.id, c)}
+					onUniformChange={pg.updateUniform}
+				/>
+			{:else if mod.type === "slider"}
+				<SliderModule
+					config={mod.config}
+					enabled={mod.enabled}
+					targetUniform={mod.targetUniform}
+					onConfigChange={(c) => rackState.updateControlConfig(mod.id, c)}
+					onUniformChange={pg.updateUniform}
+				/>
+			{:else if mod.type === "color"}
+				<ColorModule
+					config={mod.config}
+					enabled={mod.enabled}
+					targetUniform={mod.targetUniform}
+					onConfigChange={(c) => rackState.updateControlConfig(mod.id, c)}
+					onUniformChange={pg.updateUniform}
+				/>
+			{/if}
+		</RackModule>
 	{/each}
 </Accordion.Root>
 
-<!-- Add Module Button -->
-<div class="sp-rack-add">
-	{#if addMenuOpen}
-		<div class="sp-add-menu">
+<!-- Add Module Popover -->
+<div class="sp-add">
+	<Popover.Root bind:open={addMenuOpen}>
+		<Popover.Trigger
+			class="sp-add-trigger"
+			disabled={availableTargets.length === 0}
+			title={availableTargets.length === 0 ? "Add @endpoint annotation to a uniform first" : "Add control module"}
+		>
+			<Plus size={14} />
+			Add Module
+		</Popover.Trigger>
+		<Popover.Content class="sp-add-menu" sideOffset={4} side="top">
 			<div class="sp-add-row">
 				<span class="sp-add-label">TYPE</span>
-				<div class="sp-add-types">
+				<ToggleGroup.Root
+					type="single"
+					value={selectedControlType}
+					onValueChange={handleTypeChange}
+					class="sp-add-types"
+				>
 					{#each CONTROL_TYPES as ct (ct.type)}
-						<button
-							class="sp-add-type-btn"
-							class:active={selectedControlType === ct.type}
-							onclick={() => (selectedControlType = ct.type)}
-						>
+						<ToggleGroup.Item value={ct.type}>
 							<span class="sp-add-icon">{ct.icon}</span>
 							{ct.label}
-						</button>
+						</ToggleGroup.Item>
 					{/each}
-				</div>
+				</ToggleGroup.Root>
 			</div>
 
 			<div class="sp-add-row">
@@ -248,182 +302,7 @@
 					Cancel
 				</button>
 			</div>
-		</div>
-	{:else}
-		<button
-			class="sp-add-btn"
-			onclick={() => (addMenuOpen = true)}
-			disabled={availableTargets.length === 0}
-			title={availableTargets.length === 0 ? "Add @endpoint annotation to a uniform first" : "Add control module"}
-		>
-			<Plus size={14} />
-			Add Module
-		</button>
-	{/if}
+		</Popover.Content>
+	</Popover.Root>
 </div>
-
-<style>
-	:global(.sp-rack) {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-		padding: 0.5rem;
-		overflow-y: auto;
-		height: 100%;
-	}
-
-	.sp-rack-dnd-zone {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-
-	/* ── Add Module ── */
-
-	.sp-rack-add {
-		padding: 0.5rem;
-		flex-shrink: 0;
-	}
-
-	.sp-add-btn {
-		all: unset;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: var(--space-xs);
-		width: 100%;
-		padding: var(--space-sm);
-		border: 1px dashed var(--border);
-		color: var(--text-muted);
-		font-family: var(--font-mono);
-		font-size: 0.75rem;
-		cursor: pointer;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		box-sizing: border-box;
-	}
-
-	.sp-add-btn:hover:not(:disabled) {
-		border-color: var(--accent-muted);
-		color: var(--accent);
-	}
-
-	.sp-add-btn:disabled {
-		opacity: 0.35;
-		cursor: not-allowed;
-	}
-
-	.sp-add-menu {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-sm);
-		padding: var(--space-sm);
-		border: 1px solid var(--accent-muted);
-		background: var(--surface);
-	}
-
-	.sp-add-row {
-		display: flex;
-		align-items: center;
-		gap: var(--space-sm);
-	}
-
-	.sp-add-label {
-		font-size: 0.5625rem;
-		font-family: var(--font-mono);
-		color: var(--text-subtle);
-		text-transform: uppercase;
-		min-width: 3rem;
-		flex-shrink: 0;
-	}
-
-	.sp-add-types {
-		display: flex;
-		gap: 2px;
-		flex-wrap: wrap;
-	}
-
-	.sp-add-type-btn {
-		all: unset;
-		font-size: 0.625rem;
-		font-family: var(--font-mono);
-		padding: 3px 8px;
-		background: var(--border);
-		color: var(--text-muted);
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		gap: 4px;
-	}
-
-	.sp-add-type-btn:hover {
-		color: var(--text);
-	}
-
-	.sp-add-type-btn.active {
-		background: var(--accent-muted);
-		color: var(--text);
-	}
-
-	.sp-add-icon {
-		font-size: 0.75rem;
-	}
-
-	.sp-add-select {
-		flex: 1;
-		background: var(--bg);
-		border: 1px solid var(--border);
-		color: var(--text);
-		font-family: var(--font-mono);
-		font-size: 0.625rem;
-		padding: 4px 8px;
-	}
-
-	.sp-add-hint {
-		font-size: 0.5625rem;
-		font-family: var(--font-mono);
-		color: var(--text-subtle);
-		font-style: italic;
-	}
-
-	.sp-add-actions {
-		display: flex;
-		gap: var(--space-xs);
-	}
-
-	.sp-add-confirm {
-		all: unset;
-		font-size: 0.625rem;
-		font-family: var(--font-mono);
-		padding: 4px 12px;
-		background: var(--accent-muted);
-		color: var(--text);
-		cursor: pointer;
-		text-transform: uppercase;
-	}
-
-	.sp-add-confirm:disabled {
-		opacity: 0.4;
-		cursor: not-allowed;
-	}
-
-	.sp-add-confirm:not(:disabled):hover {
-		background: var(--accent);
-		color: var(--bg);
-	}
-
-	.sp-add-cancel {
-		all: unset;
-		font-size: 0.625rem;
-		font-family: var(--font-mono);
-		padding: 4px 12px;
-		background: var(--border);
-		color: var(--text-muted);
-		cursor: pointer;
-		text-transform: uppercase;
-	}
-
-	.sp-add-cancel:hover {
-		color: var(--text);
-	}
-</style>
+</div>

@@ -127,3 +127,14 @@
 	min-height: 0;
 }
 
+.sp-preview-container {
+	width: 100%;
+	height: 100%;
+	position: relative;
+}
+
+.sp-preview-container canvas {
+	display: block;
+	width: 100%;
+	height: 100%;
+}

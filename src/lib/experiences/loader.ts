@@ -94,10 +94,7 @@ function applySceneDefaults(config: SceneConfig, scene: THREE.Scene): void {
 	const ambient = new THREE.AmbientLight(0xffffff, config.ambientIntensity);
 	scene.add(ambient);
 
-	const sun = new THREE.DirectionalLight(
-		config.sunColor,
-		config.sunIntensity,
-	);
+	const sun = new THREE.DirectionalLight(config.sunColor, config.sunIntensity);
 	sun.position.set(
 		config.sunPosition.x,
 		config.sunPosition.y,
@@ -106,7 +103,10 @@ function applySceneDefaults(config: SceneConfig, scene: THREE.Scene): void {
 	scene.add(sun);
 }
 
-function setupCamera(config: CameraConfig, camera: THREE.PerspectiveCamera): void {
+function setupCamera(
+	config: CameraConfig,
+	camera: THREE.PerspectiveCamera,
+): void {
 	camera.fov = config.fov;
 	camera.near = config.near;
 	camera.far = config.far;

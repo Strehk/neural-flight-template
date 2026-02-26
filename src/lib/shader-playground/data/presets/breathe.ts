@@ -1,5 +1,5 @@
-import type { PresetDef } from "../../types";
 import fragmentShader from "../../shaders/presets/breathe.frag?raw";
+import type { PresetDef } from "../../types";
 
 export const PRESET_BREATHE: PresetDef = {
 	id: "breathe",
@@ -11,9 +11,29 @@ export const PRESET_BREATHE: PresetDef = {
 	fragmentShader,
 	vertexShader: null,
 	uniforms: [
-		{ name: "uBreathRate", type: "float", value: 0.3, min: 0.1, max: 2.0, endpoint: true },
-		{ name: "uPulseDepth", type: "float", value: 0.5, min: 0, max: 1, endpoint: true },
-		{ name: "uBaseColor", type: "vec3", value: [0.2, 0.53, 1.0], endpoint: true, color: true },
+		{
+			name: "uBreathRate",
+			type: "float",
+			value: 0.3,
+			min: 0.1,
+			max: 2.0,
+			endpoint: true,
+		},
+		{
+			name: "uPulseDepth",
+			type: "float",
+			value: 0.5,
+			min: 0,
+			max: 1,
+			endpoint: true,
+		},
+		{
+			name: "uBaseColor",
+			type: "vec3",
+			value: [0.2, 0.53, 1.0],
+			endpoint: true,
+			color: true,
+		},
 	],
 	geometry: "sphere",
 	tutorial: {

@@ -58,4 +58,3 @@ export const COMPONENT_LFO: SignalDef = {
 		};
 	},
 };
-

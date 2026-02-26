@@ -5,8 +5,9 @@
  * Reads `data.out` (output port) for display.
  * Writes to engine via `signalGraph.setInput()` on user drag.
  */
-import { signalGraph } from "../graph/engine";
+
 import { Slider, ValueDisplay } from "../controls";
+import { signalGraph } from "../graph/engine";
 
 interface Props {
 	id: string;

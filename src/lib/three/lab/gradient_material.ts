@@ -93,7 +93,9 @@ void main() {
 }
 
 /** Create a ShaderMaterial with a multi-stop gradient. */
-export function createGradientMaterial(config: GradientConfig): THREE.ShaderMaterial {
+export function createGradientMaterial(
+	config: GradientConfig,
+): THREE.ShaderMaterial {
 	const { direction, opacity, transparent } = { ...DEFAULTS, ...config };
 	const { colors } = config;
 

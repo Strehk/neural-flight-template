@@ -5,8 +5,9 @@
  * Reads `data.wave` (output port) for animation.
  * Speed slider updates engine state directly via setLfoSpeed().
  */
-import { signalGraph } from "../graph/engine";
+
 import { Slider, ValueDisplay, WaveBar } from "../controls";
+import { signalGraph } from "../graph/engine";
 import { setLfoSpeed } from "./lfo_ui";
 
 interface Props {

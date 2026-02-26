@@ -8,9 +8,11 @@
 
 import { Mountain } from "lucide-svelte";
 import type { ComponentType } from "svelte";
-import { getActiveExperience } from "$lib/experiences/loader";
 import { getExperience } from "$lib/experiences/catalog";
-import { getActiveExperienceId } from "$lib/experiences/loader";
+import {
+	getActiveExperience,
+	getActiveExperienceId,
+} from "$lib/experiences/loader";
 import type { ParameterDef } from "$lib/experiences/types";
 import { resolveIcon } from "./icon-map";
 
@@ -76,8 +78,9 @@ export function isVRParameter(key: string): boolean {
 
 // Re-export for backward compatibility — consumers that imported PARAMETER_PRESETS
 // should migrate to getParameterPresets() but this keeps existing code working
-export const PARAMETER_PRESETS: Record<string, ParameterPreset> =
-	new Proxy({} as Record<string, ParameterPreset>, {
+export const PARAMETER_PRESETS: Record<string, ParameterPreset> = new Proxy(
+	{} as Record<string, ParameterPreset>,
+	{
 		get(_target, prop: string) {
 			return getParameterPresets()[prop];
 		},
@@ -94,4 +97,5 @@ export const PARAMETER_PRESETS: Record<string, ParameterPreset> =
 		has(_target, prop: string) {
 			return prop in getParameterPresets();
 		},
-	});
+	},
+);

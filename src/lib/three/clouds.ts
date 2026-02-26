@@ -122,10 +122,11 @@ export function updateClouds(
 	driftSpeed?: number,
 ): void {
 	const spread = (clouds.userData.spread as number) ?? DEFAULTS.spread;
-	const direction = (clouds.userData.driftDirection as {
-		x: number;
-		z: number;
-	}) ?? DEFAULTS.driftDirection;
+	const direction =
+		(clouds.userData.driftDirection as {
+			x: number;
+			z: number;
+		}) ?? DEFAULTS.driftDirection;
 	const speed =
 		driftSpeed ?? (clouds.userData.driftSpeed as number) ?? DEFAULTS.driftSpeed;
 
@@ -137,12 +138,10 @@ export function updateClouds(
 		cloud.position.x += dx;
 		cloud.position.z += dz;
 
-		if (cloud.position.x - playerPos.x > spread)
-			cloud.position.x -= spread * 2;
+		if (cloud.position.x - playerPos.x > spread) cloud.position.x -= spread * 2;
 		if (cloud.position.x - playerPos.x < -spread)
 			cloud.position.x += spread * 2;
-		if (cloud.position.z - playerPos.z > spread)
-			cloud.position.z -= spread * 2;
+		if (cloud.position.z - playerPos.z > spread) cloud.position.z -= spread * 2;
 		if (cloud.position.z - playerPos.z < -spread)
 			cloud.position.z += spread * 2;
 	}

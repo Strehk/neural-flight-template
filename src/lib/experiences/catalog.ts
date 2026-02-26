@@ -1,5 +1,5 @@
-import type { ExperienceManifest } from "./types";
 import { manifest as mountainFlight } from "./mountain-flight";
+import type { ExperienceManifest } from "./types";
 
 // ── Registry ──
 //
@@ -20,9 +20,7 @@ export function getExperience(id: string): ExperienceManifest {
 	const exp = CATALOG[id];
 	if (!exp) {
 		const available = Object.keys(CATALOG).join(", ");
-		throw new Error(
-			`Experience "${id}" not found. Available: [${available}]`,
-		);
+		throw new Error(`Experience "${id}" not found. Available: [${available}]`);
 	}
 	return exp;
 }

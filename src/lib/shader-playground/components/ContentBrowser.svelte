@@ -1,72 +1,74 @@
 <script lang="ts">
-	/**
-	 * ContentBrowser — Popover panel for Templates, Presets, and Saved modules.
-	 *
-	 * Replaces the permanent sidebar sections with a "load once" pattern.
-	 * Opens from a header button (like Reason's Patch Browser).
-	 */
+/**
+ * ContentBrowser — Popover panel for Templates, Presets, and Saved modules.
+ *
+ * Replaces the permanent sidebar sections with a "load once" pattern.
+ * Opens from a header button (like Reason's Patch Browser).
+ */
 
-	import { Popover } from "bits-ui";
-	import { Palette } from "lucide-svelte";
-	import { TEMPLATES } from "../templates";
-	import { SNIPPETS, SNIPPET_CATEGORIES } from "../snippets";
-	import { PRESETS } from "../data/presets/index";
-	import { ShaderButton } from "../controls/index";
-	import { difficultyColor, difficultyLabel } from "../difficulty";
-	import type { UniformDef, ShaderModule, PresetDef } from "../types";
+import { Popover } from "bits-ui";
+import { Palette } from "lucide-svelte";
+import { ShaderButton } from "../controls/index";
+import { PRESETS } from "../data/presets/index";
+import { difficultyColor, difficultyLabel } from "../difficulty";
+import { SNIPPET_CATEGORIES, SNIPPETS } from "../snippets";
+import { TEMPLATES } from "../templates";
+import type { PresetDef, ShaderModule, UniformDef } from "../types";
 
-	interface Props {
-		ontemplate: (value: string) => void;
-		onpreset: (preset: PresetDef) => void;
-		savedModules: ShaderModule[];
-		onloadmodule: (mod: ShaderModule) => void;
-		ondeletemodule: (id: string) => void;
-		onsave: () => void;
-		onexport: () => void;
-		onimport: () => void;
-		oninsert: (code: string, requiredUniforms?: UniformDef[]) => void;
-	}
+interface Props {
+	ontemplate: (value: string) => void;
+	onpreset: (preset: PresetDef) => void;
+	savedModules: ShaderModule[];
+	onloadmodule: (mod: ShaderModule) => void;
+	ondeletemodule: (id: string) => void;
+	onsave: () => void;
+	onexport: () => void;
+	onimport: () => void;
+	oninsert: (code: string, requiredUniforms?: UniformDef[]) => void;
+}
 
-	let {
-		ontemplate,
-		onpreset,
-		savedModules,
-		onloadmodule,
-		ondeletemodule,
-		onsave,
-		onexport,
-		onimport,
-		oninsert,
-	}: Props = $props();
+let {
+	ontemplate,
+	onpreset,
+	savedModules,
+	onloadmodule,
+	ondeletemodule,
+	onsave,
+	onexport,
+	onimport,
+	oninsert,
+}: Props = $props();
 
-	let activeSection = $state<"templates" | "presets" | "saved" | "snippets">("templates");
+let activeSection = $state<"templates" | "presets" | "saved" | "snippets">(
+	"templates",
+);
 
-	// ── Preset filter ──
-	let presetFilter = $state<"all" | 1 | 2 | 3>("all");
+// ── Preset filter ──
+let presetFilter = $state<"all" | 1 | 2 | 3>("all");
 
-	const filteredPresets = $derived(
-		presetFilter === "all"
-			? PRESETS
-			: PRESETS.filter((p) => p.difficulty === presetFilter),
-	);
+const filteredPresets = $derived(
+	presetFilter === "all"
+		? PRESETS
+		: PRESETS.filter((p) => p.difficulty === presetFilter),
+);
 
-	// ── Snippet search ──
-	let snippetSearch = $state("");
+// ── Snippet search ──
+let snippetSearch = $state("");
 
-	const filteredSnippets = $derived(
-		snippetSearch.trim()
-			? SNIPPETS.filter(
-					(s) =>
-						s.name.toLowerCase().includes(snippetSearch.toLowerCase()) ||
-						s.description.toLowerCase().includes(snippetSearch.toLowerCase()) ||
-						s.category.toLowerCase().includes(snippetSearch.toLowerCase()),
-				)
-			: SNIPPETS,
-	);
+const filteredSnippets = $derived(
+	snippetSearch.trim()
+		? SNIPPETS.filter(
+				(s) =>
+					s.name.toLowerCase().includes(snippetSearch.toLowerCase()) ||
+					s.description.toLowerCase().includes(snippetSearch.toLowerCase()) ||
+					s.category.toLowerCase().includes(snippetSearch.toLowerCase()),
+			)
+		: SNIPPETS,
+);
 
-	function snippetsForCategory(category: string) {
-		return filteredSnippets.filter((s) => s.category === category);
-	}
+function snippetsForCategory(category: string) {
+	return filteredSnippets.filter((s) => s.category === category);
+}
 </script>
 
 <Popover.Root>
@@ -200,202 +202,3 @@
 	</Popover.Content>
 </Popover.Root>
 
-<style>
-	/* ── Trigger ── */
-
-	:global(.sp-cb-trigger) {
-		all: unset;
-		display: flex;
-		align-items: center;
-		color: var(--text-subtle);
-		cursor: pointer;
-		padding: 2px 4px;
-	}
-
-	:global(.sp-cb-trigger:hover) {
-		color: var(--text-muted);
-	}
-
-	/* ── Panel ── */
-
-	:global(.sp-cb-panel) {
-		width: 320px;
-		max-height: 480px;
-		background: var(--bg);
-		border: 1px solid var(--border);
-		display: flex;
-		flex-direction: column;
-		z-index: 50;
-	}
-
-	/* ── Tabs ── */
-
-	.sp-cb-tabs {
-		display: flex;
-		border-bottom: 1px solid var(--border-subtle);
-		flex-shrink: 0;
-	}
-
-	.sp-cb-tab {
-		all: unset;
-		flex: 1;
-		text-align: center;
-		padding: 0.4rem 0.25rem;
-		font-size: 0.625rem;
-		font-family: var(--font-mono);
-		color: var(--text-subtle);
-		cursor: pointer;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-	}
-
-	.sp-cb-tab:hover {
-		color: var(--text-muted);
-	}
-
-	.sp-cb-tab.active {
-		color: var(--accent);
-		border-bottom: 1px solid var(--accent);
-	}
-
-	/* ── Body ── */
-
-	.sp-cb-body {
-		overflow-y: auto;
-		padding: 0.5rem;
-		flex: 1;
-		min-height: 0;
-	}
-
-	/* ── Items ── */
-
-	.sp-cb-item {
-		all: unset;
-		display: flex;
-		flex-direction: column;
-		gap: 0.1rem;
-		width: 100%;
-		padding: 0.35rem 0.4rem;
-		cursor: pointer;
-		font-family: var(--font-main);
-		box-sizing: border-box;
-		border-radius: var(--radius-sm);
-	}
-
-	.sp-cb-item:hover {
-		background: var(--surface);
-	}
-
-	.sp-cb-name {
-		font-size: 0.7rem;
-		color: var(--text-muted);
-		font-weight: 500;
-	}
-
-	.sp-cb-desc {
-		font-size: 0.6rem;
-		color: var(--text-subtle);
-	}
-
-	.sp-cb-effect {
-		font-size: 0.6rem;
-		color: var(--accent);
-	}
-
-	.sp-cb-preset-top {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-	}
-
-	.sp-cb-badge {
-		font-size: 0.5rem;
-		padding: 0.05rem 0.25rem;
-		border-radius: var(--radius-sm);
-		color: var(--bg);
-		font-weight: 600;
-	}
-
-	/* ── Filters ── */
-
-	.sp-cb-filters {
-		display: flex;
-		gap: var(--space-xs);
-		margin-bottom: 0.4rem;
-		flex-wrap: wrap;
-	}
-
-	/* ── Actions ── */
-
-	.sp-cb-actions {
-		display: flex;
-		gap: var(--space-xs);
-		margin-bottom: 0.4rem;
-	}
-
-	.sp-cb-hint {
-		font-size: 0.65rem;
-		color: var(--text-subtle);
-		margin: var(--space-xs) 0;
-	}
-
-	/* ── Saved ── */
-
-	.sp-cb-saved-row {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: 0.3rem 0;
-		gap: var(--space-xs);
-	}
-
-	.sp-cb-saved-row + .sp-cb-saved-row {
-		border-top: 1px solid var(--border-subtle);
-	}
-
-	.sp-cb-saved-info {
-		display: flex;
-		flex-direction: column;
-		gap: 0.05rem;
-		min-width: 0;
-	}
-
-	.sp-cb-saved-actions {
-		display: flex;
-		gap: var(--space-xs);
-		flex-shrink: 0;
-	}
-
-	/* ── Snippets ── */
-
-	.sp-cb-search {
-		width: 100%;
-		background: var(--surface);
-		color: var(--text-muted);
-		border: 1px solid var(--border-subtle);
-		border-radius: var(--radius-sm);
-		padding: var(--space-xs);
-		font-size: 0.7rem;
-		font-family: var(--font-main);
-		outline: none;
-		box-sizing: border-box;
-		margin-bottom: var(--space-xs);
-	}
-
-	.sp-cb-search::placeholder {
-		color: var(--text-subtle);
-	}
-
-	.sp-cb-snippet-cat {
-		margin-bottom: var(--space-xs);
-	}
-
-	.sp-cb-cat-label {
-		display: block;
-		text-transform: capitalize;
-		font-weight: 600;
-		font-size: 0.65rem;
-		color: var(--text-subtle);
-		padding: var(--space-xs) 0 0.1rem;
-	}
-</style>

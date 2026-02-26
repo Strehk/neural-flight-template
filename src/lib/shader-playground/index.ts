@@ -2,19 +2,12 @@
  * Shader Playground — Barrel Export
  */
 
-// Types
-export type {
-	GeometryType,
-	UniformType,
-	UniformDef,
-	ShaderError,
-	ShaderModule,
-	PresetDef,
-	SnippetCategory,
-	ShaderSnippet,
-	ShaderTemplate,
-	PlaygroundRenderer,
-} from "./types";
+// Presets
+export {
+	getPresetById,
+	getPresetsByDifficulty,
+	PRESETS,
+} from "./data/presets/index";
 
 // Engine (Renderer + Compiler)
 export {
@@ -24,32 +17,41 @@ export {
 	parseShaderErrors,
 	testCompileShader,
 } from "./engine/index";
-
-// Uniforms
-export { parseUniforms, parseEndpointAnnotation } from "./uniforms";
-
+export type { EditorTab, PlaygroundState } from "./playground_state.svelte";
+// Playground State
+export { createPlaygroundState } from "./playground_state.svelte";
 // Shadertoy Compat
 export { isShadertoyFormat, wrapShadertoyCode } from "./shadertoy_compat";
 
-// Templates
-export { TEMPLATES, getTemplateById } from "./templates";
-
 // Snippets
-export { SNIPPETS, SNIPPET_CATEGORIES, getSnippetsByCategory } from "./snippets";
-
-// Presets
-export { PRESETS, getPresetById, getPresetsByDifficulty } from "./data/presets/index";
-
+export {
+	getSnippetsByCategory,
+	SNIPPET_CATEGORIES,
+	SNIPPETS,
+} from "./snippets";
 // Store
 export {
-	saveModule,
-	loadModules,
 	deleteModule,
 	exportModuleJSON,
-	importModuleJSON,
 	generateId,
+	importModuleJSON,
+	loadModules,
+	saveModule,
 } from "./store";
-
-// Playground State
-export { createPlaygroundState } from "./playground_state.svelte";
-export type { PlaygroundState, EditorTab } from "./playground_state.svelte";
+// Templates
+export { getTemplateById, TEMPLATES } from "./templates";
+// Types
+export type {
+	GeometryType,
+	PlaygroundRenderer,
+	PresetDef,
+	ShaderError,
+	ShaderModule,
+	ShaderSnippet,
+	ShaderTemplate,
+	SnippetCategory,
+	UniformDef,
+	UniformType,
+} from "./types";
+// Uniforms
+export { parseEndpointAnnotation, parseUniforms } from "./uniforms";

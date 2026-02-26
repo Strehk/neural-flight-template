@@ -1,154 +1,270 @@
 <script lang="ts">
-	/**
-	 * RackModule — Single module in the Shader Rack.
-	 *
-	 * Fixed modules: Compact header (chevron + title + count only)
-	 * Focus modules: Prominent header (drag handle + LED + badge + bypass)
-	 */
+/**
+ * RackModule — Universal module in the Shader Rack.
+ *
+ * Renders both code modules (fixed/focus/main) and control modules.
+ * All styling via shader-rack.css — no local <style> block.
+ *
+ * Code modules: pass `slot` prop → renders SlotCodeEditor + footer.
+ * Control modules: pass `controlMod` prop + children snippet → renders custom body.
+ */
 
-	import { Accordion, Switch } from "bits-ui";
-	import { dragHandle } from "svelte-dnd-action";
-	import { ChevronDown } from "lucide-svelte";
-	import SlotCodeEditor from "./SlotCodeEditor.svelte";
-	import SlotUniformWidgets from "./SlotUniformWidgets.svelte";
-	import type { RackSlot } from "../rack/types";
-	import type { ShaderError, UniformDef } from "../types";
+import { Accordion, Switch } from "bits-ui";
+import { ChevronDown, X } from "lucide-svelte";
+import type { Snippet } from "svelte";
+import { dragHandle } from "svelte-dnd-action";
+import type {
+	ColorConfig,
+	ControlConfig,
+	LFOConfig,
+	RackControlModule,
+	RackSlot,
+	SliderConfig,
+	XYConfig,
+} from "../rack/types";
+import type { ShaderError, UniformDef } from "../types";
+import SlotCodeEditor from "./SlotCodeEditor.svelte";
+import SlotUniformWidgets from "./SlotUniformWidgets.svelte";
 
-	interface Props {
-		slot: RackSlot;
-		slotIndex: number;
-		slotErrors: ShaderError[];
-		onCodeChange: (slotId: string, code: string) => void;
-		onToggleEnabled: (slotId: string) => void;
-		onUniformChange: (name: string, value: number | number[] | boolean) => void;
-		parsedUniforms?: UniformDef[];
-		liveValues?: Map<string, number | number[]>;
-		controlSources?: Map<string, string>;
+interface Props {
+	// Code module (optional — provide either slot OR controlMod)
+	slot?: RackSlot;
+	slotIndex?: number;
+	slotErrors?: ShaderError[];
+	onCodeChange?: (slotId: string, code: string) => void;
+	parsedUniforms?: UniformDef[];
+	liveValues?: Map<string, number | number[]>;
+	controlSources?: Map<string, string>;
+
+	// Control module (optional)
+	controlMod?: RackControlModule;
+	onRemove?: (id: string) => void;
+	onConfigChange?: (id: string, config: ControlConfig) => void;
+
+	// Shared
+	onToggleEnabled: (id: string) => void;
+	onUniformChange?: (name: string, value: number | number[] | boolean) => void;
+
+	// Custom body content (used for control modules)
+	children?: Snippet;
+}
+
+let {
+	slot,
+	slotIndex = 0,
+	slotErrors = [],
+	onCodeChange,
+	parsedUniforms = [],
+	liveValues,
+	controlSources,
+	controlMod,
+	onRemove,
+	onConfigChange,
+	onToggleEnabled,
+	onUniformChange,
+	children,
+}: Props = $props();
+
+// ── Derived State ──
+
+const isControl = $derived(!!controlMod);
+const moduleId = $derived(slot?.id ?? controlMod?.id ?? "");
+const moduleType = $derived(
+	isControl ? "control" : (slot?.moduleClass ?? "fixed"),
+);
+const title = $derived(slot?.title ?? controlMod?.title ?? "");
+const enabled = $derived(slot?.enabled ?? controlMod?.enabled ?? true);
+const isFixed = $derived(moduleType === "fixed");
+const isMain = $derived(moduleType === "main");
+const canBypass = $derived(moduleType === "focus" || isControl);
+const hasErrors = $derived(slotErrors.length > 0);
+
+const ledStatus = $derived.by(() => {
+	if (!enabled) return "bypassed";
+	if (hasErrors) return "error";
+	return "active";
+});
+
+const slotNumber = $derived(String(slotIndex + 1).padStart(2, "0"));
+
+const fixedCount = $derived.by(() => {
+	if (!isFixed || !slot) return "";
+	const outputs = extractOutputs(slot.code);
+	if (outputs.length > 0) return `${outputs.length} vars`;
+	const lines = slot.code.split("\n").filter((l) => l.trim().length > 0).length;
+	return `${lines} lines`;
+});
+
+const headerTags = $derived(slot?.tags ?? []);
+
+// Control module helpers
+const CTRL_ICONS: Record<string, string> = {
+	lfo: "\u301C",
+	slider: "\u2500",
+	xy: "\u271B",
+	color: "\u25C6",
+};
+
+const previewValue = $derived.by(() => {
+	if (!controlMod) return "";
+	switch (controlMod.type) {
+		case "lfo": {
+			const c = controlMod.config as LFOConfig;
+			return `${c.waveform.slice(0, 3).toUpperCase()} ${c.rate.toFixed(1)}Hz`;
+		}
+		case "slider": {
+			const c = controlMod.config as SliderConfig;
+			return c.value.toFixed(3);
+		}
+		case "xy": {
+			const c = controlMod.config as XYConfig;
+			return `${c.x.toFixed(2)}, ${c.y.toFixed(2)}`;
+		}
+		case "color": {
+			const c = controlMod.config as ColorConfig;
+			return c.hex;
+		}
+		default:
+			return "";
 	}
-
-	let {
-		slot,
-		slotIndex,
-		slotErrors,
-		onCodeChange,
-		onToggleEnabled,
-		onUniformChange,
-		parsedUniforms = [],
-		liveValues,
-		controlSources,
-	}: Props = $props();
-
-	const isMain = $derived(slot.type === "main");
-	const isFixed = $derived(slot.moduleClass === "fixed");
-	const canBypass = $derived(slot.moduleClass === "focus" && !isMain);
-	const hasErrors = $derived(slotErrors.length > 0);
-
-	// Status LED for focus modules: error = red, active = green, bypassed = dim
-	const ledStatus = $derived.by(() => {
-		if (!slot.enabled) return "bypassed";
-		if (hasErrors) return "error";
-		return "active";
-	});
-
-	// Count for fixed modules (lines of meaningful code)
-	const fixedCount = $derived.by(() => {
-		if (!isFixed) return "";
-		const outputs = extractOutputs(slot.code);
-		if (outputs.length > 0) return `${outputs.length} vars`;
-		const lines = slot.code.split("\n").filter((l) => l.trim().length > 0).length;
-		return `${lines} lines`;
-	});
+});
 </script>
 
 <Accordion.Item
-	value={slot.id}
-	class="sp-rack-module"
-	data-bypassed={!slot.enabled}
-	data-module-class={slot.moduleClass}
+	value={moduleId}
+	class="sp-module"
+	data-module={moduleType}
+	data-bypassed={!enabled}
 >
 	<!-- ── Header ── -->
 	<Accordion.Header>
-		<Accordion.Trigger class="sp-rack-header" data-header-class={slot.moduleClass}>
-			{#if isFixed}
-				<!-- Fixed: Compact — just chevron + title + count -->
-				<span class="sp-rack-chevron">
-					<ChevronDown size={12} />
+		<Accordion.Trigger class="sp-header" data-header={moduleType}>
+			{#if isControl && controlMod}
+				<!-- Control: icon + chevron + title + LED + preview + target + spacer + switch + remove -->
+				<span class="sp-ctrl-icon">{CTRL_ICONS[controlMod.type] ?? "\u25CF"}</span>
+				<span class="sp-chevron"><ChevronDown size={12} /></span>
+				<span class="sp-title" data-module="control">{title}</span>
+				<span class="sp-led" data-status={enabled ? "active" : "bypassed"}></span>
+				<span class="sp-ctrl-preview">{previewValue}</span>
+				<span class="sp-ctrl-target">&rarr; {controlMod.targetUniform}</span>
+				<span class="sp-spacer"></span>
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
+				<span class="sp-switch-wrap" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
+					<Switch.Root
+						checked={enabled}
+						onCheckedChange={() => onToggleEnabled(moduleId)}
+						class="sp-switch"
+					>
+						<Switch.Thumb class="sp-switch-thumb" />
+					</Switch.Root>
 				</span>
-				<span class="sp-rack-title" data-module-class="fixed">{slot.title}</span>
-				<span class="sp-rack-spacer"></span>
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
+				<span
+					class="sp-ctrl-remove"
+					onclick={(e) => { e.stopPropagation(); onRemove?.(moduleId); }}
+					onkeydown={(e) => e.stopPropagation()}
+					title="Remove module"
+				>
+					<X size={11} />
+				</span>
+
+			{:else if isFixed && slot}
+				<!-- Fixed: slot# + chevron + title + tags + count -->
+				<span class="sp-slot-num">{slotNumber}</span>
+				<span class="sp-chevron"><ChevronDown size={12} /></span>
+				<span class="sp-title" data-module="fixed">{title}</span>
+				{#if headerTags.length > 0}
+					{@const systemCount = headerTags.filter((t) => t.variant === "system").length}
+					{@const endpointCount = headerTags.filter((t) => t.variant === "endpoint").length}
+					{#if systemCount > 0}
+						<span class="sp-tag" data-variant="system">system</span>
+					{/if}
+					{#if endpointCount > 0}
+						<span class="sp-tag" data-variant="endpoint">endpoint</span>
+					{/if}
+				{/if}
+				<span class="sp-spacer"></span>
 				{#if hasErrors}
-					<span class="sp-rack-error-count">{slotErrors.length}</span>
+					<span class="sp-error-count">{slotErrors.length}</span>
 				{/if}
 				<span class="sp-fixed-count">{fixedCount}</span>
-			{:else}
-				<!-- Focus: Full header — drag handle + chevron + title + LED + badge + bypass -->
-				<span class="sp-rack-port" use:dragHandle>●</span>
 
-				<span class="sp-rack-chevron">
-					<ChevronDown size={14} />
-				</span>
-
-				<span class="sp-rack-title" data-module-class="focus">{slot.title}</span>
-
-				<span class="sp-rack-led" data-status={ledStatus}></span>
-
-				<span class="sp-rack-class-badge">
+			{:else if slot}
+				<!-- Focus/Main: port + slot# + chevron + title + LED + badge + spacer + switch + port -->
+				<span class="sp-port" use:dragHandle>&#x25CF;</span>
+				<span class="sp-slot-num">{slotNumber}</span>
+				<span class="sp-chevron"><ChevronDown size={14} /></span>
+				<span class="sp-title" data-module={moduleType}>{title}</span>
+				<span class="sp-led" data-status={ledStatus}></span>
+				<span class="sp-class-badge">
 					{isMain ? "MAIN" : slot.type.toUpperCase()}
 				</span>
-
-				<span class="sp-rack-spacer"></span>
-
+				<span class="sp-spacer"></span>
 				{#if hasErrors}
-					<span class="sp-rack-error-count">{slotErrors.length}</span>
+					<span class="sp-error-count">{slotErrors.length}</span>
 				{/if}
-
 				{#if canBypass}
 					<!-- svelte-ignore a11y_no_static_element_interactions -->
-					<span class="sp-rack-switch-wrap" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
+					<span class="sp-switch-wrap" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
 						<Switch.Root
-							checked={slot.enabled}
-							onCheckedChange={() => onToggleEnabled(slot.id)}
-							class="sp-rack-switch"
+							checked={enabled}
+							onCheckedChange={() => onToggleEnabled(moduleId)}
+							class="sp-switch"
 						>
-							<Switch.Thumb class="sp-rack-switch-thumb" />
+							<Switch.Thumb class="sp-switch-thumb" />
 						</Switch.Root>
 					</span>
 				{/if}
-
-				<span class="sp-rack-port" use:dragHandle>●</span>
+				<span class="sp-port" use:dragHandle>&#x25CF;</span>
 			{/if}
 		</Accordion.Trigger>
 	</Accordion.Header>
 
 	<!-- ── Body ── -->
-	<Accordion.Content class="sp-rack-body">
-		<SlotCodeEditor
-			code={slot.code}
-			errors={slotErrors}
-			editable={slot.editable}
-			{liveValues}
-			{controlSources}
-			onchange={(code) => onCodeChange(slot.id, code)}
-		/>
-		{#if parsedUniforms.length > 0}
-			<SlotUniformWidgets
-				uniforms={parsedUniforms}
-				onchange={onUniformChange}
+	<Accordion.Content class="sp-body">
+		{#if children}
+			<div class="sp-ctrl-body">
+				{@render children()}
+			</div>
+		{:else if slot}
+			<SlotCodeEditor
+				code={slot.code}
+				errors={slotErrors}
+				editable={slot.editable}
+				{liveValues}
+				{controlSources}
+				onchange={(code) => onCodeChange?.(slot.id, code)}
 			/>
+			{#if parsedUniforms.length > 0 && onUniformChange}
+				<SlotUniformWidgets
+					uniforms={parsedUniforms}
+					onchange={onUniformChange}
+				/>
+			{/if}
 		{/if}
 	</Accordion.Content>
 
-	<!-- ── Footer (focus only) ── -->
-	{#if !isFixed}
+	<!-- ── Footer (code modules only) ── -->
+	{#if slot && !isControl}
 		{@const outputs = extractOutputs(slot.code)}
-		<div class="sp-rack-footer">
-			{#if outputs.length > 0}
-				<span class="sp-rack-footer-label">OUTPUTS</span>
-				{#each outputs as name (name)}
-					<span class="sp-rack-io-tag">{name}</span>
+		{@const inputs = extractInputs(slot.code)}
+		<div class="sp-footer">
+			<span class="sp-footer-label">IN</span>
+			{#if inputs.length > 0}
+				{#each inputs as name (name)}
+					<span class="sp-io-tag">{name}</span>
 				{/each}
 			{:else}
-				<span class="sp-rack-footer-label">{slot.type}</span>
+				<span class="sp-io-none">--</span>
+			{/if}
+			<span class="sp-footer-sep">&vert;</span>
+			<span class="sp-footer-label">OUT</span>
+			{#if outputs.length > 0}
+				{#each outputs as name (name)}
+					<span class="sp-io-tag">{name}</span>
+				{/each}
+			{:else}
+				<span class="sp-io-none">--</span>
 			{/if}
 		</div>
 	{/if}
@@ -165,259 +281,25 @@
 		}
 		return names;
 	}
+
+	function extractInputs(code: string): string[] {
+		const names: string[] = [];
+		for (const line of code.split("\n")) {
+			const defineMatch = line.trim().match(/^#define\s+\w+\s+(.+)/);
+			if (defineMatch) continue;
+			const varyingRead = line.trim().match(/varying\s+\w+\s+(\w+)/);
+			if (varyingRead) continue;
+		}
+		const funcMatch = code.match(/\{([\s\S]*)\}/);
+		if (funcMatch) {
+			const body = funcMatch[1];
+			const identifiers = body.match(/\bu_\w+\b/g);
+			if (identifiers) {
+				for (const id of new Set(identifiers)) {
+					names.push(id);
+				}
+			}
+		}
+		return names;
+	}
 </script>
-
-<style>
-	/* ══════════════════════════════════════════
-	   Module Container
-	   ══════════════════════════════════════════ */
-
-	:global(.sp-rack-module) {
-		overflow: hidden;
-		transition: opacity var(--transition-slow), filter var(--transition-slow);
-	}
-
-	:global(.sp-rack-module[data-module-class="fixed"]) {
-		border: 1px solid var(--border-subtle);
-		background: var(--bg);
-	}
-
-	:global(.sp-rack-module[data-module-class="focus"]) {
-		border: 1px solid var(--border);
-		background: var(--surface);
-	}
-
-	:global(.sp-rack-module[data-bypassed="true"]) {
-		opacity: 0.4;
-		filter: saturate(0.3);
-	}
-
-	/* ══════════════════════════════════════════
-	   Header
-	   ══════════════════════════════════════════ */
-
-	:global(.sp-rack-header) {
-		all: unset;
-		box-sizing: border-box;
-		display: flex;
-		align-items: center;
-		gap: var(--space-xs);
-		cursor: pointer;
-		width: 100%;
-		font-family: var(--font-mono);
-		user-select: none;
-	}
-
-	/* Fixed header: more compact */
-	:global(.sp-rack-header[data-header-class="fixed"]) {
-		padding: 4px var(--space-sm);
-		background: var(--bg);
-	}
-
-	:global(.sp-rack-header[data-header-class="fixed"]:hover) {
-		background: color-mix(in srgb, var(--bg) 80%, var(--surface));
-	}
-
-	/* Focus header: standard */
-	:global(.sp-rack-header[data-header-class="focus"]) {
-		padding: 6px var(--space-xs);
-		background: var(--surface);
-	}
-
-	:global(.sp-rack-header[data-header-class="focus"]:hover) {
-		background: color-mix(in srgb, var(--surface) 80%, var(--border));
-	}
-
-	/* ── Port Circles (drag handles) ── */
-
-	.sp-rack-port {
-		font-size: 0.5rem;
-		line-height: 1;
-		flex-shrink: 0;
-		cursor: grab;
-		color: var(--accent-muted);
-		opacity: 0.7;
-	}
-
-	/* ── Chevron ── */
-
-	.sp-rack-chevron {
-		display: flex;
-		align-items: center;
-		color: var(--text-subtle);
-		transition: transform var(--transition-fast);
-		flex-shrink: 0;
-	}
-
-	:global(.sp-rack-module[data-state="open"]) .sp-rack-chevron {
-		transform: rotate(0deg);
-	}
-
-	:global(.sp-rack-module[data-state="closed"]) .sp-rack-chevron {
-		transform: rotate(-90deg);
-	}
-
-	/* ── Title ── */
-
-	.sp-rack-title {
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	.sp-rack-title[data-module-class="fixed"] {
-		font-size: 0.625rem;
-		color: var(--text-muted);
-	}
-
-	.sp-rack-title[data-module-class="focus"] {
-		font-size: 0.75rem;
-		color: var(--text);
-	}
-
-	/* ── Fixed Count ── */
-
-	.sp-fixed-count {
-		font-size: 0.5rem;
-		font-family: var(--font-mono);
-		color: var(--text-subtle);
-		flex-shrink: 0;
-	}
-
-	/* ── Status LED (focus only) ── */
-
-	.sp-rack-led {
-		width: 6px;
-		height: 6px;
-		border-radius: 50%;
-		flex-shrink: 0;
-	}
-
-	.sp-rack-led[data-status="active"] {
-		background: var(--success);
-		box-shadow: 0 0 4px var(--success);
-	}
-
-	.sp-rack-led[data-status="error"] {
-		background: var(--error);
-		box-shadow: 0 0 4px var(--error);
-	}
-
-	.sp-rack-led[data-status="bypassed"] {
-		background: var(--text-subtle);
-		opacity: 0.4;
-	}
-
-	/* ── Class Badge ── */
-
-	.sp-rack-class-badge {
-		font-size: 0.5rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
-		padding: 1px 5px;
-		background: var(--accent-muted);
-		color: var(--text);
-		flex-shrink: 0;
-	}
-
-	/* ── Spacer ── */
-
-	.sp-rack-spacer {
-		flex: 1;
-	}
-
-	/* ── Error Count ── */
-
-	.sp-rack-error-count {
-		font-size: 0.5rem;
-		font-weight: 700;
-		padding: 0 4px;
-		background: var(--error);
-		color: var(--bg);
-		flex-shrink: 0;
-	}
-
-	/* ── Bypass Switch ── */
-
-	.sp-rack-switch-wrap {
-		display: flex;
-		align-items: center;
-		flex-shrink: 0;
-	}
-
-	:global(.sp-rack-switch) {
-		width: 28px;
-		height: 14px;
-		background: var(--border);
-		border: none;
-		padding: 2px;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-	}
-
-	:global(.sp-rack-switch[data-state="checked"]) {
-		background: var(--accent-muted);
-	}
-
-	:global(.sp-rack-switch-thumb) {
-		display: block;
-		width: 10px;
-		height: 10px;
-		background: var(--text);
-		transition: transform var(--transition-fast);
-	}
-
-	:global(.sp-rack-switch[data-state="checked"] .sp-rack-switch-thumb) {
-		transform: translateX(14px);
-	}
-
-	/* ══════════════════════════════════════════
-	   Body
-	   ══════════════════════════════════════════ */
-
-	:global(.sp-rack-body) {
-		border-top: 1px solid var(--border-subtle);
-		padding: 0;
-	}
-
-	:global(.sp-rack-body[data-state="closed"]) {
-		display: none;
-	}
-
-	/* ══════════════════════════════════════════
-	   Footer
-	   ══════════════════════════════════════════ */
-
-	.sp-rack-footer {
-		display: flex;
-		align-items: center;
-		gap: 4px;
-		padding: 3px var(--space-sm);
-		border-top: 1px solid var(--border-subtle);
-		flex-wrap: wrap;
-		min-height: 20px;
-		background: color-mix(in srgb, var(--surface) 60%, var(--bg));
-	}
-
-	.sp-rack-footer-label {
-		font-size: 0.5rem;
-		font-family: var(--font-mono);
-		color: var(--text-subtle);
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-	}
-
-	.sp-rack-io-tag {
-		font-size: 0.5rem;
-		font-family: var(--font-mono);
-		padding: 1px 4px;
-		background: var(--border);
-		color: var(--text-muted);
-		white-space: nowrap;
-	}
-</style>

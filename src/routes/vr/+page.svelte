@@ -3,12 +3,12 @@ import { Trophy } from "lucide-svelte";
 import { onDestroy, onMount } from "svelte";
 import * as THREE from "three";
 import { VRButton } from "three/examples/jsm/webxr/VRButton.js";
+import type { ActiveExperience } from "$lib/experiences/loader";
 import {
 	getActiveExperienceId,
 	loadExperience,
 	unloadExperience,
 } from "$lib/experiences/loader";
-import type { ActiveExperience } from "$lib/experiences/loader";
 import { createWebSocketClient } from "$lib/ws/client.svelte";
 import {
 	isOrientationData,
@@ -60,7 +60,8 @@ onMount(() => {
 				renderer.setSize(window.innerWidth, window.innerHeight);
 			}
 			window.addEventListener("resize", onResize);
-			removeResizeListener = () => window.removeEventListener("resize", onResize);
+			removeResizeListener = () =>
+				window.removeEventListener("resize", onResize);
 
 			renderer.setAnimationLoop(() => {
 				const delta = clock.getDelta();

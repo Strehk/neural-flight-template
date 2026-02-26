@@ -1,5 +1,5 @@
-import type { PresetDef } from "../../types";
 import fragmentShader from "../../shaders/presets/impossible_arch.frag?raw";
+import type { PresetDef } from "../../types";
 
 export const PRESET_IMPOSSIBLE_ARCH: PresetDef = {
 	id: "impossible-arch",
@@ -11,10 +11,38 @@ export const PRESET_IMPOSSIBLE_ARCH: PresetDef = {
 	fragmentShader,
 	vertexShader: null,
 	uniforms: [
-		{ name: "uFolds", type: "float", value: 4.0, min: 1.0, max: 12.0, endpoint: true },
-		{ name: "uWarpAmount", type: "float", value: 0.5, min: 0.0, max: 2.0, endpoint: true },
-		{ name: "uPerspective", type: "float", value: 0.5, min: 0.0, max: 1.0, endpoint: true },
-		{ name: "uRotateSpeed", type: "float", value: 0.5, min: 0.0, max: 3.0, endpoint: true },
+		{
+			name: "uFolds",
+			type: "float",
+			value: 4.0,
+			min: 1.0,
+			max: 12.0,
+			endpoint: true,
+		},
+		{
+			name: "uWarpAmount",
+			type: "float",
+			value: 0.5,
+			min: 0.0,
+			max: 2.0,
+			endpoint: true,
+		},
+		{
+			name: "uPerspective",
+			type: "float",
+			value: 0.5,
+			min: 0.0,
+			max: 1.0,
+			endpoint: true,
+		},
+		{
+			name: "uRotateSpeed",
+			type: "float",
+			value: 0.5,
+			min: 0.0,
+			max: 3.0,
+			endpoint: true,
+		},
 	],
 	geometry: "plane",
 	tutorial: {

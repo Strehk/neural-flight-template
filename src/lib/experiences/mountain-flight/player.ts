@@ -23,10 +23,25 @@ export function updatePlayer(
 	});
 
 	if (speed.accelerate) {
-		s.player.updateSpeed({ type: "speed", action: "accelerate", active: true, timestamp: 0 });
+		s.player.updateSpeed({
+			type: "speed",
+			action: "accelerate",
+			active: true,
+			timestamp: 0,
+		});
 	} else if (speed.brake) {
-		s.player.updateSpeed({ type: "speed", action: "brake", active: true, timestamp: 0 });
+		s.player.updateSpeed({
+			type: "speed",
+			action: "brake",
+			active: true,
+			timestamp: 0,
+		});
 	} else {
-		s.player.updateSpeed({ type: "speed", action: "accelerate", active: false, timestamp: 0 });
+		s.player.updateSpeed({
+			type: "speed",
+			action: "accelerate",
+			active: false,
+			timestamp: 0,
+		});
 	}
 }

@@ -1,11 +1,5 @@
 import * as THREE from "three";
-import {
-	CAMERA,
-	CLOUDS,
-	FLIGHT,
-	SKY,
-	TERRAIN,
-} from "$lib/config/flight";
+import { CAMERA, CLOUDS, FLIGHT, SKY, TERRAIN } from "$lib/config/flight";
 import { createClouds, disposeClouds, updateClouds } from "$lib/three/clouds";
 import { FlightPlayer } from "$lib/three/player";
 import { createSky } from "$lib/three/sky";

@@ -78,8 +78,7 @@ export class FlightPlayer {
 	tick(delta: number): void {
 		this.currentPitch +=
 			(this.targetPitch - this.currentPitch) * this.lerpAlpha;
-		this.currentRoll +=
-			(this.targetRoll - this.currentRoll) * this.lerpAlpha;
+		this.currentRoll += (this.targetRoll - this.currentRoll) * this.lerpAlpha;
 
 		this.updateVelocity();
 

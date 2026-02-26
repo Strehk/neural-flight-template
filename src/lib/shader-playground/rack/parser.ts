@@ -11,8 +11,8 @@
  */
 
 import { SYSTEM_UNIFORMS } from "../uniforms";
-import { MODULE_CLASS } from "./types";
 import type { RackSlot, RackSlotType, SlotTag } from "./types";
+import { MODULE_CLASS } from "./types";
 
 // ── Patterns ──
 

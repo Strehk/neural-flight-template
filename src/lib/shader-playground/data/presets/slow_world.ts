@@ -1,5 +1,5 @@
-import type { PresetDef } from "../../types";
 import fragmentShader from "../../shaders/presets/slow_world.frag?raw";
+import type { PresetDef } from "../../types";
 
 export const PRESET_SLOW_WORLD: PresetDef = {
 	id: "slow-world",
@@ -11,9 +11,30 @@ export const PRESET_SLOW_WORLD: PresetDef = {
 	fragmentShader,
 	vertexShader: null,
 	uniforms: [
-		{ name: "uTimeScale", type: "float", value: 1.0, min: 0.01, max: 2.0, endpoint: true },
-		{ name: "uTrailLength", type: "float", value: 0.5, min: 0.0, max: 1.0, endpoint: true },
-		{ name: "uDensity", type: "float", value: 8.0, min: 1.0, max: 20.0, endpoint: true },
+		{
+			name: "uTimeScale",
+			type: "float",
+			value: 1.0,
+			min: 0.01,
+			max: 2.0,
+			endpoint: true,
+		},
+		{
+			name: "uTrailLength",
+			type: "float",
+			value: 0.5,
+			min: 0.0,
+			max: 1.0,
+			endpoint: true,
+		},
+		{
+			name: "uDensity",
+			type: "float",
+			value: 8.0,
+			min: 1.0,
+			max: 20.0,
+			endpoint: true,
+		},
 	],
 	geometry: "plane",
 	tutorial: {

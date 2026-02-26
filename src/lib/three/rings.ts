@@ -98,9 +98,7 @@ export function createChunkRings(
 		const wz = lz + worldZ;
 		const terrainY = getHeight(wx, wz, heightConfig);
 		const y =
-			terrainY +
-			c.heightBase +
-			seededRandom(seed + i, 12) * c.heightVariation;
+			terrainY + c.heightBase + seededRandom(seed + i, 12) * c.heightVariation;
 
 		const mat = new THREE.MeshStandardMaterial({
 			color: c.color,

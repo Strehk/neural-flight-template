@@ -51,10 +51,18 @@ export const COMPONENT_ENVELOPE: SignalDef = {
 		const s = state as EnvelopeState;
 		const gateHigh = (inputs.gate ?? 0) > 0.5;
 
-		const attackTime = remap(inputs.attack ?? 0.2, ADSR_TIME_MIN, ADSR_TIME_MAX);
+		const attackTime = remap(
+			inputs.attack ?? 0.2,
+			ADSR_TIME_MIN,
+			ADSR_TIME_MAX,
+		);
 		const decayTime = remap(inputs.decay ?? 0.3, ADSR_TIME_MIN, ADSR_TIME_MAX);
 		const sustainLevel = clampSignal(inputs.sustain ?? 0.7);
-		const releaseTime = remap(inputs.release ?? 0.4, ADSR_TIME_MIN, ADSR_TIME_MAX);
+		const releaseTime = remap(
+			inputs.release ?? 0.4,
+			ADSR_TIME_MIN,
+			ADSR_TIME_MAX,
+		);
 
 		let { phase, level } = s;
 

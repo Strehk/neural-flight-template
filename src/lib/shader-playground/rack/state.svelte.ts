@@ -11,8 +11,13 @@
 import { untrack } from "svelte";
 import type { PlaygroundState } from "../playground_state.svelte";
 import type { ShaderError } from "../types";
-import type { RackSlot, RackControlModule, ControlModuleType, ControlConfig } from "./types";
 import { parseToSlots, slotsToGlsl } from "./parser";
+import type {
+	ControlConfig,
+	ControlModuleType,
+	RackControlModule,
+	RackSlot,
+} from "./types";
 
 // ── Public Interface ──
 
@@ -36,10 +41,7 @@ export interface RackState {
 
 // ── Helpers ──
 
-function preserveSlotState(
-	newSlots: RackSlot[],
-	oldSlots: RackSlot[],
-): void {
+function preserveSlotState(newSlots: RackSlot[], oldSlots: RackSlot[]): void {
 	for (const newSlot of newSlots) {
 		const match = oldSlots.find(
 			(old) => old.type === newSlot.type && old.title === newSlot.title,
@@ -47,6 +49,17 @@ function preserveSlotState(
 		if (match) {
 			newSlot.collapsed = match.collapsed;
 			newSlot.enabled = match.enabled;
+		}
+	}
+}
+
+/** Enforce didaktik defaults: main expanded, fixed slots collapsed. */
+function applyDidaktikDefaults(slots: RackSlot[]): void {
+	for (const slot of slots) {
+		if (slot.type === "main") {
+			slot.collapsed = false;
+		} else if (slot.moduleClass === "fixed") {
+			slot.collapsed = true;
 		}
 	}
 }
@@ -127,7 +140,9 @@ const CONTROL_TITLES: Record<ControlModuleType, string> = {
 };
 
 export function createRackState(pg: PlaygroundState): RackState {
-	let slots = $state<RackSlot[]>(parseToSlots(pg.fragmentCode));
+	const initialSlots = parseToSlots(pg.fragmentCode);
+	applyDidaktikDefaults(initialSlots);
+	let slots = $state<RackSlot[]>(initialSlots);
 	const restored = loadControls();
 	let controlModules = $state<RackControlModule[]>(restored);
 	let lastSyncedGlsl = pg.fragmentCode;
@@ -140,9 +155,7 @@ export function createRackState(pg: PlaygroundState): RackState {
 		}
 	}
 
-	const slotErrors = $derived.by(() =>
-		computeSlotErrors(pg.errors, slots),
-	);
+	const slotErrors = $derived.by(() => computeSlotErrors(pg.errors, slots));
 
 	// Detect external changes (template/preset loaded, raw editor edit).
 	// untrack lastSyncedGlsl + slots so the effect ONLY fires on pg.fragmentCode changes.
@@ -153,6 +166,7 @@ export function createRackState(pg: PlaygroundState): RackState {
 			const oldSlots = untrack(() => [...slots]);
 			const newSlots = parseToSlots(current);
 			preserveSlotState(newSlots, oldSlots);
+			applyDidaktikDefaults(newSlots);
 			slots = newSlots;
 			lastSyncedGlsl = current;
 		}
@@ -186,8 +200,8 @@ export function createRackState(pg: PlaygroundState): RackState {
 		toggleSlotEnabled(slotId: string): void {
 			const slot = slots.find((s) => s.id === slotId);
 			if (!slot) return;
-			// Only focus modules can be bypassed, and main is always active
-			if (slot.moduleClass === "fixed" || slot.type === "main") return;
+			// Only focus modules can be bypassed — fixed and main are always active
+			if (slot.moduleClass === "fixed" || slot.moduleClass === "main") return;
 			slot.enabled = !slot.enabled;
 			syncToPlayground();
 		},
@@ -208,6 +222,7 @@ export function createRackState(pg: PlaygroundState): RackState {
 			const oldSlots = [...slots];
 			const newSlots = parseToSlots(pg.fragmentCode);
 			preserveSlotState(newSlots, oldSlots);
+			applyDidaktikDefaults(newSlots);
 			slots = newSlots;
 			lastSyncedGlsl = pg.fragmentCode;
 		},

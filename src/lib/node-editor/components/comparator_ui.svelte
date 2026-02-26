@@ -4,8 +4,9 @@
  *
  * Reads `data.gate` for display. Sets threshold via signalGraph.setInput().
  */
-import { signalGraph } from "../graph/engine";
+
 import { Slider, ValueDisplay } from "../controls";
+import { signalGraph } from "../graph/engine";
 
 interface Props {
 	id: string;

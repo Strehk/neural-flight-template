@@ -1,5 +1,5 @@
-import type { PresetDef } from "../../types";
 import fragmentShader from "../../shaders/presets/cellular_drift.frag?raw";
+import type { PresetDef } from "../../types";
 
 export const PRESET_CELLULAR_DRIFT: PresetDef = {
 	id: "cellular-drift",
@@ -11,10 +11,37 @@ export const PRESET_CELLULAR_DRIFT: PresetDef = {
 	fragmentShader,
 	vertexShader: null,
 	uniforms: [
-		{ name: "uScale", type: "float", value: 10.0, min: 0.1, max: 100.0, endpoint: true },
-		{ name: "uGlowIntensity", type: "float", value: 1.5, min: 0.0, max: 3.0, endpoint: true },
-		{ name: "uDriftSpeed", type: "float", value: 0.5, min: 0.0, max: 2.0, endpoint: true },
-		{ name: "uBioColor", type: "vec3", value: [0.0, 1.0, 0.53], endpoint: true, color: true },
+		{
+			name: "uScale",
+			type: "float",
+			value: 10.0,
+			min: 0.1,
+			max: 100.0,
+			endpoint: true,
+		},
+		{
+			name: "uGlowIntensity",
+			type: "float",
+			value: 1.5,
+			min: 0.0,
+			max: 3.0,
+			endpoint: true,
+		},
+		{
+			name: "uDriftSpeed",
+			type: "float",
+			value: 0.5,
+			min: 0.0,
+			max: 2.0,
+			endpoint: true,
+		},
+		{
+			name: "uBioColor",
+			type: "vec3",
+			value: [0.0, 1.0, 0.53],
+			endpoint: true,
+			color: true,
+		},
 	],
 	geometry: "sphere",
 	tutorial: {
