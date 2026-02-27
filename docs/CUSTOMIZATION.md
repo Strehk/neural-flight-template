@@ -6,24 +6,33 @@ How to modify the VR world, flight physics, and visual style.
 
 ## Overview
 
-The VR scene is composed of modular Three.js components in `src/lib/three/`. Each module handles one concern and can be modified independently.
+The platform offers multiple ways to create and customize VR experiences:
+
+### 1. Build a New Experience (Recommended)
+
+The Experience System is the primary way to create new VR worlds. Each experience is a self-contained module with its own scene, physics, and parameters.
 
 ```
-lib/three/
-├── scene.ts      → Scene setup (lights, fog, background)
-├── player.ts     → FlightPlayer (camera rig + physics)
-├── sky.ts        → Low-poly sky dome (gradient colors)
-├── clouds.ts     → Procedural cloud groups
-├── rings.ts      → Collectible ring spawning
-├── loader.ts     → GLTF model loader
-└── terrain/
-    ├── manager.ts     → Chunk loading/unloading
-    ├── chunk.ts       → Single terrain tile
-    ├── geometry.ts    → Heightmap → mesh conversion
-    ├── heightmap.ts   → Simplex noise generation
-    ├── decorations.ts → Trees + rocks (InstancedMesh)
-    └── water.ts       → Flat water plane
+1. Copy template → src/lib/experiences/my-world/
+2. Edit manifest → name, parameters, scene defaults
+3. Build scene → Three.js objects in setup(), animation in tick()
+4. Register → 1 line in catalog.ts
 ```
+
+> 📖 Full guide: [`src/lib/experiences/README.md`](../src/lib/experiences/README.md)
+
+### 2. Shader Playground
+
+Learn and prototype GLSL shaders interactively at `/shader-playground`:
+- 24 signal-based modules (control, vertex, fragment)
+- Instant 3D preview with multiple geometries
+- Modulation engine with LFO waveforms
+
+> 📖 Details: [`src/lib/shader-playground/README.md`](../src/lib/shader-playground/README.md)
+
+### 3. Modify Existing Components
+
+The sections below explain how to modify the shared 3D building blocks and flight physics directly.
 
 ---
 

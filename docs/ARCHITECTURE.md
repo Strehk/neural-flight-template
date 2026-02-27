@@ -1,6 +1,6 @@
 # 🏗️ Architecture
 
-System design for the ICAROS VR Flight Sim.
+System design for the ICAROS VR Teaching Platform.
 
 ---
 
@@ -31,6 +31,21 @@ graph LR
     VR --> TER --> THREE
 ```
 
+## Three Layers
+
+```
+┌─────────────────────────────────────────────────┐
+│  Experiences (student-built VR worlds)          │
+│  Manifest → Catalog → Loader lifecycle          │
+├─────────────────────────────────────────────────┤
+│  Prototyping Tools                              │
+│  Node Editor + Shader Playground                │
+├─────────────────────────────────────────────────┤
+│  Infrastructure                                 │
+│  WebXR, WebSocket, Controllers, SvelteKit       │
+└─────────────────────────────────────────────────┘
+```
+
 ## Data Flow
 
 ```
@@ -43,7 +58,7 @@ Controller UI (/controller)
 SvelteKit Server (hooks.server.ts)
     ↓ broadcast to all except sender
 VR Scene (/vr on Quest)
-    ↓ FlightPlayer.updateOrientation()
+    ↓ Experience.tick()
 Three.js Render Loop @ 72fps
 ```
 
@@ -53,11 +68,29 @@ Three.js Render Loop @ 72fps
 
 | Route | Responsibility |
 |-------|---------------|
-| `/vr` | WebXR canvas, Three.js scene, animation loop, ring scoring |
+| `/` | Experience Catalog — select a VR world |
+| `/vr` | WebXR canvas, loads active experience, animation loop |
 | `/controller` | D-Pad input, speed buttons, 3D preview, settings sidebar |
 | `/node-editor` | Visual node editor — modular signal pipeline for VR parameter control |
+| `/shader-playground` | Live GLSL shader editor with signal-based modules and 3D preview |
 
-### `lib/three/` — 3D Engine
+### `lib/experiences/` — Experience System
+
+Each experience is a self-contained VR world with 5 files:
+
+```
+manifest.ts  ── Declarative I/O contract (parameters, scene config)
+scene.ts ────── 3D objects + animation (setup, tick, dispose)
+player.ts ───── Orientation → movement mapping
+settings.ts ─── Parameter ID → scene mutation
+index.ts ────── Re-export entry point
+```
+
+- **Catalog** registers all experiences (students add 1 import + 1 line)
+- **Loader** manages lifecycle: load → tick → dispose
+- **Manifest** defines parameters that appear in Settings Sidebar + Node Editor
+
+### `lib/three/` — Shared 3D Building Blocks
 
 ```
 scene.ts ─── Scene factory (lights, fog)
@@ -100,9 +133,23 @@ nodes/        Node compositions (9 standard + 8 auto-generated output)
 canvas/       SvelteFlow infrastructure (EditorCanvas, NodeShell, Catalog)
 controls/     UI primitives (bits-ui based, signal-unaware)
 graph/        Headless compute engine (SignalGraph, evaluate)
-parameters/   VR parameter registry (PARAMETER_PRESETS)
+parameters/   VR parameter registry (dynamic from manifest)
 bridge.ts     WebSocket → Three.js (numbers only)
 ```
+
+### `lib/shader-playground/` — Shader Playground
+
+Signal-based GLSL editor with 3D preview. See [`src/lib/shader-playground/README.md`](../src/lib/shader-playground/README.md) for full details.
+
+```
+modules/      24 shader modules (4 control + 10 vertex + 10 fragment)
+components/   Rack UI, Preview, CodeView
+engine/       GLSL compiler + Three.js renderer
+codegen.ts    Module chain → GLSL assembly
+state.svelte.ts  Reactive state (Svelte 5 Runes)
+```
+
+Pipeline: `Module[] → codegen → GLSL → compiler → renderer → 3D Preview`
 
 ### `lib/components/` — Svelte UI
 

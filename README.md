@@ -1,8 +1,8 @@
-# ✈️ ICAROS VR Flight Sim
+# ✈️ ICAROS VR Teaching Platform
 
-> WebXR flight simulation for **Meta Quest** + **ICAROS** fitness device
+> Modular WebXR platform for **Meta Quest 3** + **ICAROS** fitness device — students build their own VR experiences
 
-Fly through procedural low-poly landscapes using body-based pitch and roll input. This project provides a complete WebSocket pipeline, terrain generation, and flight physics.
+A teaching platform where students create immersive VR worlds controlled through body movement on the ICAROS fitness device. The platform provides infrastructure and prototyping tools — students focus on the creative work.
 
 ---
 
@@ -12,34 +12,47 @@ A **teaching project** that demonstrates:
 - **WebXR** — Immersive VR in the browser (no app store)
 - **WebSocket communication** — Real-time data between devices
 - **Three.js** — 3D graphics in JavaScript
+- **GLSL Shaders** — GPU programming with instant visual feedback
 - **Device sensors** — Gyroscope, accelerometer via browser APIs
 
 The ICAROS fitness device provides body-based flight control:
-- **Pitch** (lean forward/back) → climb / dive
-- **Roll** (lean left/right) → bank / turn
+- **Pitch** (lean forward/back) → experience-specific (e.g., climb / dive)
+- **Roll** (lean left/right) → experience-specific (e.g., bank / turn)
 
 ---
 
 ## 🏗️ Architecture
 
-```mermaid
-graph TD
-    SERVER["🖥️ SERVER (Hub)"]
+Three layers, strict separation:
 
-    ESP32["ESP32 Sensor"]
-    GYRO["/gyro — Phone"]
-    VR["/vr — Quest"]
-    SPECT["/spectator — Monitor"]
-    LIGHTS["/lights — DMX/Hue"]
-
-    ESP32 -- INPUT --> SERVER
-    GYRO -- INPUT --> SERVER
-    SERVER -- OUTPUT --> VR
-    SERVER -- OUTPUT --> SPECT
-    SERVER -- OUTPUT --> LIGHTS
+```
+┌─────────────────────────────────────────────────┐
+│  Experiences (student-built VR worlds)          │  ← Students build here
+│  Manifest-based, modular, catalog-driven        │
+├─────────────────────────────────────────────────┤
+│  Prototyping Tools                              │  ← Visual controls
+│  Node Editor (Eurorack metaphor)                │
+│  Shader Playground (signal-based GLSL editor)   │
+├─────────────────────────────────────────────────┤
+│  Infrastructure                                 │  ← Platform internals
+│  WebXR, WebSocket, Controllers, SvelteKit       │
+└─────────────────────────────────────────────────┘
 ```
 
-**Key principle:** All data flows through the server. No direct client-to-client communication.
+### Experience System
+
+Each experience is a self-contained VR world with its own physics and parameters:
+- **Manifest** — declarative I/O contract (parameters, lifecycle, scene config)
+- **Catalog** — static registry, students add 1 import + 1 line
+- **Loader** — manages experience lifecycle (load → tick → dispose)
+
+### Data Flow
+
+```
+ICAROS Device → Phone (Gyro API) → WebSocket → Server (broadcast) → Quest (VR Scene)
+```
+
+All data flows through the server. No direct client-to-client communication.
 
 ---
 
@@ -65,8 +78,8 @@ brew install android-platform-tools    # Mac
 
 ```bash
 # Clone & install
-git clone https://github.com/dweigend/neural-flight-template.git
-cd neural-flight-template
+git clone https://github.com/dweigend/simple_flight.git
+cd simple_flight
 bun install
 
 # Generate HTTPS certificates (required for WebXR)
@@ -95,12 +108,12 @@ adb reverse tcp:5173 tcp:5173
 
 | Route | Device | Purpose |
 |-------|--------|---------|
-| `/` | Any | 🏠 Landing page with architecture diagram |
-| `/vr` | Quest | 🥽 WebXR flight scene (Three.js) |
+| `/` | Any | 🏠 Experience Catalog (select VR world) |
+| `/vr` | Quest | 🥽 WebXR VR scene (loads active experience) |
 | `/gyro` | Phone | 📱 Gyroscope controller (ICAROS) |
-| `/controller` | Laptop | 🎮 D-Pad controller + Settings |
+| `/controller` | Laptop | 🎮 D-Pad controller + Settings sidebar |
 | `/node-editor` | Laptop | 🔧 Visual node editor for VR parameters |
-| `/spectator` | Monitor | 👀 External display *(planned)* |
+| `/shader-playground` | Laptop | 🎨 Live GLSL shader editor with 3D preview |
 
 ---
 
@@ -109,53 +122,49 @@ adb reverse tcp:5173 tcp:5173
 ```
 src/
 ├── routes/
-│   ├── +page.svelte              # Landing page
-│   ├── vr/+page.svelte           # WebXR flight scene
-│   ├── gyro/+page.svelte         # Gyroscope controller
-│   ├── controller/+page.svelte   # Desktop controller
-│   └── node-editor/+page.svelte  # Visual node editor
+│   ├── +page.svelte                 # Experience Catalog
+│   ├── vr/+page.svelte              # WebXR VR scene (generic shell)
+│   ├── gyro/+page.svelte            # Gyroscope controller
+│   ├── controller/+page.svelte      # Desktop controller
+│   ├── node-editor/+page.svelte     # Visual node editor
+│   └── shader-playground/+page.svelte  # Shader Playground
 │
 ├── lib/
-│   ├── three/                    # 🎮 Three.js modules
-│   │   ├── scene.ts              # Scene factory (lights, fog)
-│   │   ├── player.ts             # FlightPlayer (camera + physics)
-│   │   ├── sky.ts                # Low-poly gradient sky
-│   │   ├── clouds.ts             # Procedural cloud groups
-│   │   ├── rings.ts              # Collectible rings
-│   │   └── terrain/              # Chunked terrain system
-│   │       ├── manager.ts        # Chunk loading/unloading
-│   │       ├── chunk.ts          # Single terrain chunk
-│   │       ├── heightmap.ts      # Noise-based height generation
-│   │       ├── geometry.ts       # Mesh + vertex colors
-│   │       ├── decorations.ts    # Trees, rocks (instanced)
-│   │       └── water.ts          # Water plane
+│   ├── experiences/             # 🌍 VR experiences (student-built)
+│   │   ├── catalog.ts           # Experience registry
+│   │   ├── loader.ts            # Lifecycle management
+│   │   ├── types.ts             # ExperienceManifest, ParameterDef
+│   │   ├── mountain-flight/     # Reference experience
+│   │   └── template/            # Copy-template for students
 │   │
-│   ├── ws/                       # 📡 WebSocket
-│   │   ├── server.ts             # Server-side handler
-│   │   ├── client.svelte.ts      # Client-side hook (Svelte 5)
-│   │   └── protocol.ts           # Message parsing/validation
+│   ├── three/                   # 🎮 Shared 3D building blocks
+│   │   ├── scene.ts             # Scene factory (lights, fog)
+│   │   ├── player.ts            # FlightPlayer (camera + physics)
+│   │   ├── sky.ts               # Low-poly gradient sky
+│   │   ├── clouds.ts            # Procedural cloud groups
+│   │   ├── rings.ts             # Collectible rings
+│   │   └── terrain/             # Chunked terrain system
 │   │
-│   ├── gyro/                     # 📱 Device Orientation
-│   │   ├── orientation.svelte.ts # Gyro hook with calibration
-│   │   └── calibration.ts        # Offset storage
+│   ├── shader-playground/       # 🎨 Signal-based GLSL editor
+│   │   ├── modules/             # 24 shader modules (control, vertex, fragment)
+│   │   ├── components/          # Rack UI, Preview, CodeView
+│   │   ├── engine/              # Compiler + Three.js renderer
+│   │   └── codegen.ts           # Module chain → GLSL assembly
 │   │
-│   ├── config/                   # ⚙️ Configuration
-│   │   └── flight.ts             # All tuning constants
+│   ├── node-editor/             # 🔧 Visual node editor (Eurorack architecture)
+│   │   ├── components/          # Atomic signal processors
+│   │   ├── nodes/               # Node compositions (modules)
+│   │   ├── canvas/              # SvelteFlow infrastructure
+│   │   └── graph/               # Compute engine (headless)
 │   │
-│   ├── node-editor/              # 🔧 Visual node editor (Eurorack architecture)
-│   │   ├── components/           # Atomic signal processors
-│   │   ├── nodes/                # Node compositions (modules)
-│   │   ├── canvas/               # SvelteFlow infrastructure
-│   │   ├── controls/             # UI primitives (bits-ui)
-│   │   ├── graph/                # Compute engine (headless)
-│   │   ├── parameters/           # VR parameter registry
-│   │   └── bridge.ts             # WebSocket → Three.js
-│   │
-│   ├── components/               # 🎨 UI components (bits-ui)
-│   └── types/                    # 📝 TypeScript interfaces
+│   ├── ws/                      # 📡 WebSocket protocol
+│   ├── gyro/                    # 📱 Device Orientation
+│   ├── config/                  # ⚙️ Configuration constants
+│   ├── components/              # 🎨 UI components (bits-ui)
+│   └── types/                   # 📝 TypeScript interfaces
 │
-├── hooks.server.ts               # WebSocket upgrade handler
-└── app.css                       # Global design system
+├── hooks.server.ts              # WebSocket upgrade handler
+└── app.css                      # Global design system
 ```
 
 ---
@@ -168,27 +177,13 @@ All messages are JSON with a `type` field for routing.
 
 ```typescript
 // 1. Orientation data (from gyro/controller)
-interface OrientationData {
-  type: "orientation";
-  pitch: number;      // -90 to 90 (forward/back lean)
-  roll: number;       // -90 to 90 (left/right lean)
-  timestamp: number;
-}
+{ type: "orientation", pitch: number, roll: number, timestamp: number }
 
 // 2. Speed commands (accelerate/brake buttons)
-interface SpeedCommand {
-  type: "speed";
-  action: "accelerate" | "brake";
-  active: boolean;
-  timestamp: number;
-}
+{ type: "speed", action: "accelerate" | "brake", active: boolean, timestamp: number }
 
 // 3. Settings update (from sidebar)
-interface SettingsUpdate {
-  type: "settings";
-  settings: Record<string, number | boolean | string>;
-  timestamp: number;
-}
+{ type: "settings", settings: Record<string, number | boolean | string>, timestamp: number }
 ```
 
 ### Data Flow
@@ -216,61 +211,54 @@ All tuning parameters live in `src/lib/config/flight.ts`:
 | `CLOUDS` | Count, height, drift speed |
 | `SKY` | Gradient colors |
 
-### Runtime Config
-
-Some parameters can be changed live via the Settings Sidebar:
-- Base speed, roll sensitivity
-- Fog near/far distances
-- Cloud count, drift enable/disable
-- Sky colors, sun elevation
-- Terrain amplitude, water level
+Parameters can also be changed live via the Settings Sidebar or controlled through the Node Editor.
 
 ---
 
-## ✏️ For Students: How to Extend
+## ✏️ For Students
 
-### Add a New Input Source
+### Build a New Experience
 
-1. Create a new route: `src/routes/your-input/+page.svelte`
-2. Connect to WebSocket using `createWebSocketClient()` from `$lib/ws/client.svelte.ts`
-3. Send `OrientationData` messages with your input values
+The fastest way to create your own VR world:
 
-```svelte
-<script lang="ts">
-  import { createWebSocketClient } from '$lib/ws/client.svelte.ts';
+1. **Copy template**: `src/lib/experiences/template/` → `src/lib/experiences/my-world/`
+2. **Edit manifest**: Name, parameters, scene defaults
+3. **Build scene**: Three.js objects in `setup()`, animation in `tick()`
+4. **Register**: Add 1 import + 1 line in `catalog.ts`
+5. **Test**: `bun run dev` → Open `/vr` on Quest
 
-  const ws = createWebSocketClient();
+> 📖 Full guide: [`src/lib/experiences/README.md`](src/lib/experiences/README.md)
 
-  function sendOrientation(pitch: number, roll: number) {
-    ws.send({
-      type: 'orientation',
-      pitch,
-      roll,
-      timestamp: Date.now()
-    });
-  }
-</script>
-```
+### Shader Playground
 
-### Add a New Output Client
+Learn GLSL shaders interactively at `/shader-playground`:
+- Drag modules into a rack, connect signals, see 3D results instantly
+- 24 modules: color, noise, displacement, SDF, post-processing
+- Modulation engine with LFO waveforms for animated effects
 
-1. Create a route: `src/routes/your-output/+page.svelte`
-2. Connect to WebSocket and listen for messages
-3. React to `OrientationData` in your visualization
+> 📖 Details: [`src/lib/shader-playground/README.md`](src/lib/shader-playground/README.md)
 
-### Modify the VR World
+### Other Extension Points
 
-Files to explore:
-- `src/lib/three/terrain/` — Change landscape generation
-- `src/lib/three/sky.ts` — Modify sky appearance
-- `src/lib/three/rings.ts` — Add new collectibles
-- `src/lib/config/flight.ts` — Tune all parameters
+- **New input source**: Create a route, send `OrientationData` via WebSocket
+- **New output client**: Create a route, listen for WebSocket messages
+- **Modify VR world**: Edit files in `src/lib/three/`
+- **Node Editor**: Visually wire signal processors to VR parameters at `/node-editor`
 
-### Add a New Message Type
+---
 
-1. Define interface in `src/lib/types/orientation.ts`
-2. Add type guard in `src/lib/ws/protocol.ts`
-3. Handle in both sender and receiver
+## 🗺️ Roadmap
+
+- [x] WebXR flight scene with terrain, clouds, rings
+- [x] WebSocket pipeline (Controller → Server → Quest)
+- [x] Node Editor — visual parameter control (Eurorack metaphor)
+- [x] Experience System — modular VR worlds (manifest, catalog, loader)
+- [x] Shader Playground — signal-based GLSL editor with 3D preview
+- [ ] More Experiences — students build diverse VR worlds
+- [ ] Shader ↔ Experience integration — use playground shaders in VR scenes
+- [ ] Tutorial system — guided GLSL learning paths (3 tracks, 14 lessons)
+- [ ] Audio system — spatial 3D sound for immersive experiences
+- [ ] Advanced experiences — Neural Noise, Breathe, Sound Body, Swarm Mind
 
 ---
 

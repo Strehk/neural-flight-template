@@ -6,8 +6,9 @@ Quick navigation for students and contributors.
 
 1. **Build your Experience** → [`experiences/README.md`](experiences/README.md)
 2. **Use 3D Building Blocks** → [`three/README.md`](three/README.md)
-3. **Register in Catalog** → [`experiences/catalog.ts`](experiences/catalog.ts)
-4. **Test with Node Editor** → `/node-editor` route
+3. **Learn Shaders** → [`shader-playground/README.md`](shader-playground/README.md)
+4. **Register in Catalog** → [`experiences/catalog.ts`](experiences/catalog.ts)
+5. **Test with Node Editor** → `/node-editor` route
 
 ## Module Map
 
@@ -15,8 +16,9 @@ Quick navigation for students and contributors.
 |--------|---------|-----------|
 | [`experiences/`](experiences/) | VR experiences built by students | `catalog.ts`, `loader.ts`, `types.ts` |
 | [`three/`](three/) | Shared 3D building blocks (clouds, terrain, sky) | `clouds.ts`, `player.ts`, `rings.ts` |
+| [`shader-playground/`](shader-playground/) | Live GLSL editor with 3D preview (signal-based modules) | `README.md` has full docs |
 | [`node-editor/`](node-editor/) | Visual parameter editor (Eurorack metaphor) | `README.md` has full docs |
-| [`config/`](config/) | Legacy configuration constants | `flight.ts` |
+| [`config/`](config/) | Configuration constants | `flight.ts` |
 | [`components/`](components/) | Svelte UI components (sidebar, controls) | — |
 | [`flow/`](flow/) | SvelteFlow canvas integration | — |
 | [`ws/`](ws/) | WebSocket protocol (Quest ↔ Controller) | `protocol.ts` |
@@ -27,10 +29,11 @@ Quick navigation for students and contributors.
 ## Cross-Module Dependencies
 
 ```
-experiences/ ──uses──→ three/        (building blocks)
-experiences/ ──uses──→ config/       (legacy constants, being replaced by manifests)
-node-editor/ ──reads─→ experiences/  (manifest.parameters → Output Nodes)
-ws/          ──sends─→ experiences/  (orientation + settings → applySettings)
+experiences/ ──uses──→ three/              (building blocks)
+experiences/ ──uses──→ config/             (constants, being replaced by manifests)
+node-editor/ ──reads─→ experiences/        (manifest.parameters → Output Nodes)
+ws/          ──sends─→ experiences/        (orientation + settings → applySettings)
+shader-playground/ ──uses──→ three/        (Three.js renderer for preview)
 ```
 
 ## Architecture Layers
@@ -39,7 +42,8 @@ ws/          ──sends─→ experiences/  (orientation + settings → applySe
 ┌─────────────────────────────────────────┐
 │  Experiences (student-built VR worlds)  │  ← You build here
 ├─────────────────────────────────────────┤
-│  Prototyping Tools (Node Editor, UI)    │  ← Visual controls
+│  Prototyping Tools                      │  ← Visual controls
+│  Node Editor + Shader Playground        │
 ├─────────────────────────────────────────┤
 │  Infrastructure (WebXR, WS, SvelteKit) │  ← Platform internals
 └─────────────────────────────────────────┘
