@@ -1,41 +1,42 @@
 <script lang="ts">
 /**
- * LFOModule — Rate + min/max range controls.
+ * LFOModule — Rate + Shape (Sine → Triangle → Square → Random).
+ *
+ * Shape slides continuously between 4 waveforms (0–3).
  */
 
-import { Slider } from "bits-ui";
+import type { ShaderRackState } from "../../state.svelte";
+import ControlSliders, { type SliderConfig } from "./ControlSliders.svelte";
 
 interface Props {
 	params: Record<string, number>;
 	onparamchange: (name: string, value: number) => void;
+	moduleId?: string;
+	rack?: ShaderRackState;
 }
 
-let { params, onparamchange }: Props = $props();
+let { params, onparamchange, moduleId, rack }: Props = $props();
 
-const sliders = [
+const SHAPE_LABELS = ["Sin", "Tri", "Sqr", "Rnd"] as const;
+const shapeLabel = $derived(SHAPE_LABELS[Math.round(params.shape ?? 0)] ?? "Sin");
+
+const sliders: SliderConfig[] = [
 	{ key: "rate", label: "Rate (Hz)", min: 0.1, max: 10.0, step: 0.1 },
-	{ key: "min", label: "Min", min: 0.0, max: 1.0, step: 0.01 },
-	{ key: "max", label: "Max", min: 0.0, max: 1.0, step: 0.01 },
-] as const;
+	{ key: "shape", label: "Shape", min: 0.0, max: 3.0, step: 0.01 },
+];
 </script>
 
-<div class="control-module">
-	{#each sliders as s (s.key)}
-		<div class="control-row">
-			<span class="control-label">{s.label}</span>
-			<span class="control-value">{(params[s.key] ?? 0).toFixed(2)}</span>
-		</div>
-		<Slider.Root
-			type="single"
-			value={params[s.key] ?? 0}
-			min={s.min}
-			max={s.max}
-			step={s.step}
-			onValueChange={(v: number) => onparamchange(s.key, v)}
-			class="slider-root"
-		>
-			<Slider.Range class="slider-range" />
-			<Slider.Thumb index={0} class="slider-thumb" />
-		</Slider.Root>
-	{/each}
-</div>
+<ControlSliders {sliders} {params} {onparamchange} {moduleId} {rack} />
+<div class="lfo-shape-label">{shapeLabel}</div>
+
+<style>
+	.lfo-shape-label {
+		font-size: 0.5rem;
+		font-family: var(--font-mono);
+		color: var(--text-subtle);
+		text-transform: uppercase;
+		text-align: right;
+		margin-top: -2px;
+		letter-spacing: 0.06em;
+	}
+</style>

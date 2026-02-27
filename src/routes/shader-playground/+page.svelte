@@ -49,7 +49,7 @@ onDestroy(() => rackState.dispose());
 				{#if activeTab === "rack"}
 					<Rack rack={rackState} />
 				{:else}
-					<CodeView code={rackState.generatedGlsl} />
+					<CodeView code={rackState.generatedGlsl} vertexCode={rackState.generatedVertexGlsl} />
 				{/if}
 			</div>
 		{/if}

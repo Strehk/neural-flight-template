@@ -1,7 +1,7 @@
 /**
- * Shader Playground v2 — Stylesheet
+ * Shader Playground v3 — Stylesheet
  *
- * Layout + Rack + Module + Control styles.
+ * Layout + Rack + Module + Control + GLSL Syntax + Modulation styles.
  * All colors use design tokens from app.css.
  */
 
@@ -258,6 +258,11 @@
 	overflow: hidden;
 }
 
+/* ── Stage Colors ── */
+.rack-module[data-stage="vertex"]   { border-left-color: #3b82f6; }
+.rack-module[data-stage="fragment"] { border-left-color: #f97316; }
+.rack-module[data-stage="control"]  { border-left-color: #22c55e; }
+
 .rack-module.disabled {
 	opacity: 0.4;
 	filter: saturate(0.3);
@@ -310,7 +315,7 @@
 	text-overflow: ellipsis;
 }
 
-.rack-module-type-badge {
+.rack-module-stage-badge {
 	font-size: 0.5rem;
 	font-weight: 700;
 	text-transform: uppercase;
@@ -320,6 +325,10 @@
 	color: var(--text);
 	flex-shrink: 0;
 }
+
+.rack-module-stage-badge[data-stage="vertex"]   { background: color-mix(in srgb, #3b82f6 25%, transparent); color: #93c5fd; }
+.rack-module-stage-badge[data-stage="fragment"] { background: color-mix(in srgb, #f97316 25%, transparent); color: #fdba74; }
+.rack-module-stage-badge[data-stage="control"]  { background: color-mix(in srgb, #22c55e 25%, transparent); color: #86efac; }
 
 /* ═══ Port Indicators ═══ */
 
@@ -343,7 +352,7 @@
 	border-style: dashed;
 }
 
-/* ═══ Module Actions (bypass + menu) ═══ */
+/* ═══ Module Actions (code toggle + bypass + menu) ═══ */
 
 .rack-module-actions {
 	display: flex;
@@ -351,6 +360,27 @@
 	gap: var(--space-xs);
 	flex-shrink: 0;
 	margin-left: var(--space-xs);
+}
+
+.rack-module-code-btn {
+	all: unset;
+	display: flex;
+	align-items: center;
+	color: var(--text-subtle);
+	cursor: pointer;
+	padding: 2px;
+	opacity: 0.5;
+	transition: opacity 0.15s, color 0.15s;
+}
+
+.rack-module-code-btn:hover {
+	color: var(--text-muted);
+	opacity: 0.8;
+}
+
+.rack-module-code-btn.active {
+	color: var(--accent);
+	opacity: 1;
 }
 
 .rack-bypass-switch {
@@ -400,6 +430,15 @@
 	padding: var(--space-sm);
 }
 
+/* ═══ Module Code Section (Level 2) ═══ */
+
+.rack-module-code {
+	border-top: 1px solid var(--border-subtle);
+	background: var(--bg);
+	max-height: 200px;
+	overflow-y: auto;
+}
+
 /* ═══ Control Modules ═══ */
 
 .control-module {
@@ -412,6 +451,12 @@
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
+}
+
+.control-row-right {
+	display: flex;
+	align-items: center;
+	gap: var(--space-xs);
 }
 
 .control-label {
@@ -466,6 +511,23 @@
 .slider-thumb:active {
 	cursor: grabbing;
 	background: var(--accent);
+}
+
+/* ═══ Slider Wrap + Modulation Overlay ═══ */
+
+.slider-wrap {
+	position: relative;
+}
+
+.mod-overlay-bar {
+	position: absolute;
+	top: 50%;
+	height: 6px;
+	transform: translateY(-50%);
+	background: color-mix(in srgb, #22c55e 40%, transparent);
+	pointer-events: none;
+	z-index: 2;
+	border-radius: 1px;
 }
 
 /* ═══ XY Pad ═══ */
@@ -529,6 +591,32 @@
 	flex-shrink: 0;
 }
 
+.code-view-tabs {
+	display: flex;
+	gap: 0;
+}
+
+.code-view-tab {
+	all: unset;
+	font-size: 0.625rem;
+	font-family: var(--font-mono);
+	color: var(--text-subtle);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	padding: 4px 8px;
+	cursor: pointer;
+	border-bottom: 2px solid transparent;
+}
+
+.code-view-tab:hover {
+	color: var(--text-muted);
+}
+
+.code-view-tab.active {
+	color: var(--accent);
+	border-bottom-color: var(--accent);
+}
+
 .code-view-label {
 	font-size: 0.625rem;
 	font-family: var(--font-mono);
@@ -566,6 +654,132 @@
 	color: var(--text-muted);
 	white-space: pre;
 	tab-size: 2;
+}
+
+/* ═══ GLSL Syntax Highlighting ═══ */
+
+.glsl-snippet {
+	margin: 0;
+	padding: var(--space-sm);
+	background: var(--bg);
+	overflow-x: auto;
+}
+
+.glsl-snippet code {
+	font-family: var(--font-mono);
+	font-size: 0.6875rem;
+	line-height: 1.5;
+	white-space: pre;
+	tab-size: 2;
+}
+
+.glsl-snippet-compact {
+	padding: var(--space-xs);
+}
+
+.glsl-snippet-compact code {
+	font-size: 0.625rem;
+	line-height: 1.4;
+}
+
+/* Token colors — dark theme optimized for GLSL readability */
+.glsl-keyword  { color: #c084fc; }              /* Purple — language keywords */
+.glsl-type     { color: #fbbf24; }              /* Yellow — types (float, vec3) */
+.glsl-builtin  { color: #60a5fa; }              /* Blue — built-in functions */
+.glsl-uniform  { color: #f59e0b; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; } /* Gold + underline — uniforms */
+.glsl-number   { color: #fb923c; }              /* Orange — numeric literals */
+.glsl-comment  { color: #6b7280; font-style: italic; } /* Gray italic — comments */
+.glsl-punct    { color: #67e8f9; }              /* Cyan — punctuation */
+.glsl-text     { color: var(--text-muted); }    /* Default text */
+
+/* ═══ Modulation Pill ═══ */
+
+.mod-pill {
+	all: unset;
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	padding: 1px 5px;
+	font-size: 0.5rem;
+	font-family: var(--font-mono);
+	color: var(--text-subtle);
+	background: var(--border-subtle);
+	cursor: pointer;
+	white-space: nowrap;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.mod-pill:hover {
+	background: var(--border);
+	color: var(--text-muted);
+}
+
+.mod-pill-active {
+	background: color-mix(in srgb, #22c55e 20%, transparent);
+	color: #86efac;
+}
+
+.mod-pill-active:hover {
+	background: color-mix(in srgb, #22c55e 30%, transparent);
+}
+
+.mod-pill-dot {
+	display: inline-block;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: #22c55e;
+}
+
+.mod-pill-dot-menu {
+	display: inline-block;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: #22c55e;
+	flex-shrink: 0;
+}
+
+.mod-pill-label {
+	line-height: 1;
+}
+
+.mod-pill-caret {
+	font-size: 0.5rem;
+	opacity: 0.6;
+}
+
+/* ── Modulation Depth Row ── */
+
+.mod-depth-row {
+	display: flex;
+	align-items: center;
+	gap: var(--space-xs);
+	margin-top: 2px;
+}
+
+.mod-depth-label {
+	font-size: 0.5rem;
+	font-family: var(--font-mono);
+	color: var(--text-subtle);
+	text-transform: uppercase;
+	flex-shrink: 0;
+}
+
+.mod-depth-input {
+	flex: 1;
+	height: 3px;
+	accent-color: #22c55e;
+	cursor: pointer;
+}
+
+.mod-depth-value {
+	font-size: 0.5rem;
+	font-family: var(--font-mono);
+	color: #86efac;
+	min-width: 2.5em;
+	text-align: right;
 }
 
 /* ═══ Dropdown (shared) ═══ */
@@ -613,6 +827,27 @@
 	background: var(--border-subtle);
 	margin: 2px 0;
 }
+
+/* ── Grouped Dropdown (Add Module) ── */
+
+.sp-dropdown-grouped {
+	max-height: 400px;
+	overflow-y: auto;
+}
+
+.sp-dropdown-heading {
+	font-size: 0.5625rem;
+	font-weight: 700;
+	font-family: var(--font-mono);
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	padding: 6px var(--space-sm) 2px;
+	color: var(--text-subtle);
+}
+
+.sp-dropdown-heading[data-stage="vertex"]   { color: #93c5fd; }
+.sp-dropdown-heading[data-stage="fragment"] { color: #fdba74; }
+.sp-dropdown-heading[data-stage="control"]  { color: #86efac; }
 
 /* ═══ Tooltip ═══ */
 

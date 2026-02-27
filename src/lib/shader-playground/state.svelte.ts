@@ -1,13 +1,22 @@
 /**
- * Shader Rack State — Reactive store for the signal-based module system.
+ * Shader Rack State v3 — Reactive store with modulation routing.
  *
- * Modules are the single source of truth.
- * GLSL is derived via codegen. Renderer receives updates via effects.
+ * Modules + modulation routes are the single source of truth.
+ * Dual-stage codegen produces vertex + fragment GLSL.
+ * UniformMap from codegen enables real-time param updates with human-readable names.
+ *
+ * v3.1: CPU-side control engine + onTick for live modulation uniforms.
  */
 
-import { assembleGlsl, type CodegenResult } from "./codegen";
+import { assembleShaders, type CodegenResult } from "./codegen";
+import { computeControlOutput } from "./control-engine";
 import { MODULE_REGISTRY } from "./modules/registry";
-import type { RackModuleInstance, RackModuleType } from "./modules/types";
+import type {
+	ModulationRoute,
+	RackModuleInstance,
+	RackModuleType,
+} from "./modules/types";
+import { getStage } from "./modules/types";
 import type { GeometryType, PlaygroundRenderer, ShaderError } from "./types";
 
 // ── ID Generator ──
@@ -21,22 +30,35 @@ function generateId(): string {
 export interface ShaderRackState {
 	// Reactive state (read)
 	readonly modules: RackModuleInstance[];
+	readonly modulationRoutes: ModulationRoute[];
 	readonly generatedGlsl: string;
+	readonly generatedVertexGlsl: string | null;
 	readonly errors: ShaderError[];
 	readonly currentGeometry: GeometryType;
 	readonly rotationEnabled: boolean;
 	readonly lightingEnabled: boolean;
 	readonly isFullscreen: boolean;
 	readonly compileOk: boolean;
+	readonly moduleSnippets: Map<string, string>;
+	/** Live modulated values: key = "targetModuleId:targetParam", value = modulated number */
+	readonly liveModValues: Map<string, number>;
 
-	// Actions
+	// Module actions
 	addModule(type: RackModuleType): void;
 	removeModule(id: string): void;
 	duplicateModule(id: string): void;
 	toggleEnabled(id: string): void;
 	toggleCollapsed(id: string): void;
+	toggleCodeExpanded(id: string): void;
 	updateParam(moduleId: string, paramName: string, value: number): void;
 	reorder(fromIndex: number, toIndex: number): void;
+
+	// Modulation actions
+	addModulationRoute(sourceModuleId: string, targetModuleId: string, targetParam: string): void;
+	removeModulationRoute(routeId: string): void;
+	updateModulationDepth(routeId: string, depth: number): void;
+
+	// Scene controls
 	setGeometry(type: GeometryType): void;
 	toggleRotation(): void;
 	toggleLighting(): void;
@@ -47,17 +69,64 @@ export interface ShaderRackState {
 
 export function createShaderRackState(): ShaderRackState {
 	let modules = $state<RackModuleInstance[]>([]);
+	let modulationRoutes = $state<ModulationRoute[]>([]);
 	let errors = $state<ShaderError[]>([]);
 	let currentGeometry = $state<GeometryType>("sphere");
 	let rotationEnabled = $state(true);
 	let lightingEnabled = $state(true);
 	let isFullscreen = $state(false);
+	let liveModValues = $state<Map<string, number>>(new Map());
 	let renderer: PlaygroundRenderer | null = null;
 
-	// Derived: codegen result from current modules
-	const codegenResult: CodegenResult = $derived(assembleGlsl(modules));
-	const generatedGlsl: string = $derived(codegenResult.glsl);
+	// Derived: codegen result from current modules + routes
+	const codegenResult: CodegenResult = $derived(
+		assembleShaders(modules, modulationRoutes),
+	);
+	const generatedGlsl: string = $derived(codegenResult.fragmentGlsl);
+	const generatedVertexGlsl: string | null = $derived(
+		codegenResult.vertexGlsl,
+	);
 	const compileOk: boolean = $derived(errors.length === 0);
+	const moduleSnippets: Map<string, string> = $derived(
+		codegenResult.moduleSnippets,
+	);
+
+	// Uniform map for real-time updates (maps "moduleId:param" → GLSL name)
+	const uniformMap: Map<string, string> = $derived(codegenResult.uniformMap);
+
+	// ── onTick: CPU-side control engine ──
+
+	function onTick(): void {
+		if (!renderer || modulationRoutes.length === 0) return;
+
+		const time = renderer.getTime();
+		const nextLive = new Map<string, number>();
+
+		for (const route of modulationRoutes) {
+			const sourceMod = modules.find((m) => m.id === route.sourceModuleId);
+			const targetMod = modules.find((m) => m.id === route.targetModuleId);
+			if (!sourceMod || !targetMod || !sourceMod.enabled || !targetMod.enabled) continue;
+
+			// Compute CPU-side control output
+			const controlOutput = computeControlOutput(sourceMod, time);
+
+			// Set source output uniform on renderer
+			const sourceOutputName = uniformMap.get(`${sourceMod.id}:__output`);
+			if (sourceOutputName) {
+				renderer.updateUniform(sourceOutputName, controlOutput);
+			}
+
+			// Compute modulated value for UI overlay (range-scaled)
+			const baseValue = targetMod.params[route.targetParam] ?? 0;
+			const targetDef = MODULE_REGISTRY.get(targetMod.type);
+			const range = targetDef?.paramRanges?.[route.targetParam];
+			const rangeSize = range ? range.max - range.min : 1;
+			const modulatedValue = baseValue + controlOutput * route.depth * rangeSize;
+			nextLive.set(`${route.targetModuleId}:${route.targetParam}`, modulatedValue);
+		}
+
+		liveModValues = nextLive;
+	}
 
 	// ── Module CRUD ──
 
@@ -71,6 +140,7 @@ export function createShaderRackState(): ShaderRackState {
 			label: def.label,
 			enabled: true,
 			collapsed: false,
+			codeExpanded: false,
 			order: modules.length,
 			params: { ...def.defaultParams },
 		};
@@ -83,6 +153,10 @@ export function createShaderRackState(): ShaderRackState {
 		modules = modules
 			.filter((m) => m.id !== id)
 			.map((m, i) => ({ ...m, order: i }));
+		// Clean up modulation routes referencing removed module
+		modulationRoutes = modulationRoutes.filter(
+			(r) => r.sourceModuleId !== id && r.targetModuleId !== id,
+		);
 		syncToRenderer();
 	}
 
@@ -94,6 +168,7 @@ export function createShaderRackState(): ShaderRackState {
 			...source,
 			id: generateId(),
 			label: `${source.label} (copy)`,
+			codeExpanded: false,
 			order: source.order + 1,
 		};
 
@@ -116,16 +191,23 @@ export function createShaderRackState(): ShaderRackState {
 		);
 	}
 
+	function toggleCodeExpanded(id: string): void {
+		modules = modules.map((m) =>
+			m.id === id ? { ...m, codeExpanded: !m.codeExpanded } : m,
+		);
+	}
+
 	function updateParam(
 		moduleId: string,
 		paramName: string,
 		value: number,
 	): void {
-		// Update uniform directly on renderer for real-time feedback
-		const uName = `u_${moduleId}_${paramName}`;
-		renderer?.updateUniform(uName, value);
+		// Use uniformMap for human-readable name resolution
+		const uName = uniformMap.get(`${moduleId}:${paramName}`);
+		if (uName) {
+			renderer?.updateUniform(uName, value);
+		}
 
-		// Update state (triggers codegen re-derive)
 		modules = modules.map((m) =>
 			m.id === moduleId
 				? { ...m, params: { ...m.params, [paramName]: value } }
@@ -139,6 +221,42 @@ export function createShaderRackState(): ShaderRackState {
 		const [moved] = updated.splice(fromIndex, 1);
 		updated.splice(toIndex, 0, moved);
 		modules = updated.map((m, i) => ({ ...m, order: i }));
+		syncToRenderer();
+	}
+
+	// ── Modulation CRUD ──
+
+	function addModulationRoute(
+		sourceModuleId: string,
+		targetModuleId: string,
+		targetParam: string,
+	): void {
+		// Remove existing route for this target param (one modulator per param)
+		modulationRoutes = modulationRoutes.filter(
+			(r) => !(r.targetModuleId === targetModuleId && r.targetParam === targetParam),
+		);
+
+		const route: ModulationRoute = {
+			id: generateId(),
+			sourceModuleId,
+			targetModuleId,
+			targetParam,
+			depth: 1.0,
+		};
+
+		modulationRoutes = [...modulationRoutes, route];
+		syncToRenderer();
+	}
+
+	function removeModulationRoute(routeId: string): void {
+		modulationRoutes = modulationRoutes.filter((r) => r.id !== routeId);
+		syncToRenderer();
+	}
+
+	function updateModulationDepth(routeId: string, depth: number): void {
+		modulationRoutes = modulationRoutes.map((r) =>
+			r.id === routeId ? { ...r, depth } : r,
+		);
 		syncToRenderer();
 	}
 
@@ -167,18 +285,21 @@ export function createShaderRackState(): ShaderRackState {
 
 	function initRenderer(r: PlaygroundRenderer): void {
 		renderer = r;
+		renderer.onTick(() => onTick());
 		syncToRenderer();
 	}
 
 	function syncToRenderer(): void {
 		if (!renderer) return;
 
-		const result = assembleGlsl(modules);
-		const compileErrors = renderer.updateShader(result.glsl, null);
+		const result = assembleShaders(modules, modulationRoutes);
+		const compileErrors = renderer.updateShader(
+			result.fragmentGlsl,
+			result.vertexGlsl,
+		);
 		errors = compileErrors;
 
 		if (compileErrors.length === 0) {
-			// Push all module uniforms
 			for (const u of result.uniforms) {
 				renderer.updateUniform(u.name, u.value);
 			}
@@ -186,27 +307,60 @@ export function createShaderRackState(): ShaderRackState {
 	}
 
 	function dispose(): void {
+		renderer?.onTick(null);
 		renderer?.dispose();
 		renderer = null;
 	}
 
 	return {
-		get modules() { return modules; },
-		get generatedGlsl() { return generatedGlsl; },
-		get errors() { return errors; },
-		get currentGeometry() { return currentGeometry; },
-		get rotationEnabled() { return rotationEnabled; },
-		get lightingEnabled() { return lightingEnabled; },
-		get isFullscreen() { return isFullscreen; },
-		get compileOk() { return compileOk; },
+		get modules() {
+			return modules;
+		},
+		get modulationRoutes() {
+			return modulationRoutes;
+		},
+		get generatedGlsl() {
+			return generatedGlsl;
+		},
+		get generatedVertexGlsl() {
+			return generatedVertexGlsl;
+		},
+		get errors() {
+			return errors;
+		},
+		get currentGeometry() {
+			return currentGeometry;
+		},
+		get rotationEnabled() {
+			return rotationEnabled;
+		},
+		get lightingEnabled() {
+			return lightingEnabled;
+		},
+		get isFullscreen() {
+			return isFullscreen;
+		},
+		get compileOk() {
+			return compileOk;
+		},
+		get moduleSnippets() {
+			return moduleSnippets;
+		},
+		get liveModValues() {
+			return liveModValues;
+		},
 
 		addModule,
 		removeModule,
 		duplicateModule,
 		toggleEnabled,
 		toggleCollapsed,
+		toggleCodeExpanded,
 		updateParam,
 		reorder,
+		addModulationRoute,
+		removeModulationRoute,
+		updateModulationDepth,
 		setGeometry,
 		toggleRotation,
 		toggleLighting,

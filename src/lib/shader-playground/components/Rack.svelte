@@ -1,18 +1,20 @@
 <script lang="ts">
 /**
- * Rack — Scrollable module stack with Add-Module dropdown.
+ * Rack — Scrollable module stack with grouped Add-Module dropdown.
+ *
+ * Uses CONTROL_COMPONENTS map instead of if/else chains.
+ * Dropdown groups modules by stage (Vertex / Fragment / Controls).
+ * Passes moduleSnippets + modulation state to child components.
  */
 
 import { DropdownMenu, Separator } from "bits-ui";
 import { Plus } from "lucide-svelte";
-import { MODULE_REGISTRY, MODULE_TYPES } from "../modules/registry";
+import { MODULE_REGISTRY } from "../modules/registry";
+import { MODULE_CATEGORIES, getStage } from "../modules/types";
 import type { RackModuleType } from "../modules/types";
 import type { ShaderRackState } from "../state.svelte";
+import { CONTROL_COMPONENTS } from "../modules/controls/index";
 import RackModule from "./RackModule.svelte";
-import SliderModule from "../modules/controls/SliderModule.svelte";
-import NoiseModule from "../modules/controls/NoiseModule.svelte";
-import LFOModule from "../modules/controls/LFOModule.svelte";
-import XYSliderModule from "../modules/controls/XYSliderModule.svelte";
 
 interface Props {
 	rack: ShaderRackState;
@@ -55,6 +57,8 @@ function handleDragEnd(): void {
 <div class="rack-container">
 	<div class="rack-modules">
 		{#each rack.modules as mod, i (mod.id)}
+			{@const ControlComponent = CONTROL_COMPONENTS[mod.type]}
+			{@const snippet = rack.moduleSnippets.get(mod.id) ?? ""}
 			<div
 				class="rack-module-slot"
 				class:drag-over={dragOverIndex === i}
@@ -67,30 +71,19 @@ function handleDragEnd(): void {
 			>
 				<RackModule
 					module={mod}
+					{snippet}
 					ontoggleEnabled={() => rack.toggleEnabled(mod.id)}
 					ontoggleCollapsed={() => rack.toggleCollapsed(mod.id)}
+					ontoggleCodeExpanded={() => rack.toggleCodeExpanded(mod.id)}
 					onremove={() => rack.removeModule(mod.id)}
 					onduplicate={() => rack.duplicateModule(mod.id)}
 				>
-					{#if mod.type === "slider"}
-						<SliderModule
+					{#if ControlComponent}
+						<ControlComponent
 							params={mod.params}
 							onparamchange={(name, value) => rack.updateParam(mod.id, name, value)}
-						/>
-					{:else if mod.type === "noise"}
-						<NoiseModule
-							params={mod.params}
-							onparamchange={(name, value) => rack.updateParam(mod.id, name, value)}
-						/>
-					{:else if mod.type === "lfo"}
-						<LFOModule
-							params={mod.params}
-							onparamchange={(name, value) => rack.updateParam(mod.id, name, value)}
-						/>
-					{:else if mod.type === "xy"}
-						<XYSliderModule
-							params={mod.params}
-							onparamchange={(name, value) => rack.updateParam(mod.id, name, value)}
+							moduleId={mod.id}
+							{rack}
 						/>
 					{/if}
 				</RackModule>
@@ -108,15 +101,23 @@ function handleDragEnd(): void {
 				<Plus size={14} />
 				<span>Add Module</span>
 			</DropdownMenu.Trigger>
-			<DropdownMenu.Content class="sp-dropdown-content" sideOffset={4}>
-				{#each MODULE_TYPES as type (type)}
-					{@const def = MODULE_REGISTRY.get(type)}
-					<DropdownMenu.Item
-						class="sp-dropdown-item"
-						onSelect={() => rack.addModule(type)}
-					>
-						{def?.label ?? type}
-					</DropdownMenu.Item>
+			<DropdownMenu.Content class="sp-dropdown-content sp-dropdown-grouped" sideOffset={4}>
+				{#each MODULE_CATEGORIES as category, ci (category.label)}
+					{#if ci > 0}
+						<DropdownMenu.Separator class="sp-dropdown-separator" />
+					{/if}
+					<div class="sp-dropdown-heading" data-stage={category.stage}>
+						{category.label}
+					</div>
+					{#each category.types as type (type)}
+						{@const def = MODULE_REGISTRY.get(type)}
+						<DropdownMenu.Item
+							class="sp-dropdown-item"
+							onSelect={() => rack.addModule(type)}
+						>
+							{def?.label ?? type}
+						</DropdownMenu.Item>
+					{/each}
 				{/each}
 			</DropdownMenu.Content>
 		</DropdownMenu.Root>

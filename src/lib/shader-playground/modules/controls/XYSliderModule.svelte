@@ -1,14 +1,21 @@
 <script lang="ts">
 /**
- * XYSliderModule — 2D canvas pad with crosshair.
+ * XYSliderModule — 2D canvas pad with crosshair + modulation pills for X/Y.
  */
+
+import type { ShaderRackState } from "../../state.svelte";
+import ModulationPill from "../../components/ModulationPill.svelte";
 
 interface Props {
 	params: Record<string, number>;
 	onparamchange: (name: string, value: number) => void;
+	moduleId?: string;
+	rack?: ShaderRackState;
 }
 
-let { params, onparamchange }: Props = $props();
+let { params, onparamchange, moduleId, rack }: Props = $props();
+
+const showModulation = $derived(!!moduleId && !!rack);
 
 let padEl: HTMLDivElement | undefined = $state();
 let dragging = $state(false);
@@ -40,7 +47,19 @@ function handlePointerUp(): void {
 <div class="control-module">
 	<div class="control-row">
 		<span class="control-label">X: {(params.x ?? 0.5).toFixed(2)}</span>
-		<span class="control-value">Y: {(params.y ?? 0.5).toFixed(2)}</span>
+		<div class="control-row-right">
+			{#if showModulation && moduleId && rack}
+				<ModulationPill {rack} {moduleId} paramName="x" />
+			{/if}
+		</div>
+	</div>
+	<div class="control-row">
+		<span class="control-label">Y: {(params.y ?? 0.5).toFixed(2)}</span>
+		<div class="control-row-right">
+			{#if showModulation && moduleId && rack}
+				<ModulationPill {rack} {moduleId} paramName="y" />
+			{/if}
+		</div>
 	</div>
 	<div
 		class="xy-pad"

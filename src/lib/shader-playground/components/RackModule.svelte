@@ -2,21 +2,27 @@
 /**
  * RackModule — Generic wrapper for a rack module.
  *
- * Header: Chevron + Title + Port dots + Bypass switch + Context menu.
- * Body: Slot for module-specific controls.
+ * Header: Chevron + Title + Stage badge + Port dots + Code toggle + Bypass switch + Context menu.
+ * Body Level 1: Slot for module-specific controls.
+ * Body Level 2: GLSL snippet with syntax highlighting (toggled by </> button).
+ * data-stage attribute drives stage-colored left border.
  */
 
 import { Collapsible, DropdownMenu, Switch } from "bits-ui";
-import { ChevronRight, Copy, EllipsisVertical, Trash2 } from "lucide-svelte";
+import { ChevronRight, Code, Copy, EllipsisVertical, Trash2 } from "lucide-svelte";
 import { MODULE_REGISTRY } from "../modules/registry";
 import type { RackModuleInstance } from "../modules/types";
-import { SIGNAL_COLORS } from "../modules/types";
+import { SIGNAL_COLORS, getStage } from "../modules/types";
 import type { Snippet } from "svelte";
+import GlslSnippetView from "./GlslSnippetView.svelte";
 
 interface Props {
 	module: RackModuleInstance;
+	/** GLSL snippet for this module (from codegen moduleSnippets map) */
+	snippet?: string;
 	ontoggleEnabled: () => void;
 	ontoggleCollapsed: () => void;
+	ontoggleCodeExpanded: () => void;
 	onremove: () => void;
 	onduplicate: () => void;
 	children?: Snippet;
@@ -24,19 +30,26 @@ interface Props {
 
 let {
 	module: mod,
+	snippet = "",
 	ontoggleEnabled,
 	ontoggleCollapsed,
+	ontoggleCodeExpanded,
 	onremove,
 	onduplicate,
 	children,
 }: Props = $props();
 
 const def = $derived(MODULE_REGISTRY.get(mod.type));
+const stage = $derived(getStage(mod.type));
+const stageBadge = $derived(
+	stage === "vertex" ? "VERT" : stage === "fragment" ? "FRAG" : "CTRL",
+);
 const inPorts = $derived(def?.ports.filter((p) => p.direction === "in") ?? []);
 const outPorts = $derived(def?.ports.filter((p) => p.direction === "out") ?? []);
+const hasCode = $derived(stage !== "control" && snippet.length > 0);
 </script>
 
-<div class="rack-module" class:disabled={!mod.enabled}>
+<div class="rack-module" class:disabled={!mod.enabled} data-stage={stage}>
 	<Collapsible.Root open={!mod.collapsed} onOpenChange={() => ontoggleCollapsed()}>
 		<div class="rack-module-header">
 			<Collapsible.Trigger class="rack-module-chevron">
@@ -45,7 +58,7 @@ const outPorts = $derived(def?.ports.filter((p) => p.direction === "out") ?? [])
 
 			<button class="rack-module-title" onclick={ontoggleCollapsed}>
 				<span class="rack-module-label">{mod.label}</span>
-				<span class="rack-module-type-badge">{mod.type.toUpperCase()}</span>
+				<span class="rack-module-stage-badge" data-stage={stage}>{stageBadge}</span>
 			</button>
 
 			<div class="rack-module-ports">
@@ -66,6 +79,17 @@ const outPorts = $derived(def?.ports.filter((p) => p.direction === "out") ?? [])
 			</div>
 
 			<div class="rack-module-actions">
+				{#if hasCode}
+					<button
+						class="rack-module-code-btn"
+						class:active={mod.codeExpanded}
+						onclick={ontoggleCodeExpanded}
+						title="Toggle GLSL snippet"
+					>
+						<Code size={12} />
+					</button>
+				{/if}
+
 				<Switch.Root checked={mod.enabled} onCheckedChange={ontoggleEnabled} class="rack-bypass-switch">
 					<Switch.Thumb class="rack-bypass-thumb" />
 				</Switch.Root>
@@ -91,6 +115,12 @@ const outPorts = $derived(def?.ports.filter((p) => p.direction === "out") ?? [])
 			{#if children && mod.enabled}
 				<div class="rack-module-body">
 					{@render children()}
+				</div>
+			{/if}
+
+			{#if mod.codeExpanded && hasCode}
+				<div class="rack-module-code">
+					<GlslSnippetView code={snippet} compact />
 				</div>
 			{/if}
 		</Collapsible.Content>

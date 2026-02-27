@@ -1,12 +1,7 @@
 <script lang="ts">
-/**
- * SliderModule — Single value control with min/max range.
- *
- * Uses ControlSliders for modulation pill + overlay support.
- */
+import ControlSliders from "./ControlSliders.svelte";
 
 import type { ShaderRackState } from "../../state.svelte";
-import ControlSliders, { type SliderConfig } from "./ControlSliders.svelte";
 
 interface Props {
 	params: Record<string, number>;
@@ -17,9 +12,10 @@ interface Props {
 
 let { params, onparamchange, moduleId, rack }: Props = $props();
 
-const sliders: SliderConfig[] = $derived([
-	{ key: "value", label: "Value", min: params.min ?? 0, max: params.max ?? 1, step: 0.01 },
-]);
+const sliders = [
+	{ key: "scale", label: "Scale", min: 0.1, max: 10.0, step: 0.1 },
+	{ key: "strength", label: "Strength", min: 0.0, max: 1.0, step: 0.01 },
+];
 </script>
 
 <ControlSliders {sliders} {params} {onparamchange} {moduleId} {rack} />
