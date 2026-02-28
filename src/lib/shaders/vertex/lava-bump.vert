@@ -37,7 +37,9 @@ void main() {
   vUv = uv;
 
   vec4 worldPos = modelMatrix * vec4(position, 1.0);
-  vec3 noisePos = vec3(worldPos.x * uTerrainScale, uTime * 0.03, worldPos.z * uTerrainScale);
+  // Slow time evolution — terrain height scrolling is inherent to infinite terrain,
+  // this controls only how fast the FBM pattern itself morphs over time
+  vec3 noisePos = vec3(worldPos.x * uTerrainScale, uTime * 0.01, worldPos.z * uTerrainScale);
   float height = terrainFbm(noisePos) * uTerrainHeight;
 
   // Additive Gaussian bumps with stretch/pinch lifecycle

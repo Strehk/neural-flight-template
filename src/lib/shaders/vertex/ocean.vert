@@ -31,11 +31,15 @@ vec3 gerstnerWave(vec2 dir, float steepness, float amplitude, float freq, float 
 void main() {
   vUv = uv;
 
+  // World-space wave sampling for infinite terrain (mesh follows player)
+  vec4 worldPos = modelMatrix * vec4(position, 1.0);
+  vec3 wPos = worldPos.xyz;
+
   // Sum of 3 waves with different directions and parameters
   vec3 wave = vec3(0.0);
-  wave += gerstnerWave(vec2(1.0, 0.0), 0.5, uWaveAmplitude, uWaveFreq, uWaveSpeed, position);
-  wave += gerstnerWave(vec2(0.7, 0.7), 0.3, uWaveAmplitude * 0.6, uWaveFreq * 1.3, uWaveSpeed * 1.1, position);
-  wave += gerstnerWave(vec2(-0.3, 0.9), 0.2, uWaveAmplitude * 0.3, uWaveFreq * 2.1, uWaveSpeed * 0.9, position);
+  wave += gerstnerWave(vec2(1.0, 0.0), 0.5, uWaveAmplitude, uWaveFreq, uWaveSpeed, wPos);
+  wave += gerstnerWave(vec2(0.7, 0.7), 0.3, uWaveAmplitude * 0.6, uWaveFreq * 1.3, uWaveSpeed * 1.1, wPos);
+  wave += gerstnerWave(vec2(-0.3, 0.9), 0.2, uWaveAmplitude * 0.3, uWaveFreq * 2.1, uWaveSpeed * 0.9, wPos);
 
   vec3 displaced = position + wave;
 
