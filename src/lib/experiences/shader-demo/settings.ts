@@ -1,8 +1,17 @@
+// ============================================================================
+// settings.ts — Maps parameter IDs to shader uniform updates
+//
+// Called when the user changes a slider in the Settings Sidebar or when the
+// Node Editor sends a new value. Each case must match a parameter.id from
+// manifest.ts and update the corresponding uniform or state field.
+//
+// CUSTOMIZE: Add a case for each parameter you define in manifest.ts.
+// ============================================================================
+
 import type * as THREE from "three";
 import type { ExperienceState } from "../types";
 import type { ShaderDemoState } from "./scene";
 
-/** Map parameter IDs from manifest to shader uniform updates. */
 export function applySettings(
 	id: string,
 	value: number | boolean | string,

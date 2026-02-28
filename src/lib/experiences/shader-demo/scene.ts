@@ -1,3 +1,15 @@
+// ============================================================================
+// scene.ts — 3D scene setup, shader material, and animation loop
+//
+// This is the creative core of the experience. Students customize:
+//   1. FRAGMENT_SHADER  — the GLSL visual effect
+//   2. VERTEX_SHADER    — geometry deformation (optional, default: standard.vert)
+//   3. UNIFORMS         — shader parameters exposed to the UI
+//   4. GEOMETRY         — the 3D shape to render
+//
+// The experience system calls setup() once, tick() every frame, dispose() on exit.
+// ============================================================================
+
 import * as THREE from "three";
 import {
 	createShaderMaterial,
@@ -10,12 +22,32 @@ import noiseGlsl from "$lib/shaders/common/noise.glsl?raw";
 import displacementVert from "$lib/shaders/vertex/displacement.vert?raw";
 import type { ExperienceState, SetupContext, TickContext } from "../types";
 
+// ── State ──
+// Each experience defines its own state shape extending ExperienceState.
+// The loader passes this opaquely — only your code reads/writes these fields.
+
 export interface ShaderDemoState extends ExperienceState {
 	mesh: THREE.Mesh;
 	material: THREE.ShaderMaterial;
 	camera: THREE.PerspectiveCamera;
 	animSpeed: number;
 }
+
+// ── GLSL Snippets ──
+// Register reusable GLSL code before creating materials.
+// Available snippets: math, noise, sdf, color, transforms
+// Use in shaders via: #pragma include <name>
+
+function registerSnippets(): void {
+	registerSnippet("math", mathGlsl);
+	registerSnippet("noise", noiseGlsl);
+	registerSnippet("color", colorGlsl);
+}
+
+// ── Fragment Shader ──
+// CUSTOMIZE: Replace this with your own GLSL effect.
+// System uniforms (uTime, uResolution, uMouse) are auto-injected by the loader
+// when the shader doesn't already declare them.
 
 const FRAGMENT_SHADER = `
 precision highp float;
@@ -61,53 +93,68 @@ void main() {
 }
 `;
 
-function ensureSnippetsRegistered(): void {
-	registerSnippet("math", mathGlsl);
-	registerSnippet("noise", noiseGlsl);
-	registerSnippet("color", colorGlsl);
-}
+// ── Uniform Defaults ──
+// CUSTOMIZE: Match these to the uniforms declared in your fragment shader.
+// Each uniform here must have a corresponding ParameterDef in manifest.ts
+// and a case in settings.ts to be controllable via UI.
+
+const UNIFORMS = {
+	uNoiseScale: { value: 3 },
+	uSpeed: { value: 0.3 },
+	uColorShift: { value: 0 },
+	uDistortion: { value: 0.5 },
+	uBrightness: { value: 1 },
+	uDisplacement: { value: 0.15 },
+	uDisplacementFreq: { value: 3.0 },
+};
+
+// ── Setup ──
+// Called once when the experience loads. Create geometry, material, camera.
 
 export async function setup(ctx: SetupContext): Promise<ShaderDemoState> {
-	ensureSnippetsRegistered();
+	registerSnippets();
 
-	// 64 subdivisions ≈ 13k triangles — Quest 3 safe at 72fps stereo
+	// Position camera outside the mesh — spawn.position in manifest.ts is
+	// the intended starting point. The loader sets fov/near/far but not position.
+	ctx.camera.position.set(0, 0, 4);
+	ctx.camera.lookAt(0, 0, 0);
+
+	// CUSTOMIZE: Choose your geometry.
+	// 64 subdivisions = ~13k triangles — Quest 3 safe at 72fps stereo.
 	const geometry = new THREE.IcosahedronGeometry(1.5, 64);
 
+	// CUSTOMIZE: Swap vertexShader/fragmentShader for different effects.
+	// Available vertex shaders: standard, displacement, breathe, dissolve, ocean, etc.
 	const material = createShaderMaterial({
 		vertexShader: displacementVert,
 		fragmentShader: FRAGMENT_SHADER,
-		uniforms: {
-			uNoiseScale: { value: 3 },
-			uSpeed: { value: 0.3 },
-			uColorShift: { value: 0 },
-			uDistortion: { value: 0.5 },
-			uBrightness: { value: 1 },
-			uDisplacement: { value: 0.15 },
-			uDisplacementFreq: { value: 3.0 },
-		},
+		uniforms: UNIFORMS,
 	});
 
 	const mesh = new THREE.Mesh(geometry, material);
 	ctx.scene.add(mesh);
 
-	return {
-		mesh,
-		material,
-		camera: ctx.camera,
-		animSpeed: 0.3,
-	};
+	return { mesh, material, camera: ctx.camera, animSpeed: 0.3 };
 }
+
+// ── Tick ──
+// Called every frame. Update time uniforms and animations.
+// Keep this lightweight — runs at 72fps stereo on Quest 3.
 
 export function tick(
 	state: ExperienceState,
 	ctx: TickContext,
 ): { state: ExperienceState; outputs?: Record<string, number> } {
-	// Type narrowing — ExperienceState is generic, ShaderDemoState has our specific fields
 	const s = state as ShaderDemoState;
+
 	updateTime(s.material, ctx.elapsed * s.animSpeed);
 	s.mesh.rotation.y = ctx.elapsed * 0.05;
+
 	return { state: s };
 }
+
+// ── Dispose ──
+// Called when experience unloads. Clean up GPU resources.
 
 export function dispose(state: ExperienceState, scene: THREE.Scene): void {
 	const s = state as ShaderDemoState;
