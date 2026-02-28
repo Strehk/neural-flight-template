@@ -1,0 +1,207 @@
+// Based on Shadertoy "Repelling" by iq — https://www.shadertoy.com/view/XdjXWK
+// Textures replaced with procedural equivalents
+// Copyright Inigo Quilez, 2014 - https://iquilezles.org/ (educational use)
+#pragma include <math>
+
+uniform float uTime;
+uniform vec2 uResolution;
+uniform vec2 uMouse;
+
+#define NUMPASES 2
+#define NUMSPHEREES 15
+
+vec4 sphere[NUMSPHEREES];
+
+vec3 sphNormal(in vec3 pos, in vec4 sph) { return normalize(pos - sph.xyz); }
+
+float sphIntersect(in vec3 ro, in vec3 rd, in vec4 sph)
+{
+    vec3 oc = ro - sph.xyz;
+    float b = dot(oc, rd);
+    float c = dot(oc, oc) - sph.w * sph.w;
+    float h = b * b - c;
+    if(h < 0.0) return -1.0;
+    return -b - sqrt(h);
+}
+
+float sphShadow(in vec3 ro, in vec3 rd, in vec4 sph)
+{
+    vec3 oc = ro - sph.xyz;
+    float b = dot(oc, rd);
+    float c = dot(oc, oc) - sph.w * sph.w;
+    return step(min(-b, min(c, b * b - c)), 0.0);
+}
+
+vec2 sphDistances(in vec3 ro, in vec3 rd, in vec4 sph)
+{
+    vec3 oc = ro - sph.xyz;
+    float b = dot(oc, rd);
+    float c = dot(oc, oc) - sph.w * sph.w;
+    float h = b * b - c;
+    float d = sqrt(max(0.0, sph.w * sph.w - h)) - sph.w;
+    return vec2(d, -b - sqrt(max(h, 0.0)));
+}
+
+float sphSoftShadow(in vec3 ro, in vec3 rd, in vec4 sph)
+{
+    float s = 1.0;
+    vec2 r = sphDistances(ro, rd, sph);
+    if(r.y > 0.0) s = max(r.x, 0.0) / r.y;
+    return s;
+}
+
+float sphOcclusion(in vec3 pos, in vec3 nor, in vec4 sph)
+{
+    vec3 r = sph.xyz - pos;
+    float l = length(r);
+    float d = dot(nor, r);
+    float res = d;
+    if(d < sph.w) res = pow(clamp((d + sph.w) / (2.0 * sph.w), 0.0, 1.0), 1.5) * sph.w;
+    return clamp(res * (sph.w * sph.w) / (l * l * l), 0.0, 1.0);
+}
+
+float shadow(in vec3 ro, in vec3 rd)
+{
+    float res = 1.0;
+    for(int i = 0; i < NUMSPHEREES; i++)
+        res = min(res, 8.0 * sphSoftShadow(ro, rd, sphere[i]));
+    return res;
+}
+
+float occlusion(in vec3 pos, in vec3 nor)
+{
+    float res = 1.0;
+    for(int i = 0; i < NUMSPHEREES; i++)
+        res *= 1.0 - sphOcclusion(pos, nor, sphere[i]);
+    return res;
+}
+
+vec3 hash3(float n) { return fract(sin(vec3(n, n + 1.0, n + 2.0)) * 43758.5453123); }
+
+// Procedural tri-planar texture replacing textureBox(iChannel0, ...)
+vec3 textureBox(in vec3 pos, in vec3 nor)
+{
+    vec3 w = abs(nor);
+    // Procedural noise-based texture
+    float nx = hash21(pos.yz * 4.0) * 0.5 + 0.25;
+    float ny = hash21(pos.zx * 4.0) * 0.5 + 0.25;
+    float nz = hash21(pos.xy * 4.0) * 0.5 + 0.25;
+    return (vec3(nx) * w.x + vec3(ny) * w.y + vec3(nz) * w.z) / (w.x + w.y + w.z);
+}
+
+vec3 shade(in vec3 rd, in vec3 pos, in vec3 nor, in float id, in vec3 uvw, in float dis)
+{
+    vec3 ref = reflect(rd, nor);
+    float occ = occlusion(pos, nor);
+    float fre = clamp(1.0 + dot(rd, nor), 0.0, 1.0);
+    occ = occ * 0.5 + 0.5 * occ * occ;
+
+    vec3 lin = vec3(0.0);
+    lin += 1.0 * vec3(0.6) * occ;
+    lin += 0.5 * vec3(0.3) * (0.2 + 0.8 * occ);
+    lin += 0.3 * vec3(0.5, 0.4, 0.3) * pow(fre, 2.0) * occ;
+    lin += 0.1 * nor.y + 0.1 * nor;
+
+    float dif = clamp(nor.y, 0.0, 1.0) * shadow(pos, vec3(0.0, 1.0, 0.0));
+    lin = lin * 0.7 + 0.8 * dif;
+
+    vec3 mate = 0.6 + 0.4 * cos(10.0 * sin(id) + vec3(0.0, 0.5, 1.0) + 2.);
+    vec3 te = textureBox(0.25 * uvw, nor);
+    vec3 qe = te;
+    te = 0.1 + 0.9 * te;
+    mate *= te * 1.7;
+
+    float h = id / float(NUMSPHEREES);
+    mate *= 1.0 - smoothstep(0.5, 0.6, sin(50.0 * uvw.x * (1.0 - 0.95 * h)) *
+                                          sin(50.0 * uvw.y * (1.0 - 0.95 * h)) *
+                                          sin(50.0 * uvw.z * (1.0 - 0.95 * h)));
+
+    vec3 col = mate * lin;
+    float r = clamp(qe.x, 0.0, 1.0);
+    col += 0.2 * r * pow(clamp(dot(-rd, nor), 0.0, 1.0), 4.0) * occ;
+    col += 0.4 * r * pow(clamp(reflect(rd, nor).y, 0.0, 1.0), 8.0) * dif;
+
+    return col * 0.8;
+}
+
+vec3 trace(in vec3 ro, in vec3 rd, vec3 col, in float px)
+{
+    float t = 1e20;
+    float id = -1.0;
+    vec4 obj = vec4(0.0);
+    for(int i = 0; i < NUMSPHEREES; i++)
+    {
+        float h = sphIntersect(ro, rd, sphere[i]);
+        if(h > 0.0 && h < t) { t = h; obj = sphere[i]; id = float(i); }
+    }
+
+    if(id > -0.5)
+    {
+        vec3 pos = ro + t * rd;
+        vec3 nor = sphNormal(pos, obj);
+        col = shade(rd, pos, nor, float(NUMSPHEREES - 1) - id, pos - obj.xyz, t);
+    }
+
+    return col;
+}
+
+vec3 animate(float time)
+{
+    vec3 cen = vec3(0.0);
+    for(int i = 0; i < NUMSPHEREES; i++)
+    {
+        float id = float(NUMSPHEREES - 1 - i);
+        float ra = pow(id / float(NUMSPHEREES - 1), 3.0);
+        vec3 pos = 1.0 * cos(6.2831 * hash3(id * 16.0 + 2.0 * 0.0) + 1.5 * (1.0 - 0.7 * ra) * sin(id) * time * 2.0);
+        ra = 0.2 + 0.8 * ra;
+
+        for(int j = 0; j < i; j++)
+        {
+            vec3 di = pos.xyz - sphere[j].xyz;
+            float rr = ra + sphere[j].w;
+            float di2 = dot(di, di);
+            if(di2 < rr * rr)
+            {
+                float l = sqrt(di2);
+                pos += di * (rr - l) / l;
+            }
+        }
+
+        sphere[i] = vec4(pos, ra);
+        cen += pos;
+    }
+
+    cen /= float(NUMSPHEREES);
+    return cen;
+}
+
+void mainImage( out vec4 fragColor, in vec2 fragCoord )
+{
+    vec2 q = fragCoord.xy / uResolution.xy;
+    vec2 p = (2.0 * fragCoord.xy - uResolution.xy) / uResolution.y;
+    vec2 m = step(0.0001, uMouse.z) * uMouse.xy / uResolution.xy;
+
+    float time = uTime * 0.5;
+    vec3 cen = animate(time);
+
+    float an = 0.3 * time - 7.0 * m.x - 3.5;
+    float le = 2.5;
+    vec3 ro = cen + vec3(4.0 * sin(an), 1.0, 4.0 * cos(an));
+    vec3 ta = cen;
+    vec3 ww = normalize(ta - ro);
+    vec3 uu = normalize(cross(ww, vec3(0.0, 1.0, 0.0)));
+    vec3 vv = normalize(cross(uu, ww));
+    vec3 rd = normalize(p.x * uu + p.y * vv + le * ww);
+
+    float px = 1.0 * (2.0 / uResolution.y) * (1.0 / le);
+
+    vec3 col = vec3(0.2) * clamp(1.0 - 0.3 * length(p), 0.0, 1.0);
+    col = trace(ro, rd, col, px);
+
+    col = pow(col, vec3(0.44, 0.5, 0.55));
+    col = mix(col, smoothstep(0.0, 1.0, col), 0.5);
+    col *= 0.2 + 0.8 * pow(16.0 * q.x * q.y * (1.0 - q.x) * (1.0 - q.y), 0.2);
+    col += (1.0 / 255.0) * hash3(q.x + 13.0 * q.y);
+
+    fragColor = vec4(col, 1.0);
+}

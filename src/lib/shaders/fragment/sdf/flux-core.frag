@@ -1,0 +1,391 @@
+// Based on Shadertoy "Flux Core" by otaviogood — https://www.shadertoy.com/view/ltlSWf
+// License CC0 — http://creativecommons.org/publicdomain/zero/1.0/
+
+// --- Config ---
+// #define MANUAL_CAMERA
+
+// --- State ---
+float localTime = 0.0;
+float seed = 1.0;
+float animStructure = 1.0;
+float fade = 1.0;
+
+// --- Noise functions ---
+float v31(vec3 a) { return a.x + a.y * 37.0 + a.z * 521.0; }
+float v21(vec2 a) { return a.x + a.y * 37.0; }
+
+float Hash11(float a) { return fract(sin(a) * 10403.9); }
+float Hash21(vec2 uv) {
+    float f = uv.x + uv.y * 37.0;
+    return fract(sin(f) * 104003.9);
+}
+float Hash2d(vec2 uv) {
+    float f = uv.x + uv.y * 37.0;
+    return fract(sin(f) * 104003.9);
+}
+float Hash3d(vec3 uv) {
+    float f = uv.x + uv.y * 37.0 + uv.z * 521.0;
+    return fract(sin(f) * 110003.9);
+}
+
+float mixP(float f0, float f1, float a) {
+    return mix(f0, f1, a * a * (3.0 - 2.0 * a));
+}
+
+const vec2 zeroOne = vec2(0.0, 1.0);
+
+float noise2d(vec2 uv) {
+    vec2 fr = fract(uv.xy);
+    vec2 fl = floor(uv.xy);
+    float h00 = Hash2d(fl);
+    float h10 = Hash2d(fl + zeroOne.yx);
+    float h01 = Hash2d(fl + zeroOne);
+    float h11 = Hash2d(fl + zeroOne.yy);
+    return mixP(mixP(h00, h10, fr.x), mixP(h01, h11, fr.x), fr.y);
+}
+
+float noise(vec3 uv) {
+    vec3 fr = fract(uv.xyz);
+    vec3 fl = floor(uv.xyz);
+    float h000 = Hash3d(fl);
+    float h100 = Hash3d(fl + zeroOne.yxx);
+    float h010 = Hash3d(fl + zeroOne.xyx);
+    float h110 = Hash3d(fl + zeroOne.yyx);
+    float h001 = Hash3d(fl + zeroOne.xxy);
+    float h101 = Hash3d(fl + zeroOne.yxy);
+    float h011 = Hash3d(fl + zeroOne.xyy);
+    float h111 = Hash3d(fl + zeroOne.yyy);
+    return mixP(
+        mixP(mixP(h000, h100, fr.x), mixP(h010, h110, fr.x), fr.y),
+        mixP(mixP(h001, h101, fr.x), mixP(h011, h111, fr.x), fr.y),
+        fr.z);
+}
+
+const float PI = 3.14159265;
+
+vec3 saturate(vec3 a) { return clamp(a, 0.0, 1.0); }
+vec2 saturate(vec2 a) { return clamp(a, 0.0, 1.0); }
+float saturate(float a) { return clamp(a, 0.0, 1.0); }
+
+vec3 RotateX(vec3 v, float rad) {
+    float c = cos(rad), s = sin(rad);
+    return vec3(v.x, c * v.y + s * v.z, -s * v.y + c * v.z);
+}
+vec3 RotateY(vec3 v, float rad) {
+    float c = cos(rad), s = sin(rad);
+    return vec3(c * v.x - s * v.z, v.y, s * v.x + c * v.z);
+}
+vec3 RotateZ(vec3 v, float rad) {
+    float c = cos(rad), s = sin(rad);
+    return vec3(c * v.x + s * v.y, -s * v.x + c * v.y, v.z);
+}
+
+// Spiral noise — rust look
+const float nudge = 0.71;
+float normalizer = 1.0 / sqrt(1.0 + nudge * nudge);
+
+float RustNoise3D(vec3 p) {
+    float n = 0.0;
+    float iter = 1.0;
+    float pn = noise(p * 0.125);
+    pn += noise(p * 0.25) * 0.5;
+    pn += noise(p * 0.5) * 0.25;
+    pn += noise(p * 1.0) * 0.125;
+    for (int i = 0; i < 7; i++) {
+        float wave = saturate(cos(p.y * 0.25 + pn) - 0.998);
+        wave *= noise(p * 0.125) * 1016.0;
+        n += wave;
+        p.xy += vec2(p.y, -p.x) * nudge;
+        p.xy *= normalizer;
+        p.xz += vec2(p.z, -p.x) * nudge;
+        p.xz *= normalizer;
+        iter *= 1.4733;
+    }
+    return n;
+}
+
+// --- Space warping ---
+float repsDouble(float a) { return abs(a * 2.0 - 1.0); }
+vec2 repsDouble(vec2 a) { return abs(a * 2.0 - 1.0); }
+
+vec2 mapSpiralMirror(vec2 uv) {
+    float len = length(uv);
+    float at = atan(uv.x, uv.y) / PI;
+    float dist = (fract(log(len) + at * 0.5) - 0.5) * 2.0;
+    at = repsDouble(at);
+    at = repsDouble(at);
+    return vec2(abs(dist), abs(at));
+}
+
+// --- SDF shapes ---
+float length8(vec2 v) {
+    return pow(pow(abs(v.x), 8.0) + pow(abs(v.y), 8.0), 1.0 / 8.0);
+}
+
+float sdBox(vec3 p, vec3 radius) {
+    vec3 dist = abs(p) - radius;
+    return min(max(dist.x, max(dist.y, dist.z)), 0.0) + length(max(dist, 0.0));
+}
+
+float sdTorusWobble(vec3 p, vec2 t, float offset) {
+    float a = atan(p.x, p.z);
+    float subs = 2.0;
+    a = sin(a * subs + localTime * 4.0 + offset * 3.234567);
+    vec2 q = vec2(length(p.xz) - t.x - a * 0.1, p.y);
+    return length8(q) - t.y;
+}
+
+float cyl(vec2 p, float r) { return length(p) - r; }
+
+float glow = 0.0, glow2 = 0.0, glow3 = 0.0;
+float pulse;
+
+float DistanceToObject(vec3 p) {
+    vec3 orig = p;
+    p.yz = mapSpiralMirror(p.yz);
+    p = mix(orig, p, animStructure);
+
+    const float outerRad = 3.5;
+    float lenXY = length(p.xy);
+    float final2 = lenXY - outerRad;
+    final2 = max(final2, -(lenXY - (outerRad - 0.65)));
+
+    float slice = 0.04;
+    vec3 grid = -abs(fract(p) - 0.5) + slice;
+    final2 = max(final2, grid.z);
+
+    vec3 rep = fract(p) - 0.5;
+    float scale = 1.0;
+    float mult = 0.32;
+    for (int i = 0; i < 3; i++) {
+        float uglyDivider = max(1.0, float(i));
+        float dist = cyl(rep.xz / scale, mult / scale) / uglyDivider;
+        final2 = max(final2, -dist);
+        dist = cyl(rep.xy / scale, mult / scale) / uglyDivider;
+        final2 = max(final2, -dist);
+        dist = cyl(rep.yz / scale, mult / scale) / uglyDivider;
+        final2 = max(final2, -dist);
+        scale *= 1.14 + 1.0;
+        rep = fract(rep * scale) - 0.5;
+    }
+
+    vec3 sp = p;
+    sp.x = abs(sp.x) - 5.4;
+    sp.z = fract(sp.z) - 0.5;
+    float struts = sdBox(sp + vec3(2.95, 0.1 - sin(sp.x * 2.0) * 1.1, 0.0), vec3(1.5, 0.05, 0.02)) * 0.5;
+    final2 = min(final2, struts);
+
+    rep.yz = (fract(p.yz) - 0.5);
+    rep.x = p.x;
+    scale = 1.14 + 1.0;
+    float jolt = max(0.0, sin(length(orig.yz) + localTime * 20.0)) * 0.94;
+    jolt *= saturate(0.3 - pulse);
+    float spiral = sdBox(RotateX(rep + vec3(-0.05, 0.0, 0.0), pulse), vec3(0.01 + jolt, 1.06, mult * 0.01) / scale);
+    glow3 += (0.0018) / max(0.0025, spiral);
+    final2 = min(final2, spiral + (1.0 - animStructure) * 100.0);
+
+    vec3 rp = p.xzy;
+    rp.x = -abs(rp.x);
+    rp.y = fract(rp.y) - 0.5;
+    float torus = sdTorusWobble(rp + vec3(3.0, 0.0, 0.0), vec2(0.2, 0.0003), p.z);
+    glow2 += 0.0015 / max(0.03, torus);
+    final2 = min(final2, torus);
+
+    glow += (0.02 + abs(sin(orig.x - localTime * 3.0) * 0.15) * jolt) / length(orig.yz);
+
+    return final2;
+}
+
+vec3 RayTrace(in vec2 fragCoord) {
+    glow = 0.0;
+    glow2 = 0.0;
+    glow3 = 0.0;
+    animStructure = 1.0;
+
+    float slt = sin(localTime);
+    float stepLike = pow(abs(slt), 0.75) * sign(slt);
+    stepLike = max(-1.0, min(1.0, stepLike * 1.5));
+    pulse = stepLike * PI / 4.0 + PI / 4.0;
+
+    vec3 camPos, camUp, camLookat;
+    vec2 uv = fragCoord.xy / uResolution.xy * 2.0 - 1.0;
+
+#ifdef MANUAL_CAMERA
+    camUp = vec3(0, 1, 0);
+    camLookat = vec3(0, 0.0, 0);
+    float mx = uMouse.x / uResolution.x * PI * 2.0;
+    float my = -uMouse.y / uResolution.y * 10.0;
+    camPos = vec3(cos(my) * cos(mx), sin(my), cos(my) * sin(mx)) * 8.35;
+#else
+    // Animated camera fly-by
+    const float t0 = 0.0, t1 = 9.0, t2 = 16.0, t3 = 24.0, t4 = 40.0, t5 = 48.0, t6 = 70.0;
+    localTime = fract(localTime / t6) * t6;
+
+    if (localTime < t1) {
+        animStructure = 0.0;
+        float time = localTime - t0;
+        float alpha = time / (t1 - t0);
+        fade = saturate(time);
+        fade *= saturate(t1 - localTime);
+        camPos = vec3(56.0, -2.5, 1.5);
+        camPos.x -= alpha * 6.8;
+        camUp = vec3(0, 1, 0);
+        camLookat = vec3(50, 0.0, 0);
+    } else if (localTime < t2) {
+        animStructure = 0.0;
+        float time = localTime - t1;
+        float alpha = time / (t2 - t1);
+        fade = saturate(time);
+        fade *= saturate(t2 - localTime);
+        camPos = vec3(12.0, 3.3, -0.5);
+        camPos.x -= smoothstep(0.0, 1.0, alpha) * 4.8;
+        camUp = vec3(0, 1, 0);
+        camLookat = vec3(0, 5.5, -0.5);
+    } else if (localTime < t3) {
+        animStructure = 1.0;
+        float time = localTime - t2;
+        float alpha = time / (t3 - t2);
+        fade = saturate(time);
+        fade *= saturate(t3 - localTime);
+        camPos = vec3(12.0, 6.3, -0.5);
+        camPos.y -= alpha * 1.8;
+        camPos.x = cos(alpha * 1.0) * 6.3;
+        camPos.z = sin(alpha * 1.0) * 6.3;
+        camUp = normalize(vec3(0, 1, -0.3 - alpha * 0.5));
+        camLookat = vec3(0, 0.0, -0.5);
+    } else if (localTime < t4) {
+        animStructure = 1.0;
+        float time = localTime - t3;
+        float alpha = time / (t4 - t3);
+        fade = saturate(time);
+        fade *= saturate(t4 - localTime);
+        camPos = vec3(12.0, 3.0, -2.6);
+        camPos.y -= alpha * 1.8;
+        camPos.x = cos(alpha * 1.0) * 6.5 - alpha * 0.25;
+        camPos.z += sin(alpha * 1.0) * 6.5 - alpha * 0.25;
+        camUp = normalize(vec3(0, 1, 0.0));
+        camLookat = vec3(0, 0.0, -0.0);
+    } else if (localTime < t5) {
+        animStructure = 1.0;
+        float time = localTime - t4;
+        float alpha = time / (t5 - t4);
+        fade = saturate(time);
+        fade *= saturate(t5 - localTime);
+        camPos = vec3(0.0, -7.0, -0.9);
+        camPos.y -= alpha * 1.8;
+        camPos.x = cos(alpha * 1.0) * 1.5 - alpha * 1.5;
+        camPos.z += sin(alpha * 1.0) * 1.5 - alpha * 1.5;
+        camUp = normalize(vec3(0, 1, 0.0));
+        camLookat = vec3(0, -3.0, -0.0);
+    } else if (localTime < t6) {
+        float time = localTime - t5;
+        float alpha = time / (t6 - t5);
+        float smoothv = smoothstep(0.0, 1.0, saturate(alpha * 1.8 - 0.1));
+        animStructure = 1.0 - smoothv;
+        fade = saturate(time);
+        fade *= saturate(t6 - localTime);
+        camPos = vec3(10.0, -0.95 + smoothv * 1.0, 0.0);
+        camPos.x -= alpha * 6.8;
+        camUp = normalize(vec3(0, 1.0 - smoothv, 0.0 + smoothv));
+        camLookat = vec3(0, -0.0, -0.0);
+    }
+#endif
+
+    vec3 camVec = normalize(camLookat - camPos);
+    vec3 sideNorm = normalize(cross(camUp, camVec));
+    vec3 upNorm = cross(camVec, sideNorm);
+    vec3 worldFacing = (camPos + camVec);
+    vec3 worldPix = worldFacing + uv.x * sideNorm * (uResolution.x / uResolution.y) + uv.y * upNorm;
+    vec3 rayVec = normalize(worldPix - camPos);
+
+    // Ray march
+    float dist = 1.0;
+    float t = 0.1 + Hash2d(uv) * 0.1;
+    const float maxDepth = 45.0;
+    vec3 pos = vec3(0, 0, 0);
+    const float smallVal = 0.000625;
+
+    for (int i = 0; i < 210; i++) {
+        pos = (camPos + rayVec * t).yzx;
+        dist = DistanceToObject(pos);
+        dist = min(dist, length(pos.yz));
+        t += dist;
+        if ((t > maxDepth) || (abs(dist) < smallVal)) break;
+    }
+
+    float glowSave = glow;
+    float glow2Save = glow2;
+    float glow3Save = glow3;
+
+    vec3 sunDir = normalize(vec3(0.93, 1.0, -1.5));
+    vec3 finalColor = vec3(0.0);
+
+    if (t <= maxDepth) {
+        vec3 smallVec = vec3(smallVal, 0, 0);
+        vec3 normalU = vec3(
+            dist - DistanceToObject(pos - smallVec.xyy),
+            dist - DistanceToObject(pos - smallVec.yxy),
+            dist - DistanceToObject(pos - smallVec.yyx));
+        vec3 normal = normalize(normalU);
+
+        float ambientS = 1.0;
+        ambientS *= saturate(DistanceToObject(pos + normal * 0.05) * 20.0);
+        ambientS *= saturate(DistanceToObject(pos + normal * 0.1) * 10.0);
+        ambientS *= saturate(DistanceToObject(pos + normal * 0.2) * 5.0);
+        ambientS *= saturate(DistanceToObject(pos + normal * 0.4) * 2.5);
+        ambientS *= saturate(DistanceToObject(pos + normal * 0.8) * 1.25);
+        float ambient = ambientS * saturate(DistanceToObject(pos + normal * 1.6) * 1.25 * 0.5);
+        ambient = saturate(ambient);
+
+        float sunShadow = 1.0;
+        float iter = 0.01;
+        vec3 nudgePos = pos + normal * 0.002;
+        for (int i = 0; i < 30; i++) {
+            float tempDist = DistanceToObject(nudgePos + sunDir * iter);
+            sunShadow *= saturate(tempDist * 150.0);
+            if (tempDist <= 0.0) break;
+            iter += max(0.01, tempDist) * 1.0;
+            if (iter > 4.2) break;
+        }
+        sunShadow = saturate(sunShadow);
+
+        float n = 0.0;
+        n += noise(pos * 32.0);
+        n += noise(pos * 64.0);
+        n += noise(pos * 128.0);
+        n += noise(pos * 256.0);
+        n += noise(pos * 512.0);
+        n *= 0.8;
+        normal = normalize(normal + (n - 2.0) * 0.1);
+
+        vec3 texColor = vec3(0.95, 1.0, 1.0);
+        vec3 rust = vec3(0.65, 0.25, 0.1) - noise(pos * 128.0);
+        texColor *= smoothstep(texColor, rust, vec3(saturate(RustNoise3D(pos * 8.0)) - 0.2));
+        texColor *= vec3(1.0) * n * 0.05;
+        texColor *= 0.7;
+        texColor = saturate(texColor);
+
+        vec3 lightColor = vec3(3.6) * saturate(dot(sunDir, normal)) * sunShadow;
+        float ambientAvg = (ambient * 3.0 + ambientS) * 0.25;
+        lightColor += (vec3(1.0, 0.2, 0.4) * saturate(-normal.z * 0.5 + 0.5)) * pow(ambientAvg, 0.35);
+        lightColor += (vec3(0.1, 0.5, 0.99) * saturate(normal.y * 0.5 + 0.5)) * pow(ambientAvg, 0.35);
+        lightColor += vec3(0.3, 0.5, 0.9) * saturate(dot(-pos, normal)) * pow(ambientS, 0.3);
+        lightColor *= 4.0;
+
+        finalColor = texColor * lightColor;
+    }
+
+    float center = length(pos.yz);
+    finalColor += vec3(0.3, 0.5, 0.9) * glowSave * 1.2;
+    finalColor += vec3(0.9, 0.5, 0.3) * glow2 * 1.2;
+    finalColor += vec3(0.25, 0.29, 0.93) * glow3Save * 2.0;
+    finalColor *= vec3(1.0) * saturate(1.0 - length(uv / 2.5));
+
+    return vec3(clamp(finalColor, 0.0, 1.0) * saturate(fade + 0.25));
+}
+
+void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+    localTime = uTime;
+    vec3 finalColor = RayTrace(fragCoord);
+    fragColor = vec4(sqrt(clamp(finalColor, 0.0, 1.0)), 1.0);
+}

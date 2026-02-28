@@ -16,6 +16,7 @@ Quick navigation for students and contributors.
 |--------|---------|-----------|
 | [`experiences/`](experiences/) | VR experiences built by students | `catalog.ts`, `loader.ts`, `types.ts` |
 | [`three/`](three/) | Shared 3D building blocks (clouds, terrain, sky) | `clouds.ts`, `player.ts`, `rings.ts` |
+| [`shaders/`](shaders/) | Reusable GLSL Shader Library (vertex, fragment, noise, sdf, landscape, generative, lighting, abstract) | `common/`, `createShaderMaterial()` |
 | [`shader-playground/`](shader-playground/) | Live GLSL editor with 3D preview (signal-based modules) | `README.md` has full docs |
 | [`node-editor/`](node-editor/) | Visual parameter editor (Eurorack metaphor) | `README.md` has full docs |
 | [`config/`](config/) | Configuration constants | `flight.ts` |
@@ -29,11 +30,14 @@ Quick navigation for students and contributors.
 ## Cross-Module Dependencies
 
 ```
+shaders/           ──uses──→ THREE.js            (only dependency)
 experiences/ ──uses──→ three/              (building blocks)
+experiences/ ──uses──→ shaders/            (custom ShaderMaterials)
 experiences/ ──uses──→ config/             (constants, being replaced by manifests)
 node-editor/ ──reads─→ experiences/        (manifest.parameters → Output Nodes)
 ws/          ──sends─→ experiences/        (orientation + settings → applySettings)
 shader-playground/ ──uses──→ three/        (Three.js renderer for preview)
+shader-playground/ ──uses──→ shaders/common/ (shared GLSL snippets, later)
 ```
 
 ## Architecture Layers

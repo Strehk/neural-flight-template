@@ -1,4 +1,5 @@
 import { manifest as mountainFlight } from "./mountain-flight";
+import { manifest as shaderDemo } from "./shader-demo";
 import type { ExperienceManifest } from "./types";
 
 // ── Registry ──
@@ -11,6 +12,7 @@ import type { ExperienceManifest } from "./types";
 
 const CATALOG: Record<string, ExperienceManifest> = {
 	"mountain-flight": mountainFlight,
+	"shader-demo": shaderDemo,
 };
 
 export const DEFAULT_EXPERIENCE_ID = "mountain-flight";
