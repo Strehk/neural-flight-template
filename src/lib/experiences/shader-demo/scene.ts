@@ -5,6 +5,7 @@
 //
 //   Layer 0: FlightPlayer  — ICAROS-driven flight physics (shared lib)
 //   Layer 1: Terrain        — PlaneGeometry + world-space FBM + cosine palette
+//                             + Gaussian bumps that grow and pinch off
 //   Layer 2: Water          — PlaneGeometry + world-space Gerstner + caustics
 //   Layer 3: Bubbles        — InstancedMesh lava-lamp blobs rising from terrain
 //   Layer 4: Particles      — Points with pulsing glow (follow player)
@@ -15,10 +16,15 @@
 //   sample noise from WORLD-SPACE coordinates (via modelMatrix), so the noise
 //   pattern stays spatially stable even as the mesh moves.
 //
+// LAVA LAMP EFFECT:
+//   8 bump slots on the terrain grow as Gaussian hills (GPU vertex shader).
+//   When a bump's phase reaches 1.0, an InstancedMesh blob spawns at the peak
+//   and rises with wobble. Bumps reset with new random position near player.
+//
 // Quest 3 budget:
 //   Terrain:  128×128 = ~32k tris | Water: 64×64 = ~8k tris
-//   Bubbles:  25 × ~80 = ~2k tris | Particles: 600 points
-//   Sky:      ~320 tris | Total: ~43k — within 72fps stereo budget
+//   Bubbles:  16 × ~80 = ~1.3k tris | Particles: 600 points
+//   Sky:      ~320 tris | Total: ~42k — within 72fps stereo budget
 // ============================================================================
 
 import * as THREE from "three";
@@ -30,6 +36,8 @@ import {
 import colorGlsl from "$lib/shaders/common/color.glsl?raw";
 import mathGlsl from "$lib/shaders/common/math.glsl?raw";
 import noiseGlsl from "$lib/shaders/common/noise.glsl?raw";
+import lavaBumpVert from "$lib/shaders/vertex/lava-bump.vert?raw";
+import subsurfaceGlowFrag from "$lib/shaders/fragment/lighting/subsurface-glow.frag?raw";
 import { FlightPlayer } from "$lib/three/player";
 import { createSky } from "$lib/three/sky";
 import type { ExperienceState, SetupContext, TickContext } from "../types";
@@ -44,9 +52,16 @@ export interface ShaderDemoState extends ExperienceState {
 		mesh: THREE.InstancedMesh;
 		material: THREE.ShaderMaterial;
 		positions: Float32Array; // x, y, z per bubble (flat array)
-		phases: Float32Array;
+		phases: Float32Array; // wobble phase offsets
 		speeds: Float32Array;
 		scales: Float32Array;
+		active: Uint8Array; // 0 = hidden, 1 = rising
+	};
+	bumps: {
+		centers: Float32Array; // 8 * 2 (XZ pairs)
+		phases: Float32Array; // 8 lifecycle phases (0→1)
+		radii: Float32Array; // 8 radii
+		speeds: Float32Array; // 8 phase advancement rates
 	};
 	sky: THREE.Mesh;
 	particles: { points: THREE.Points; material: THREE.ShaderMaterial };
@@ -55,12 +70,19 @@ export interface ShaderDemoState extends ExperienceState {
 
 // ── Constants ────────────────────────────────────────────────────────────
 
-const BUBBLE_COUNT = 25;
-const BUBBLE_SPAWN_RADIUS = 80; // XZ distance from player
-const BUBBLE_MIN_Y = 5; // spawn near terrain surface
-const BUBBLE_MAX_Y = 70; // dissolve at this height
+const BUBBLE_COUNT = 16;
+const BUBBLE_SPAWN_RADIUS = 80;
+const BUBBLE_MIN_Y = 5;
+const BUBBLE_MAX_Y = 70;
 const BUBBLE_MIN_SCALE = 1.5;
 const BUBBLE_MAX_SCALE = 4.0;
+
+const BUMP_COUNT = 8;
+const BUMP_SPAWN_RADIUS = 60;
+const BUMP_MIN_RADIUS = 8;
+const BUMP_MAX_RADIUS = 20;
+const BUMP_MIN_SPEED = 0.15;
+const BUMP_MAX_SPEED = 0.4;
 
 // ── GLSL Snippet Registration ────────────────────────────────────────────
 
@@ -70,56 +92,9 @@ function registerSnippets(): void {
 	registerSnippet("color", colorGlsl);
 }
 
-// ── Terrain Vertex Shader (World-Space) ──────────────────────────────────
-
-const TERRAIN_VERT = /* glsl */ `
-precision highp float;
-
-uniform float uTerrainScale;
-uniform float uTerrainHeight;
-uniform float uTime;
-
-#pragma include <math>
-#pragma include <noise>
-
-varying vec2 vUv;
-varying vec3 vNormal;
-varying vec3 vPosition;
-
-float terrainFbm(vec3 p) {
-  float value = 0.0;
-  float amplitude = 0.5;
-  float frequency = 1.0;
-  for (int i = 0; i < 3; i++) {
-    value += amplitude * snoise(p * frequency);
-    frequency *= 2.0;
-    amplitude *= 0.5;
-  }
-  return value;
-}
-
-void main() {
-  vUv = uv;
-
-  vec4 worldPos = modelMatrix * vec4(position, 1.0);
-  vec3 noisePos = vec3(worldPos.x * uTerrainScale, uTime * 0.08, worldPos.z * uTerrainScale);
-  float height = terrainFbm(noisePos) * uTerrainHeight;
-
-  vec3 displaced = vec3(position.x, position.y + height, position.z);
-
-  float eps = 0.5;
-  float hL = terrainFbm(noisePos + vec3(-eps * uTerrainScale, 0.0, 0.0)) * uTerrainHeight;
-  float hR = terrainFbm(noisePos + vec3(eps * uTerrainScale, 0.0, 0.0)) * uTerrainHeight;
-  float hD = terrainFbm(noisePos + vec3(0.0, 0.0, -eps * uTerrainScale)) * uTerrainHeight;
-  float hU = terrainFbm(noisePos + vec3(0.0, 0.0, eps * uTerrainScale)) * uTerrainHeight;
-  vNormal = normalize(vec3(hL - hR, 2.0 * eps, hD - hU));
-
-  vPosition = (modelMatrix * vec4(displaced, 1.0)).xyz;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
-}
-`;
-
 // ── Terrain Fragment Shader ──────────────────────────────────────────────
+// Speed-animation fix: spatial frequency reduced, temporal animation increased
+// so time-based animation dominates over spatial scrolling
 
 const TERRAIN_FRAG = /* glsl */ `
 precision highp float;
@@ -143,9 +118,13 @@ varying vec3 vPosition;
 void main() {
   float h = clamp(vPosition.y / uTerrainHeight + 0.5, 0.0, 1.0);
 
-  // Double domain warp — terrain breathes and flows
-  float warp1 = snoise(vPosition * 0.015 + uTime * 0.06) * 0.4;
-  float warp2 = snoise(vPosition * 0.04 + vec3(warp1) + uTime * 0.03) * 0.25;
+  // Camera-relative position for domain warp — decouples animation from flight speed
+  // vPosition = world-space (scrolls with movement), relPos = camera-relative (stable)
+  vec3 relPos = vPosition - cameraPosition;
+
+  // Double domain warp — camera-relative so speed doesn't affect animation
+  float warp1 = snoise(relPos * 0.012 + uTime * 0.15) * 0.4;
+  float warp2 = snoise(relPos * 0.03 + vec3(warp1) + uTime * 0.08) * 0.25;
   h += warp1 + warp2;
 
   // Intense neon cosine palette
@@ -221,6 +200,7 @@ void main() {
 `;
 
 // ── Water Fragment Shader ────────────────────────────────────────────────
+// Speed-animation fix: coarser caustic spatial frequency, faster temporal
 
 const WATER_FRAG = /* glsl */ `
 precision highp float;
@@ -242,8 +222,10 @@ varying vec3 vPosition;
 void main() {
   float fresnel = pow(1.0 - abs(dot(normalize(vNormal), vec3(0.0, 1.0, 0.0))), 2.5);
 
-  float c1 = snoise(vec3(vPosition.xz * 0.08 + uTime * 0.25, 0.0));
-  float c2 = snoise(vec3(vPosition.xz * 0.12 - uTime * 0.18, 1.0));
+  // Camera-relative caustics — decoupled from flight speed
+  vec2 relXZ = vPosition.xz - cameraPosition.xz;
+  float c1 = snoise(vec3(relXZ * 0.06 + uTime * 0.35, 0.0));
+  float c2 = snoise(vec3(relXZ * 0.09 - uTime * 0.28, 1.0));
   float caustic = abs(c1 + c2) * 0.6;
 
   float colorShift = sin(uTime * 0.15) * 0.5 + 0.5;
@@ -299,36 +281,6 @@ void main() {
   vRim = 1.0 - abs(dot(vNormal, viewDir));
 
   gl_Position = projectionMatrix * viewMatrix * worldPos;
-}
-`;
-
-// ── Bubble Fragment Shader ───────────────────────────────────────────────
-// Subsurface scattering glow — warm lava-lamp colors, translucent.
-
-const BUBBLE_FRAG = /* glsl */ `
-precision highp float;
-
-uniform float uTime;
-
-varying vec3 vNormal;
-varying vec3 vWorldPos;
-varying float vRim;
-
-void main() {
-  float subsurface = pow(vRim, 2.0);
-
-  // Lava lamp colors — warm orange/magenta shifting with height + time
-  float t = vWorldPos.y * 0.04 + uTime * 0.4;
-  vec3 warmCol = mix(vec3(1.0, 0.3, 0.05), vec3(1.0, 0.05, 0.6), sin(t) * 0.5 + 0.5);
-  vec3 hotCenter = vec3(1.0, 0.95, 0.4);
-
-  vec3 col = mix(hotCenter, warmCol, subsurface);
-  col += subsurface * vec3(1.0, 0.4, 0.2) * 0.8;
-
-  // Translucent with bright rim
-  float alpha = 0.3 + subsurface * 0.5;
-
-  gl_FragColor = vec4(col, alpha);
 }
 `;
 
@@ -389,6 +341,9 @@ const TERRAIN_UNIFORMS = {
 	uFogColor: { value: FOG_COLOR.clone() },
 	uFogNear: { value: 40.0 },
 	uFogFar: { value: 200.0 },
+	uBumpData: {
+		value: Array.from({ length: 8 }, () => new THREE.Vector4(0, 0, 0, 10)),
+	},
 };
 
 const WATER_UNIFORMS = {
@@ -408,52 +363,110 @@ const _pos = new THREE.Vector3();
 const _scale = new THREE.Vector3();
 const _quat = new THREE.Quaternion();
 
-// ── Helper: Initialize bubble data ───────────────────────────────────────
+// ── Helper: Initialize bump data ──────────────────────────────────────────
+
+function initBumpData(): {
+	centers: Float32Array;
+	phases: Float32Array;
+	radii: Float32Array;
+	speeds: Float32Array;
+} {
+	const centers = new Float32Array(BUMP_COUNT * 2);
+	const phases = new Float32Array(BUMP_COUNT);
+	const radii = new Float32Array(BUMP_COUNT);
+	const speeds = new Float32Array(BUMP_COUNT);
+
+	for (let i = 0; i < BUMP_COUNT; i++) {
+		const angle = Math.random() * Math.PI * 2;
+		const dist = 10 + Math.random() * BUMP_SPAWN_RADIUS;
+		centers[i * 2] = Math.cos(angle) * dist;
+		centers[i * 2 + 1] = Math.sin(angle) * dist;
+		phases[i] = Math.random() * 0.3; // stagger start phases
+		radii[i] =
+			BUMP_MIN_RADIUS + Math.random() * (BUMP_MAX_RADIUS - BUMP_MIN_RADIUS);
+		speeds[i] =
+			BUMP_MIN_SPEED + Math.random() * (BUMP_MAX_SPEED - BUMP_MIN_SPEED);
+	}
+
+	return { centers, phases, radii, speeds };
+}
+
+// ── Helper: Initialize bubble data (all inactive) ────────────────────────
 
 function initBubbleData(): {
 	positions: Float32Array;
 	phases: Float32Array;
 	speeds: Float32Array;
 	scales: Float32Array;
+	active: Uint8Array;
 } {
-	const positions = new Float32Array(BUBBLE_COUNT * 3);
+	const positions = new Float32Array(BUBBLE_COUNT * 3); // all zeros = hidden
 	const phases = new Float32Array(BUBBLE_COUNT);
 	const speeds = new Float32Array(BUBBLE_COUNT);
-	const scales = new Float32Array(BUBBLE_COUNT);
+	const scales = new Float32Array(BUBBLE_COUNT); // scale 0 = invisible
+	const active = new Uint8Array(BUBBLE_COUNT); // all 0 = inactive
 
 	for (let i = 0; i < BUBBLE_COUNT; i++) {
-		// Spread bubbles randomly — they'll be repositioned relative to player in tick
-		positions[i * 3] = (Math.random() - 0.5) * BUBBLE_SPAWN_RADIUS * 2;
-		positions[i * 3 + 1] =
-			BUBBLE_MIN_Y + Math.random() * (BUBBLE_MAX_Y - BUBBLE_MIN_Y);
-		positions[i * 3 + 2] = (Math.random() - 0.5) * BUBBLE_SPAWN_RADIUS * 2;
-		phases[i] = Math.random() * Math.PI * 2;
-		speeds[i] = 1.0 + Math.random() * 2.0; // 1-3 m/s rise speed
-		scales[i] =
-			BUBBLE_MIN_SCALE + Math.random() * (BUBBLE_MAX_SCALE - BUBBLE_MIN_SCALE);
+		phases[i] = Math.random() * Math.PI * 2; // wobble offset (used when active)
 	}
 
-	return { positions, phases, speeds, scales };
+	return { positions, phases, speeds, scales, active };
 }
 
-// ── Helper: Respawn a single bubble near the player ──────────────────────
+// ── Helper: Deactivate a bubble (hide it) ────────────────────────────────
 
-function respawnBubble(
+function deactivateBubble(i: number, bubbles: ShaderDemoState["bubbles"]): void {
+	bubbles.active[i] = 0;
+	bubbles.scales[i] = 0;
+	bubbles.positions[i * 3 + 1] = -100; // hide below terrain
+}
+
+// ── Helper: Activate bubble at bump peak position ────────────────────────
+
+function activateBubbleAtBump(
+	bubbles: ShaderDemoState["bubbles"],
+	bumpX: number,
+	bumpZ: number,
+	terrainHeight: number,
+): void {
+	// Find first inactive bubble
+	let idx = -1;
+	for (let i = 0; i < BUBBLE_COUNT; i++) {
+		if (bubbles.active[i] === 0) {
+			idx = i;
+			break;
+		}
+	}
+	if (idx === -1) return; // all bubbles in use
+
+	bubbles.active[idx] = 1;
+	bubbles.positions[idx * 3] = bumpX;
+	// Spawn near bump peak: terrain base height (~terrainHeight * 0.3) + bump contribution
+	bubbles.positions[idx * 3 + 1] = terrainHeight * 0.6;
+	bubbles.positions[idx * 3 + 2] = bumpZ;
+	bubbles.speeds[idx] = 1.5 + Math.random() * 2.0;
+	bubbles.scales[idx] =
+		BUBBLE_MIN_SCALE +
+		Math.random() * (BUBBLE_MAX_SCALE - BUBBLE_MIN_SCALE) * 1.3;
+}
+
+// ── Helper: Reset bump to new random position ────────────────────────────
+
+function resetBump(
 	i: number,
-	positions: Float32Array,
-	speeds: Float32Array,
-	scales: Float32Array,
+	bumps: ShaderDemoState["bumps"],
 	playerX: number,
 	playerZ: number,
 ): void {
 	const angle = Math.random() * Math.PI * 2;
-	const radius = 10 + Math.random() * BUBBLE_SPAWN_RADIUS;
-	positions[i * 3] = playerX + Math.cos(angle) * radius;
-	positions[i * 3 + 1] = BUBBLE_MIN_Y + Math.random() * 10;
-	positions[i * 3 + 2] = playerZ + Math.sin(angle) * radius;
-	speeds[i] = 1.0 + Math.random() * 2.0;
-	scales[i] =
-		BUBBLE_MIN_SCALE + Math.random() * (BUBBLE_MAX_SCALE - BUBBLE_MIN_SCALE);
+	const dist = 15 + Math.random() * BUMP_SPAWN_RADIUS;
+	bumps.centers[i * 2] = playerX + Math.cos(angle) * dist;
+	bumps.centers[i * 2 + 1] = playerZ + Math.sin(angle) * dist;
+	bumps.phases[i] = 0;
+	bumps.radii[i] =
+		BUMP_MIN_RADIUS + Math.random() * (BUMP_MAX_RADIUS - BUMP_MIN_RADIUS);
+	bumps.speeds[i] =
+		BUMP_MIN_SPEED + Math.random() * (BUMP_MAX_SPEED - BUMP_MIN_SPEED);
 }
 
 // ── Helper: Create particle field ────────────────────────────────────────
@@ -500,12 +513,12 @@ export async function setup(ctx: SetupContext): Promise<ShaderDemoState> {
 	});
 	ctx.scene.add(player.rig);
 
-	// ── Terrain (infinite) ──
+	// ── Terrain (infinite) — library vertex shader with bump support ──
 	const terrainGeo = new THREE.PlaneGeometry(512, 512, 128, 128);
 	terrainGeo.rotateX(-Math.PI / 2);
 
 	const terrainMat = createShaderMaterial({
-		vertexShader: TERRAIN_VERT,
+		vertexShader: lavaBumpVert,
 		fragmentShader: TERRAIN_FRAG,
 		uniforms: TERRAIN_UNIFORMS,
 	});
@@ -529,36 +542,43 @@ export async function setup(ctx: SetupContext): Promise<ShaderDemoState> {
 	waterMesh.position.y = 8;
 	ctx.scene.add(waterMesh);
 
-	// ── Lava Lamp Bubbles ──
-	// InstancedMesh: 25 icosahedron blobs with subsurface glow shader.
-	// Each bubble rises from the terrain, wobbles, and respawns when too high.
+	// ── Lava Lamp Bubbles — library fragment shader ──
 	const bubbleGeo = new THREE.IcosahedronGeometry(1, 2);
 	const bubbleMat = createShaderMaterial({
 		vertexShader: BUBBLE_VERT,
-		fragmentShader: BUBBLE_FRAG,
+		fragmentShader: subsurfaceGlowFrag,
+		uniforms: {
+			uGlowColor: { value: new THREE.Vector3(1.0, 0.3, 0.1) },
+			uRimColor: { value: new THREE.Vector3(1.0, 0.1, 0.6) },
+			uSubsurfaceIntensity: { value: 1.5 },
+			uOpacity: { value: 0.5 },
+		},
 		transparent: true,
 		depthWrite: false,
 		side: THREE.DoubleSide,
 	});
 
-	const bubbleMesh = new THREE.InstancedMesh(bubbleGeo, bubbleMat, BUBBLE_COUNT);
-	bubbleMesh.frustumCulled = false; // instances move dynamically
+	const bubbleMesh = new THREE.InstancedMesh(
+		bubbleGeo,
+		bubbleMat,
+		BUBBLE_COUNT,
+	);
+	bubbleMesh.frustumCulled = false;
 	ctx.scene.add(bubbleMesh);
 
 	const bubbleData = initBubbleData();
 
-	// Set initial matrices
+	// All bubbles start hidden (scale 0) — only bump pinch-offs activate them
 	for (let i = 0; i < BUBBLE_COUNT; i++) {
-		_pos.set(
-			bubbleData.positions[i * 3],
-			bubbleData.positions[i * 3 + 1],
-			bubbleData.positions[i * 3 + 2],
-		);
-		_scale.setScalar(bubbleData.scales[i]);
+		_pos.set(0, -100, 0);
+		_scale.setScalar(0);
 		_matrix.compose(_pos, _quat, _scale);
 		bubbleMesh.setMatrixAt(i, _matrix);
 	}
 	bubbleMesh.instanceMatrix.needsUpdate = true;
+
+	// ── Bump data ──
+	const bumpData = initBumpData();
 
 	// ── Sky ──
 	const sky = createSky({
@@ -579,6 +599,7 @@ export async function setup(ctx: SetupContext): Promise<ShaderDemoState> {
 		terrain: { mesh: terrainMesh, material: terrainMat },
 		water: { mesh: waterMesh, material: waterMat },
 		bubbles: { mesh: bubbleMesh, material: bubbleMat, ...bubbleData },
+		bumps: bumpData,
 		sky,
 		particles,
 		camera: player.camera,
@@ -610,9 +631,49 @@ export function tick(
 	s.sky.position.x = px;
 	s.sky.position.z = pz;
 
-	// ── Animate bubbles: rise, wobble, respawn ──
-	const { positions, phases, speeds, scales } = s.bubbles;
+	// ── Bump lifecycle: grow → pinch-off → spawn blob → reset ──
+	const bumpUniform = s.terrain.material.uniforms.uBumpData
+		.value as THREE.Vector4[];
+	const { bumps } = s;
+	const terrainH = s.terrain.material.uniforms.uTerrainHeight.value as number;
+
+	for (let i = 0; i < BUMP_COUNT; i++) {
+		bumps.phases[i] += ctx.delta * bumps.speeds[i];
+
+		if (bumps.phases[i] >= 1.0) {
+			// Pinch-off: activate a bubble at the bump's peak position
+			activateBubbleAtBump(
+				s.bubbles,
+				bumps.centers[i * 2],
+				bumps.centers[i * 2 + 1],
+				terrainH,
+			);
+
+			// Reset bump with new position near player
+			resetBump(i, bumps, px, pz);
+		}
+
+		// Update GPU uniform: xy = world XZ center, z = phase, w = radius
+		bumpUniform[i].set(
+			bumps.centers[i * 2],
+			bumps.centers[i * 2 + 1],
+			bumps.phases[i],
+			bumps.radii[i],
+		);
+	}
+
+	// ── Animate active bubbles: rise, wobble, deactivate when done ──
+	const { positions, phases, speeds, scales, active } = s.bubbles;
 	for (let i = 0; i < BUBBLE_COUNT; i++) {
+		if (active[i] === 0) {
+			// Hidden bubble — keep at scale 0
+			_pos.set(0, -100, 0);
+			_scale.setScalar(0);
+			_matrix.compose(_pos, _quat, _scale);
+			s.bubbles.mesh.setMatrixAt(i, _matrix);
+			continue;
+		}
+
 		// Rise
 		positions[i * 3 + 1] += speeds[i] * ctx.delta;
 
@@ -622,7 +683,7 @@ export function tick(
 		positions[i * 3] += wobbleX * ctx.delta;
 		positions[i * 3 + 2] += wobbleZ * ctx.delta;
 
-		// Respawn when too high or too far from player
+		// Deactivate when too high or too far from player
 		const dx = positions[i * 3] - px;
 		const dz = positions[i * 3 + 2] - pz;
 		const distSq = dx * dx + dz * dz;
@@ -630,7 +691,12 @@ export function tick(
 			positions[i * 3 + 1] > BUBBLE_MAX_Y ||
 			distSq > BUBBLE_SPAWN_RADIUS * BUBBLE_SPAWN_RADIUS * 4
 		) {
-			respawnBubble(i, positions, speeds, scales, px, pz);
+			deactivateBubble(i, s.bubbles);
+			_pos.set(0, -100, 0);
+			_scale.setScalar(0);
+			_matrix.compose(_pos, _quat, _scale);
+			s.bubbles.mesh.setMatrixAt(i, _matrix);
+			continue;
 		}
 
 		// Update instance matrix

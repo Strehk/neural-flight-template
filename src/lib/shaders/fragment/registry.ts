@@ -677,6 +677,92 @@ export const SHADER_REGISTRY: ShaderDef[] = [
 		tags: ["voronoi", "cells", "generative", "quest-safe"],
 		perfTier: "quest-safe",
 	},
+	{
+		id: "lava-blobs",
+		name: "Lava Blobs",
+		description:
+			"Raymarched metaballs with smooth union and warm lava-lamp coloring — Quest-optimized (8 blobs, 32 steps)",
+		category: "sdf" as ShaderCategory,
+		fragmentShader: "", // Load via: import frag from "./sdf/lava-blobs.frag?raw"
+		uniforms: [
+			{
+				name: "uBlobCount",
+				type: "float",
+				default: 6,
+				min: 4,
+				max: 8,
+				label: "Blob Count",
+			},
+			{
+				name: "uBlobSpeed",
+				type: "float",
+				default: 1.0,
+				min: 0.5,
+				max: 3.0,
+				label: "Animation Speed",
+			},
+			{
+				name: "uSmoothness",
+				type: "float",
+				default: 0.4,
+				min: 0.2,
+				max: 1.0,
+				label: "Blend Radius",
+			},
+			{
+				name: "uWarmth",
+				type: "float",
+				default: 0.7,
+				min: 0.0,
+				max: 1.0,
+				label: "Warmth",
+			},
+		],
+		credits: "ICAROS Lab — inspired by edankwan cineshader-lava",
+		tags: ["raymarching", "metaballs", "smooth-union", "lava", "quest-safe"],
+		perfTier: "quest-safe",
+	},
+	{
+		id: "subsurface-glow",
+		name: "Subsurface Glow",
+		description:
+			"Subsurface scattering approximation — translucent warm glow for organic blob meshes",
+		category: "lighting" as ShaderCategory,
+		fragmentShader: "", // Load via: import frag from "./lighting/subsurface-glow.frag?raw"
+		uniforms: [
+			{
+				name: "uGlowColor",
+				type: "vec3",
+				default: [1.0, 0.3, 0.1],
+				label: "Glow Color",
+			},
+			{
+				name: "uRimColor",
+				type: "vec3",
+				default: [1.0, 0.1, 0.6],
+				label: "Rim Color",
+			},
+			{
+				name: "uSubsurfaceIntensity",
+				type: "float",
+				default: 1.5,
+				min: 0.5,
+				max: 3.0,
+				label: "Subsurface Intensity",
+			},
+			{
+				name: "uOpacity",
+				type: "float",
+				default: 0.5,
+				min: 0.2,
+				max: 0.9,
+				label: "Opacity",
+			},
+		],
+		credits: "ICAROS Lab",
+		tags: ["subsurface", "glow", "organic", "translucent", "quest-safe"],
+		perfTier: "quest-safe",
+	},
 ];
 
 /** Get all shaders in a category */
