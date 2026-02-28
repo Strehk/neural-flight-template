@@ -1,4 +1,6 @@
 // Based on Shadertoy "CineShader Lava" by edankwan — https://www.shadertoy.com/view/3sySRK
+// @perf-tier: desktop-only
+// @cost: ~64 march steps, smooth metaball union
 
 #pragma include <sdf>
 

@@ -1,10 +1,9 @@
 // Based on Shadertoy "fbm lightning and hole" by XT95 — https://www.shadertoy.com/view/MXyyWV
 // Textures replaced with procedural equivalents
+// @perf-tier: quest-safe
+// @cost: fbm noise, no raymarching
 #pragma include <math>
 #pragma include <transforms>
-
-uniform float uTime;
-uniform vec2 uResolution;
 
 #define iterations 13
 #define formuparam 0.53

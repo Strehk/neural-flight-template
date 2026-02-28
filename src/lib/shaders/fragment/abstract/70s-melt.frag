@@ -1,4 +1,6 @@
 // Based on Shadertoy "70s Melt" by tomorrowevening — https://www.shadertoy.com/view/XsX3zl
+// @perf-tier: quest-safe
+// @cost: iterative sine distortion, no raymarching
 
 float cosRange(float amt, float range, float minimum) {
     return (((1.0 + cos(radians(amt))) * 0.5) * range) + minimum;

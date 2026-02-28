@@ -1,9 +1,7 @@
 // Based on Shadertoy "Ring of Fire Music Visualizer" by Orblivius — https://www.shadertoy.com/view/M33XRN
 // Textures replaced with procedural equivalents (audio → time-based)
-
-uniform float uTime;
-uniform vec2 uResolution;
-uniform vec2 uMouse;
+// @perf-tier: quest-safe
+// @cost: polar ring geometry, no raymarching
 
 #define PI 3.141592
 

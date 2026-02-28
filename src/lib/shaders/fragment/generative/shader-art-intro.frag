@@ -1,5 +1,7 @@
 // Based on Shadertoy "Shader Art Coding Introduction" by kishimisu — https://www.shadertoy.com/view/mtyGWy
 // License: Not specified
+// @perf-tier: quest-safe
+// @cost: UV subdivision + cosine palette, no loops
 
 #pragma include <color>
 

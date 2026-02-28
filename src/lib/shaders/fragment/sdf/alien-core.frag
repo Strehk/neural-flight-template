@@ -1,10 +1,8 @@
 // Based on Shadertoy "Alien Core" by GLKITTY — https://www.shadertoy.com/view/4tcXRr
 // Textures replaced with procedural equivalents
+// @perf-tier: desktop-only
+// @cost: ~64 march steps, 1 noise per step
 #pragma include <math>
-
-uniform float uTime;
-uniform vec2 uResolution;
-uniform vec2 uMouse;
 
 vec3 rotateY(vec3 v, float t) {
     float cost = cos(t); float sint = sin(t);
@@ -55,7 +53,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     vec3 ray = normalize(vec3(1.0 * uv.x, 1.0 * uv.y, 1.0));
 
     vec3 color = vec3(0);
-    const int rayCount = 1024;
+    const int rayCount = 64;
 
     float t = 0.;
     for (int r = 1; r <= rayCount; r++)
@@ -91,7 +89,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
             break;
         }
 
-        t += d * .5;
+        t += d * 0.8;
     }
 
     // Vignette

@@ -1,10 +1,8 @@
 // Based on Shadertoy "Dreaming about Clouds" by iq — https://www.shadertoy.com/view/MtXXz4
 // Textures replaced with procedural equivalents
+// @perf-tier: quest-safe
+// @cost: procedural cloud noise, no raymarching
 #pragma include <math>
-
-uniform float uTime;
-uniform vec2 uResolution;
-uniform vec2 uMouse;
 
 // Procedural 3D noise replacing textureLod(iChannel0, (uv+0.5)/256.0, 0.0)
 float noise(in vec3 x)

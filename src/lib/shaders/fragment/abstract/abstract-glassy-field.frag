@@ -1,9 +1,8 @@
 // Based on Shadertoy "Abstract Glassy Field" by Shane — https://www.shadertoy.com/view/4ttGDH
 // Textures replaced with procedural equivalents (tri-planar + env map → procedural noise)
+// @perf-tier: quest-safe
+// @cost: procedural noise field, lightweight
 #pragma include <math>
-
-uniform float uTime;
-uniform vec2 uResolution;
 
 #define FAR 50.
 

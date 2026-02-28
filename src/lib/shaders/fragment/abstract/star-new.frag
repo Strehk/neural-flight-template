@@ -1,4 +1,6 @@
 // Based on Shadertoy "star new" by nayk — https://www.shadertoy.com/view/lcjyDR
+// @perf-tier: quest-safe
+// @cost: volumetric star field, lightweight iteration
 
 #define iterations 17
 #define formuparam 0.53

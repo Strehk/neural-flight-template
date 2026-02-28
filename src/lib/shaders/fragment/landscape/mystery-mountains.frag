@@ -1,9 +1,8 @@
 // Based on Shadertoy "[2TC 15] Mystery Mountains" by David Hoskins — https://www.shadertoy.com/view/llsGW7
 // Textures replaced with procedural equivalents
+// @perf-tier: desktop-only
+// @cost: ~300 iterations, 3 noise per iteration
 #pragma include <math>
-
-uniform float uTime;
-uniform vec2 uResolution;
 
 // Procedural noise replacement for texture lookup
 float pnoise(vec2 p) {
@@ -30,10 +29,10 @@ void mainImage( out vec4 c, vec2 w )
     vec4 p = vec4(w / uResolution.xy, 1, 1) - .5, d = p, t;
     p.z += uTime * 20.; d.y -= .4;
 
-    for(float i = 1.5; i > 0.; i -= .002)
+    for(float i = 1.5; i > 0.; i -= .005)
     {
         float s = .5;
-        t = F F F F F F;
+        t = F F F;
         c = 1. + d.x - t * i; c.z -= .1;
         if(t.x > p.y * .007 + 1.3) break;
         p += d;

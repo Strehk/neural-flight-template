@@ -1,4 +1,6 @@
 // Based on Shadertoy "PsychedelicSakura" by Reva — https://www.shadertoy.com/view/wlGXRD
+// @perf-tier: quest-safe
+// @cost: polar math + cosine palette, no loops
 
 #pragma include <color>
 

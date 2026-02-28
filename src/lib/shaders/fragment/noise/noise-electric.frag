@@ -1,10 +1,9 @@
 // Based on Shadertoy "Noise animation - Electric" by nimitz (stormoid.com) — https://www.shadertoy.com/view/ldlXRS
 // Textures replaced with procedural equivalents
 // License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
+// @perf-tier: quest-safe
+// @cost: animated noise, no raymarching
 #pragma include <math>
-
-uniform float uTime;
-uniform vec2 uResolution;
 
 #define time uTime*0.15
 #define tau 6.2831853

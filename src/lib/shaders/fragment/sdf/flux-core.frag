@@ -1,5 +1,7 @@
 // Based on Shadertoy "Flux Core" by otaviogood — https://www.shadertoy.com/view/ltlSWf
 // License CC0 — http://creativecommons.org/publicdomain/zero/1.0/
+// @perf-tier: desktop-only
+// @cost: ~80 march steps, 2 AO samples, no shadows
 
 // --- Config ---
 // #define MANUAL_CAMERA
@@ -305,7 +307,7 @@ vec3 RayTrace(in vec2 fragCoord) {
     vec3 pos = vec3(0, 0, 0);
     const float smallVal = 0.000625;
 
-    for (int i = 0; i < 210; i++) {
+    for (int i = 0; i < 80; i++) {
         pos = (camPos + rayVec * t).yzx;
         dist = DistanceToObject(pos);
         dist = min(dist, length(pos.yz));
@@ -331,23 +333,10 @@ vec3 RayTrace(in vec2 fragCoord) {
         float ambientS = 1.0;
         ambientS *= saturate(DistanceToObject(pos + normal * 0.05) * 20.0);
         ambientS *= saturate(DistanceToObject(pos + normal * 0.1) * 10.0);
-        ambientS *= saturate(DistanceToObject(pos + normal * 0.2) * 5.0);
-        ambientS *= saturate(DistanceToObject(pos + normal * 0.4) * 2.5);
-        ambientS *= saturate(DistanceToObject(pos + normal * 0.8) * 1.25);
-        float ambient = ambientS * saturate(DistanceToObject(pos + normal * 1.6) * 1.25 * 0.5);
+        float ambient = ambientS;
         ambient = saturate(ambient);
 
         float sunShadow = 1.0;
-        float iter = 0.01;
-        vec3 nudgePos = pos + normal * 0.002;
-        for (int i = 0; i < 30; i++) {
-            float tempDist = DistanceToObject(nudgePos + sunDir * iter);
-            sunShadow *= saturate(tempDist * 150.0);
-            if (tempDist <= 0.0) break;
-            iter += max(0.01, tempDist) * 1.0;
-            if (iter > 4.2) break;
-        }
-        sunShadow = saturate(sunShadow);
 
         float n = 0.0;
         n += noise(pos * 32.0);

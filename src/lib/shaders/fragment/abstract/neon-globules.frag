@@ -1,4 +1,6 @@
 // Based on Shadertoy "Neon globules" by WAHa_06x36 — https://www.shadertoy.com/view/WlGXR1
+// @perf-tier: quest-safe
+// @cost: simplex noise planes, no raymarching
 
 #pragma include <math>
 

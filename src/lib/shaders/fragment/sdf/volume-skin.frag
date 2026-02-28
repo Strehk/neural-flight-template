@@ -1,10 +1,8 @@
 // Based on Shadertoy "volume skin: fixing aliasing" by FabriceNeyret2 — https://www.shadertoy.com/view/WtBfDm
 // Textures replaced with procedural equivalents
+// @perf-tier: showcase
+// @cost: volume rendering with aliasing fix, very expensive
 #pragma include <math>
-
-uniform float uTime;
-uniform vec2 uResolution;
-uniform vec2 uMouse;
 
 #define SQR(x) ((x)*(x))
 #define CUB(x) ((x)*(x)*(x))

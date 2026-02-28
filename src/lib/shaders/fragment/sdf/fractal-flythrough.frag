@@ -1,9 +1,8 @@
 // Based on Shadertoy "Fractal Flythrough" by Shane — https://www.shadertoy.com/view/4s3SRN
 // Textures replaced with procedural equivalents (tri-planar + cube map → procedural noise + env)
+// @perf-tier: desktop-only
+// @cost: ~48 march steps, no reflections
 #pragma include <math>
-
-uniform float uTime;
-uniform vec2 uResolution;
 
 const float FAR = 50.0;
 float objID = 0.;
@@ -91,7 +90,7 @@ float map(in vec3 q) {
 
 float trace(in vec3 ro, in vec3 rd) {
     float t = 0., h;
-    for(int i = 0; i < 92; i++) {
+    for(int i = 0; i < 48; i++) {
         h = map(ro + rd * t);
         if(abs(h) < .001 * (t * .25 + 1.) || t > FAR) break;
         t += h * .8;
@@ -171,7 +170,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
         vec3 sNor = nor;
         nor = texBump(pos * ts, nor, 0.0015);
 
-        vec3 ref = reflect(rd, normalize(sNor * .5 + nor * .5));
         col = tex3D(pos * ts, nor);
 
         vec3 li = lp - pos;
@@ -184,45 +182,17 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
         dif = pow(dif, 4.) * 2.;
         float spe = pow(max(dot(reflect(-li, nor), -rd), 0.), 8.);
         float spe2 = spe * spe;
-        float refl = .35;
-
-        // Reflection
-        float rt = refTrace(pos + ref * 0.1, ref);
-        float rSaveObjID = objID;
-        vec3 rsp = pos + ref * rt;
-        vec3 rsn = calcNormal(rsp);
-        vec3 rCol = tex3D(rsp * ts, rsn);
-        vec3 rLi = lp - rsp;
-        float rlDist = max(length(rLi), 0.001);
-        rLi /= rlDist;
-        float rDiff = max(dot(rsn, rLi), 0.);
-        rDiff = pow(rDiff, 4.) * 2.;
-        float rAtten = 1. / (1. + rlDist * 0.125 + rlDist * rlDist * .05);
-
-        if(rSaveObjID > 1.5 && rSaveObjID < 2.5) {
-            rCol = dot(rCol, vec3(.299, .587, .114)) * .7 + rCol * .15;
-        }
-        if(rSaveObjID > 2.5) {
-            vec3 rFire = pow(vec3(1.5, 1, 1) * rCol, vec3(8, 2, 1.5));
-            rCol = rCol + min(mix(vec3(1.5, .9, .375), vec3(.75, .375, .3), rFire), 2.) * .5;
-        }
 
         if(saveObjID > 1.5) {
             col = vec3(1) * dot(col, vec3(.299, .587, .114)) * .7 + col * .15;
-            refl = 1.;
-            rDiff *= saveObjID > 2.5 ? 1. : 2.;
         }
-
-        rCol *= (rDiff + .15) * rAtten;
 
         if(saveObjID > 2.5) {
             vec3 fire = pow(vec3(1.5, 1, 1) * col, vec3(8, 2, 1.5));
             col = col + min(mix(vec3(1, .9, .375), vec3(.75, .375, .3), fire), 2.) * .5;
-            refl = .65;
         }
 
         col = col * (dif + .25 + vec3(.35, .45, .5) * spe) + vec3(.7, .9, 1) * spe2;
-        col += rCol * refl;
 
         {
             float speR = pow(max(dot(normalize(li - rd), nor), 0.), 5.);

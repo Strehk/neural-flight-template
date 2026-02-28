@@ -1,6 +1,8 @@
 // Based on Shadertoy "Timeless depths" by kesson — https://www.shadertoy.com/view/ts3yD7
 // Copyright 2020 - Giovanni Muzio — https://kesson.io
 // License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
+// @perf-tier: desktop-only
+// @cost: ~100 march steps, gyroid SDF
 
 #define MAX_STEPS 100
 #define MAX_DIST 8.

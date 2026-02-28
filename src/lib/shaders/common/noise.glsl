@@ -2,7 +2,7 @@
 // Simplex, Perlin, FBM, Voronoi — production-quality implementations.
 // Pure functions only — no uniforms, no main().
 //
-// Requires: math.glsl (mod289, permute, taylorInvSqrt)
+// Requires: math.glsl (mod289, permute, taylorInvSqrt, hash21)
 
 // --- Simplex 3D Noise (Ashima Arts) ---
 // https://github.com/ashima/webgl-noise
@@ -12,9 +12,13 @@ float snoise(vec3 v) {
   const vec2 C = vec2(1.0 / 6.0, 1.0 / 3.0);
   const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
 
+  // Step 1: Skew input to simplex lattice
+  // The factor (1/3, 1/3, 1/3) skews the cubic grid into simplices
   vec3 i = floor(v + dot(v, C.yyy));
   vec3 x0 = v - i + dot(i, C.xxx);
 
+  // Step 2: Find which simplex we're in by comparing coordinates
+  // The two intermediate corners (i1, i2) depend on the ordering of x0 components
   vec3 g = step(x0.yzx, x0.xyz);
   vec3 l = 1.0 - g;
   vec3 i1 = min(g.xyz, l.zxy);
@@ -24,6 +28,8 @@ float snoise(vec3 v) {
   vec3 x2 = x0 - i2 + C.yyy;
   vec3 x3 = x0 - D.yyy;
 
+  // Step 3: Gradient selection via permutation
+  // Triple-nested permute() creates a pseudo-random index for each corner
   i = mod289(i);
   vec4 p = permute(permute(permute(
     i.z + vec4(0.0, i1.z, i2.z, 1.0))
@@ -52,6 +58,8 @@ float snoise(vec3 v) {
   vec4 a0 = b0.xzyw + s0.xzyw * sh.xxyy;
   vec4 a1 = b1.xzyw + s1.xzyw * sh.zzww;
 
+  // Step 4: Dot products with distance vectors
+  // Each gradient (p0..p3) is dotted with the distance from its simplex corner
   vec3 p0 = vec3(a0.xy, h.x);
   vec3 p1 = vec3(a0.zw, h.y);
   vec3 p2 = vec3(a1.xy, h.z);
@@ -63,13 +71,17 @@ float snoise(vec3 v) {
   p2 *= norm.z;
   p3 *= norm.w;
 
+  // Step 5: Radial falloff kernel — m = max(0.5 - d², 0)⁴
+  // Each corner contributes only within radius √0.5 ≈ 0.707, then falls off smoothly
   vec4 m = max(0.5 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
   m = m * m;
+  // Step 6: Final weighted sum — 105.0 normalizes output to [-1, 1]
   return 105.0 * dot(m * m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
 }
 
 // --- Classic Perlin 2D ---
-// Based on Stefan Gustavson's implementation.
+// Grid-based noise (unlike simplex which uses a triangular lattice).
+// Smoother but slightly more expensive than simplex. Based on Stefan Gustavson's implementation.
 
 float perlin2D(vec2 P) {
   vec4 Pi = floor(P.xyxy) + vec4(0.0, 0.0, 1.0, 1.0);
@@ -112,7 +124,9 @@ float perlin2D(vec2 P) {
 }
 
 // --- Fractal Brownian Motion (2D) ---
-// 6 octaves, uses snoise internally (vec3 with z=0).
+// Sums 6 octaves of noise, each at double frequency and half amplitude.
+// Creates natural-looking detail at multiple scales (clouds, terrain, etc.).
+// Lacunarity = 2.0 (frequency doubling), Persistence = 0.5 (amplitude halving).
 
 float fbm(vec2 p) {
   float value = 0.0;
@@ -120,13 +134,14 @@ float fbm(vec2 p) {
   float frequency = 1.0;
   for (int i = 0; i < 6; i++) {
     value += amplitude * snoise(vec3(p * frequency, 0.0));
-    frequency *= 2.0;
-    amplitude *= 0.5;
+    frequency *= 2.0;   // lacunarity — each octave is twice the frequency
+    amplitude *= 0.5;   // persistence — each octave is half the amplitude
   }
   return value;
 }
 
 // --- Fractal Brownian Motion (3D) ---
+// Same as 2D FBM but samples 3D simplex noise directly.
 
 float fbm(vec3 p) {
   float value = 0.0;
@@ -134,14 +149,16 @@ float fbm(vec3 p) {
   float frequency = 1.0;
   for (int i = 0; i < 6; i++) {
     value += amplitude * snoise(p * frequency);
-    frequency *= 2.0;
-    amplitude *= 0.5;
+    frequency *= 2.0;   // lacunarity
+    amplitude *= 0.5;   // persistence
   }
   return value;
 }
 
 // --- Voronoi / Worley Noise ---
-// Returns vec2(minDist, secondMinDist) for edge detection.
+// Returns vec2(minDist, secondMinDist).
+// v.x = distance to nearest cell center, v.y = distance to second nearest.
+// Edge detection: v.y - v.x gives thin edges between cells.
 // Based on IQ's Voronoi implementation.
 
 vec2 voronoi(vec2 p) {

@@ -1,4 +1,6 @@
 // Based on Shadertoy "Sponge Tunnel" by hatuxes — https://www.shadertoy.com/view/ttK3Wt
+// @perf-tier: desktop-only
+// @cost: ~48 march steps x 3 fractal levels
 
 const float pi = acos(-1.0);
 const float pi2 = pi * 2.0;
@@ -31,7 +33,7 @@ float boxf(vec3 p, vec3 b) {
 float mengersponge(vec3 p, float scale, float width) {
     float d = boxf(p, vec3(1.0));
     float s = 1.0;
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 3; i++) {
         vec3 a = mod(p * s, 2.0) - 1.0;
         s *= scale;
         vec3 r = 1.0 - scale * abs(a);
@@ -52,7 +54,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec3 rd = normalize(vec3(uv, 0.8 * sin(0.58 * uTime)));
     vec3 col = vec3(0);
     float dp = 0.0, dpp = 0.0;
-    for (int i = 0; i < 99; i++) {
+    for (int i = 0; i < 48; i++) {
         vec3 pos = ro + rd * dp;
         pos.xy *= rot(0.1 * uTime);
         pos.xy = pmod(pos.xy, 8.0);

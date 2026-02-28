@@ -1,4 +1,6 @@
 // Based on Shadertoy "[SIG15] sigmoids n sines" by victor_shepardson — https://www.shadertoy.com/view/ltfXzj
+// @perf-tier: quest-safe
+// @cost: sigmoid/sine feedback, no raymarching
 
 const float pi = 3.14159;
 

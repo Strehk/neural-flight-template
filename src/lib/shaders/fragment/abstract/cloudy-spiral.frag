@@ -1,10 +1,9 @@
 // Based on Shadertoy "Cloudy Spiral" by Stephane Cuillerdier (Aiekick) — https://www.shadertoy.com/view/MlSSzc
 // Textures replaced with procedural equivalents
 // License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
+// @perf-tier: quest-safe
+// @cost: procedural noise spiral, no raymarching
 #pragma include <math>
-
-uniform float uTime;
-uniform vec2 uResolution;
 
 float t;
 

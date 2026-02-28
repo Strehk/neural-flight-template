@@ -1,4 +1,6 @@
 // Based on Shadertoy "Disco tunnel" by WAHa_06x36 — https://www.shadertoy.com/view/XstfzB
+// @perf-tier: quest-safe
+// @cost: ring geometry, no raymarching
 
 vec2 position(float z) {
     return vec2(

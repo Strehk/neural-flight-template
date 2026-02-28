@@ -1,6 +1,8 @@
 // Based on Shadertoy "Iq Apollonian Fork" by aiekick — https://www.shadertoy.com/view/MtBcR3
 // Original Apollonian by inigo quilez — https://www.shadertoy.com/view/4ds3zn
 // License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
+// @perf-tier: desktop-only
+// @cost: ~64 march steps x 5 inversions
 
 #define AA 1
 
@@ -13,7 +15,7 @@ float map(vec3 p, float s) {
 
     orb = vec4(1000.0);
 
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < 5; i++) {
         p = -1.0 + 2.0 * fract(0.5 * p + 0.5);
 
         float r2 = dot(p, p);
@@ -33,7 +35,7 @@ float map(vec3 p, float s) {
 float trace(in vec3 ro, in vec3 rd, float s) {
     float maxd = 30.0;
     float t = 0.01;
-    for (int i = 0; i < 200; i++) {
+    for (int i = 0; i < 64; i++) {
         float precis = 0.001 * t;
 
         float h = map(ro + rd * t, s);

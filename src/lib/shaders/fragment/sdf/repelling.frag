@@ -1,11 +1,9 @@
 // Based on Shadertoy "Repelling" by iq — https://www.shadertoy.com/view/XdjXWK
 // Textures replaced with procedural equivalents
 // Copyright Inigo Quilez, 2014 - https://iquilezles.org/ (educational use)
+// @perf-tier: desktop-only
+// @cost: ~64 march steps, sphere repulsion SDF
 #pragma include <math>
-
-uniform float uTime;
-uniform vec2 uResolution;
-uniform vec2 uMouse;
 
 #define NUMPASES 2
 #define NUMSPHEREES 15

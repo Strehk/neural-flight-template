@@ -1,8 +1,7 @@
 // Based on Shadertoy "Truchet Tentacles" by Patu — https://www.shadertoy.com/view/ldfGWn
 // Textures replaced with procedural equivalents
-
-uniform float uTime;
-uniform vec2 uResolution;
+// @perf-tier: desktop-only
+// @cost: ~64 march steps, truchet pattern SDF
 
 float rand(vec3 r) { return fract(sin(dot(r.xy, vec2(1.38984 * sin(r.z), 1.13233 * cos(r.z)))) * 653758.5453); }
 

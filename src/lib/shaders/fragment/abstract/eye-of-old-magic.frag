@@ -1,9 +1,11 @@
 // Based on Shadertoy "eye of old magic dragon" by nayk — https://www.shadertoy.com/view/4c3fRj
 // Incorporates "Star Nest" by Pablo Roman Andrioli (MIT License)
+// @perf-tier: showcase
+// @cost: ~8 volsteps x 6 iterations + 11 fractal iterations + fbm, very expensive
 
-#define iterations 12
+#define iterations 6
 #define formuparam 0.53
-#define volsteps 20
+#define volsteps 8
 #define stepsize 0.1
 #define zoom 0.800
 #define tile 0.850
@@ -154,20 +156,8 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec3 dir = vec3(uv * zoom, 0.001);
     float time = uTime * speed + 0.25;
 
-    // Fractal render with AA
-    vec4 O = vec4(0.0);
-    fractalRender(fragCoord);
-    O = fractalRender(fragCoord);
-    if (length(O) > 0.01) {
-        vec4 o;
-        vec4 sum = vec4(0.0);
-        for (int k = 0; k < 9; k++) {
-            if (k == 4) continue;
-            o = fractalRender(fragCoord + vec2(mod(float(k), 3.0) - 1.0, float(k / 3) - 1.0) / 3.0);
-            sum += o;
-        }
-        O = (O + sum) / 9.0;
-    }
+    // Fractal render (no AA)
+    vec4 O = fractalRender(fragCoord);
 
     vec2 uv2 = (2.0 * fragCoord - uResolution.xy) / uResolution.y * 2.5;
     float aspectRatio = uResolution.x / uResolution.y;

@@ -1,10 +1,14 @@
 import * as THREE from "three";
-import { createShaderMaterial, registerSnippet, updateTime } from "$lib/shaders";
-import type { ExperienceState, SetupContext, TickContext } from "../types";
+import {
+	createShaderMaterial,
+	registerSnippet,
+	updateTime,
+} from "$lib/shaders";
+import colorGlsl from "$lib/shaders/common/color.glsl?raw";
 import mathGlsl from "$lib/shaders/common/math.glsl?raw";
 import noiseGlsl from "$lib/shaders/common/noise.glsl?raw";
-import colorGlsl from "$lib/shaders/common/color.glsl?raw";
 import displacementVert from "$lib/shaders/vertex/displacement.vert?raw";
+import type { ExperienceState, SetupContext, TickContext } from "../types";
 
 export interface ShaderDemoState extends ExperienceState {
 	mesh: THREE.Mesh;
@@ -66,6 +70,7 @@ function ensureSnippetsRegistered(): void {
 export async function setup(ctx: SetupContext): Promise<ShaderDemoState> {
 	ensureSnippetsRegistered();
 
+	// 64 subdivisions ≈ 13k triangles — Quest 3 safe at 72fps stereo
 	const geometry = new THREE.IcosahedronGeometry(1.5, 64);
 
 	const material = createShaderMaterial({
@@ -97,6 +102,7 @@ export function tick(
 	state: ExperienceState,
 	ctx: TickContext,
 ): { state: ExperienceState; outputs?: Record<string, number> } {
+	// Type narrowing — ExperienceState is generic, ShaderDemoState has our specific fields
 	const s = state as ShaderDemoState;
 	updateTime(s.material, ctx.elapsed * s.animSpeed);
 	s.mesh.rotation.y = ctx.elapsed * 0.05;

@@ -1,4 +1,6 @@
 // Based on Shadertoy "fractal pyramid" by bradjamesgrant — https://www.shadertoy.com/view/tsXBzS
+// @perf-tier: desktop-only
+// @cost: ~64 march steps, iterated folding fractal
 
 vec3 palette(float d) {
     return mix(vec3(0.2, 0.7, 0.9), vec3(1., 0., 1.), d);

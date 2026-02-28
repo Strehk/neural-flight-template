@@ -1,8 +1,7 @@
 // Based on Shadertoy "colorful galaxy audio visualizer" by berelium — https://www.shadertoy.com/view/MXXcD4
 // Textures replaced with procedural equivalents (audio → time-based)
-
-uniform float uTime;
-uniform vec2 uResolution;
+// @perf-tier: quest-safe
+// @cost: galaxy spiral math, no raymarching
 
 // Audio FFT replacement: time-based oscillation
 #define FFT(a) pow(0.5 + 0.3 * sin(uTime * float(a) * 0.05 + float(a) * 0.3), 5.)

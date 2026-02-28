@@ -1,4 +1,6 @@
 // Based on Shadertoy "star in space3" by nayk — https://www.shadertoy.com/view/XXySWy
+// @perf-tier: quest-safe
+// @cost: volumetric star field, lightweight iteration
 
 #define iterations 10
 #define formuparam 0.53

@@ -1,5 +1,7 @@
 // Based on Shadertoy "Ribbon Assault" by Dave_Hoskins — https://www.shadertoy.com/view/MdBGDK
 // License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
+// @perf-tier: quest-safe
+// @cost: Julia-like orbit traps, 2D fractal
 
 void mainImage(out vec4 o, vec2 U) {
     float T = uTime, f = 3., g = f, d;

@@ -1,5 +1,10 @@
+precision highp float;
 // Standard vertex shader — default Three.js compatible
-// Passes UV, normal, and world position to fragment shader
+//
+// Varyings passed to fragment shader:
+//   vUv       — texture coordinates [0, 1]
+//   vNormal   — view-space normal (normalMatrix * normal), normalized
+//   vPosition — world-space position (modelMatrix applied)
 
 varying vec2 vUv;
 varying vec3 vNormal;

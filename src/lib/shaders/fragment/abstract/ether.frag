@@ -1,5 +1,7 @@
 // Based on Shadertoy "Ether" by nimitz (stormoid) — https://www.shadertoy.com/view/MsjSW3
 // License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
+// @perf-tier: quest-safe
+// @cost: ~15 march steps, simple SDF
 
 #define t uTime
 

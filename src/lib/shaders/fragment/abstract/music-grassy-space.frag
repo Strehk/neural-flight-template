@@ -1,10 +1,8 @@
 // Based on Shadertoy "Music Abstract Grassy Space" by Ds2yDy — https://www.shadertoy.com/view/Ds2yDy
 // Textures replaced with procedural equivalents (audio → time-based, textures → procedural noise)
+// @perf-tier: quest-safe
+// @cost: procedural noise field, no heavy raymarching
 #pragma include <math>
-
-uniform float uTime;
-uniform vec2 uResolution;
-uniform vec2 uMouse;
 
 #define FAR 50.
 float accum;

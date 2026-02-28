@@ -1,5 +1,7 @@
 // Based on Shadertoy "Abstract Vortex" by Frostbyte_ — https://www.shadertoy.com/view/wcyBD3
 // Licensed under CC BY-NC-SA 4.0
+// @perf-tier: quest-safe
+// @cost: ~10 march steps, simple noise
 
 #pragma include <transforms>
 

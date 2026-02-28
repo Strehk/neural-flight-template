@@ -1,4 +1,6 @@
 // Based on Shadertoy "Galaxy Sphere Warp" by EthanZappa — https://www.shadertoy.com/view/4ffXDf
+// @perf-tier: quest-safe
+// @cost: volumetric star field with perlin clouds
 
 #define iterations 17
 #define formuparam 0.53

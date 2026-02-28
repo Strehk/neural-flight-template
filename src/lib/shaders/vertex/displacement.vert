@@ -1,5 +1,11 @@
+precision highp float;
 // Displacement vertex shader — deforms geometry along normals
 // Uses sine wave combination for organic displacement effect
+//
+// Varyings passed to fragment shader:
+//   vUv       — texture coordinates [0, 1]
+//   vNormal   — view-space normal (normalMatrix * normal), normalized
+//   vPosition — world-space position of the displaced vertex
 
 uniform float uDisplacement;
 uniform float uDisplacementFreq;
