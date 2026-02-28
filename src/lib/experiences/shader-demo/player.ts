@@ -1,11 +1,17 @@
 // ============================================================================
-// player.ts — Maps ICAROS orientation input to shader uniforms
+// player.ts — Forward ICAROS orientation/speed to FlightPlayer
 //
-// Called every frame with the latest orientation data from ICAROS device,
-// gyroscope, or desktop controller. Map pitch/roll to meaningful shader
-// parameters for an immersive body-controlled experience.
+// This file delegates all input to FlightPlayer (shared lib). The pattern is
+// identical to mountain-flight/player.ts. FlightPlayer handles:
+//   - Pitch/roll → heading + forward vector
+//   - Accelerate (2× boost) / brake (0.25× speed)
+//   - Terrain clamping (minClearance above heightmap)
 //
-// CUSTOMIZE: Choose which uniforms respond to pitch and roll.
+// Actual physics run in tick() via player.tick(delta) — this function only
+// stores the latest input values for the next physics step.
+//
+// CUSTOMIZE: For non-flight experiences, replace this with custom input mapping
+// (e.g. pitch → shader uniform instead of camera movement).
 // ============================================================================
 
 import type { ExperienceState } from "../types";
@@ -13,16 +19,41 @@ import type { ShaderDemoState } from "./scene";
 
 export function updatePlayer(
 	orientation: { pitch: number; roll: number },
-	_speed: { accelerate: boolean; brake: boolean },
+	speed: { accelerate: boolean; brake: boolean },
 	state: ExperienceState,
 	_delta: number,
 ): void {
 	const s = state as ShaderDemoState;
-	const uniforms = s.material.uniforms;
 
-	// Pitch [-1, 1] -> distortion [0, 2]
-	uniforms.uDistortion.value = (orientation.pitch + 1) * 1.0;
+	// Forward orientation — FlightPlayer lerps toward these targets each tick
+	s.player.updateOrientation({
+		type: "orientation",
+		pitch: orientation.pitch,
+		roll: orientation.roll,
+		timestamp: 0,
+	});
 
-	// Roll [-1, 1] -> color shift [0, 6.28]
-	uniforms.uColorShift.value = (orientation.roll + 1) * 3.14;
+	// Forward speed commands — boost/brake/cruise
+	if (speed.accelerate) {
+		s.player.updateSpeed({
+			type: "speed",
+			action: "accelerate",
+			active: true,
+			timestamp: 0,
+		});
+	} else if (speed.brake) {
+		s.player.updateSpeed({
+			type: "speed",
+			action: "brake",
+			active: true,
+			timestamp: 0,
+		});
+	} else {
+		s.player.updateSpeed({
+			type: "speed",
+			action: "accelerate",
+			active: false,
+			timestamp: 0,
+		});
+	}
 }
