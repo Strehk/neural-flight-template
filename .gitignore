@@ -30,3 +30,6 @@ assets/
 
 # TLS certs
 *.pem
+
+# Hotspot config (contains password)
+scripts/hotspot/hotspot.conf

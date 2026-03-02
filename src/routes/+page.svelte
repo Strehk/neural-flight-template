@@ -25,11 +25,14 @@ import { onDestroy } from "svelte";
 import ArchitectureDiagram from "$lib/components/ArchitectureDiagram.svelte";
 import DataTable from "$lib/components/DataTable.svelte";
 import LinkCard from "$lib/components/LinkCard.svelte";
+import NetworkPanel from "$lib/components/NetworkPanel.svelte";
 import NodeEditorPreview from "$lib/components/NodeEditorPreview.svelte";
 import PageHeader from "$lib/components/PageHeader.svelte";
 import { listExperiences } from "$lib/experiences/catalog";
 import { setActiveExperienceId } from "$lib/experiences/loader";
 import { createWebSocketClient } from "$lib/ws/client.svelte";
+
+let { data } = $props();
 
 const ws = createWebSocketClient();
 
@@ -308,6 +311,11 @@ const techStack = [
 					{/if}
 				</div>
 			</div>
+		</section>
+
+		<!-- ═══ Connect Devices ═══ -->
+		<section class="section">
+			<NetworkPanel network={data.network} qr={data.qr} />
 		</section>
 
 		<!-- ═══ Routes — Grid ═══ -->

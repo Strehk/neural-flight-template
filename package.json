@@ -9,12 +9,16 @@
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"hotspot:start": "bash scripts/hotspot/hotspot.sh start",
+		"hotspot:stop": "bash scripts/hotspot/hotspot.sh stop",
+		"hotspot:setup": "bash scripts/hotspot/hotspot.sh setup"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^7.0.0",
 		"@sveltejs/kit": "^2.50.1",
 		"@sveltejs/vite-plugin-svelte": "^6.2.4",
+		"@types/qrcode": "^1.5.6",
 		"@types/three": "^0.182.0",
 		"@types/ws": "^8.18.1",
 		"svelte": "^5.48.2",
@@ -30,6 +34,7 @@
 		"codemirror": "^6.0.2",
 		"lucide-svelte": "^0.563.0",
 		"postprocessing": "^6.38.3",
+		"qrcode": "^1.5.4",
 		"simplex-noise": "^4.0.3",
 		"svelte-dnd-action": "^0.9.69",
 		"three": "^0.182.0"
