@@ -1,7 +1,7 @@
 import type { ShaderCategory, ShaderDef } from "../types.js";
 
 // ── Fragment Shader Registry ──
-// 39 shaders (36 Shadertoy adaptations + 3 ICAROS originals), categorized and Three.js-compatible
+// 50 shaders (36 Shadertoy adaptations + 14 ICAROS originals), categorized and Three.js-compatible
 
 export const SHADER_REGISTRY: ShaderDef[] = [
 	{
@@ -797,6 +797,521 @@ export const SHADER_REGISTRY: ShaderDef[] = [
 		uniforms: [],
 		credits: "ICAROS Lab",
 		tags: ["particle", "glow", "gaussian", "billboard", "quest-safe"],
+		perfTier: "quest-safe",
+	},
+
+	// ── Post-FX Shaders ──
+
+	{
+		id: "film-grain",
+		name: "Film Grain",
+		description:
+			"Analog film grain noise overlay — time-animated, configurable intensity and scale",
+		category: "postfx" as ShaderCategory,
+		fragmentShader: "", // Load via: import frag from "./postfx/film-grain.frag?raw"
+		uniforms: [
+			{
+				name: "uIntensity",
+				type: "float",
+				default: 0.15,
+				min: 0.0,
+				max: 0.5,
+				label: "Grain Intensity",
+			},
+			{
+				name: "uGrainScale",
+				type: "float",
+				default: 1.0,
+				min: 0.5,
+				max: 3.0,
+				label: "Grain Scale",
+			},
+		],
+		credits: "ICAROS Lab",
+		tags: ["film", "grain", "noise", "postfx", "overlay"],
+		perfTier: "quest-safe",
+	},
+
+	// ── Additional Lighting Shaders ──
+
+	{
+		id: "gradient-material",
+		name: "Gradient Material",
+		description:
+			"Multi-stop UV-based gradient on any geometry — configurable colors, midpoint, angle, and softness",
+		category: "lighting" as ShaderCategory,
+		fragmentShader: "", // Load via: import frag from "./lighting/gradient-material.frag?raw"
+		vertexShader: "", // Uses standard.vert (needs vUv)
+		uniforms: [
+			{
+				name: "uGradientStart",
+				type: "vec3",
+				default: [0.1, 0.0, 0.2],
+				label: "Start Color",
+			},
+			{
+				name: "uGradientMid",
+				type: "vec3",
+				default: [0.8, 0.2, 0.5],
+				label: "Mid Color",
+			},
+			{
+				name: "uGradientEnd",
+				type: "vec3",
+				default: [1.0, 0.8, 0.3],
+				label: "End Color",
+			},
+			{
+				name: "uMidPoint",
+				type: "float",
+				default: 0.5,
+				min: 0.1,
+				max: 0.9,
+				label: "Mid Point",
+			},
+			{
+				name: "uAngle",
+				type: "float",
+				default: 0.0,
+				min: -3.14159,
+				max: 3.14159,
+				label: "Angle (rad)",
+			},
+			{
+				name: "uSoftness",
+				type: "float",
+				default: 0.1,
+				min: 0.0,
+				max: 0.5,
+				label: "Softness",
+			},
+		],
+		credits: "ICAROS Lab",
+		tags: ["gradient", "material", "uv", "configurable", "quest-safe"],
+		perfTier: "quest-safe",
+	},
+	{
+		id: "toon-stepped",
+		name: "Toon Stepped",
+		description:
+			"Cel-shading with configurable step count, shadow color, and Fresnel-based outline",
+		category: "lighting" as ShaderCategory,
+		fragmentShader: "", // Load via: import frag from "./lighting/toon-stepped.frag?raw"
+		uniforms: [
+			{
+				name: "uBaseColor",
+				type: "vec3",
+				default: [0.9, 0.7, 0.5],
+				label: "Base Color",
+			},
+			{
+				name: "uShadowColor",
+				type: "vec3",
+				default: [0.2, 0.1, 0.15],
+				label: "Shadow Color",
+			},
+			{
+				name: "uSteps",
+				type: "float",
+				default: 3.0,
+				min: 2.0,
+				max: 5.0,
+				label: "Shading Steps",
+			},
+			{
+				name: "uOutlineWidth",
+				type: "float",
+				default: 0.3,
+				min: 0.0,
+				max: 1.0,
+				label: "Outline Width",
+			},
+			{
+				name: "uLightDir",
+				type: "vec3",
+				default: [0.5, 1.0, 0.3],
+				label: "Light Direction",
+			},
+		],
+		credits: "ICAROS Lab",
+		tags: ["toon", "cel-shading", "stepped", "outline", "quest-safe"],
+		perfTier: "quest-safe",
+	},
+	{
+		id: "wireframe-glow",
+		name: "Wireframe Glow",
+		description:
+			"fwidth-based wireframe edges with configurable bloom glow and fill color",
+		category: "lighting" as ShaderCategory,
+		fragmentShader: "", // Load via: import frag from "./lighting/wireframe-glow.frag?raw"
+		uniforms: [
+			{
+				name: "uWireColor",
+				type: "vec3",
+				default: [0.0, 1.0, 0.8],
+				label: "Wire Color",
+			},
+			{
+				name: "uWireWidth",
+				type: "float",
+				default: 1.5,
+				min: 0.5,
+				max: 5.0,
+				label: "Wire Width",
+			},
+			{
+				name: "uGlowIntensity",
+				type: "float",
+				default: 2.0,
+				min: 0.5,
+				max: 5.0,
+				label: "Glow Intensity",
+			},
+			{
+				name: "uGlowFalloff",
+				type: "float",
+				default: 3.0,
+				min: 1.0,
+				max: 8.0,
+				label: "Glow Falloff",
+			},
+			{
+				name: "uFillColor",
+				type: "vec3",
+				default: [0.02, 0.02, 0.05],
+				label: "Fill Color",
+			},
+			{
+				name: "uFillOpacity",
+				type: "float",
+				default: 0.1,
+				min: 0.0,
+				max: 1.0,
+				label: "Fill Opacity",
+			},
+		],
+		credits: "ICAROS Lab",
+		tags: ["wireframe", "glow", "fwidth", "edges", "quest-safe"],
+		perfTier: "quest-safe",
+	},
+
+	// ── Additional Generative Shaders ──
+
+	{
+		id: "neon-grid",
+		name: "Neon Grid",
+		description:
+			"Emissive perspective grid lines for ground planes — anti-aliased with distance fade",
+		category: "generative" as ShaderCategory,
+		fragmentShader: "", // Load via: import frag from "./generative/neon-grid.frag?raw"
+		uniforms: [
+			{
+				name: "uGridColor",
+				type: "vec3",
+				default: [0.0, 0.8, 1.0],
+				label: "Grid Color",
+			},
+			{
+				name: "uLineWidth",
+				type: "float",
+				default: 1.0,
+				min: 0.5,
+				max: 3.0,
+				label: "Line Width",
+			},
+			{
+				name: "uFadeDistance",
+				type: "float",
+				default: 50.0,
+				min: 10.0,
+				max: 200.0,
+				label: "Fade Distance",
+			},
+			{
+				name: "uGridScale",
+				type: "float",
+				default: 1.0,
+				min: 0.1,
+				max: 5.0,
+				label: "Grid Scale",
+			},
+		],
+		credits: "ICAROS Lab",
+		tags: ["grid", "neon", "emissive", "synthwave", "quest-safe"],
+		perfTier: "quest-safe",
+	},
+
+	// ── Additional Landscape Shaders ──
+
+	{
+		id: "atmosphere-fog",
+		name: "Atmosphere Fog",
+		description:
+			"Multi-color gradient fog with exponential density — replaces single-tone Three.js Fog",
+		category: "landscape" as ShaderCategory,
+		fragmentShader: "", // Load via: import frag from "./landscape/atmosphere-fog.frag?raw"
+		uniforms: [
+			{
+				name: "uFogNear",
+				type: "vec3",
+				default: [0.8, 0.9, 1.0],
+				label: "Near Fog Color",
+			},
+			{
+				name: "uFogMid",
+				type: "vec3",
+				default: [0.5, 0.3, 0.6],
+				label: "Mid Fog Color",
+			},
+			{
+				name: "uFogFar",
+				type: "vec3",
+				default: [0.1, 0.05, 0.15],
+				label: "Far Fog Color",
+			},
+			{
+				name: "uFogStart",
+				type: "float",
+				default: 5.0,
+				min: 0.0,
+				max: 50.0,
+				label: "Fog Start",
+			},
+			{
+				name: "uFogEnd",
+				type: "float",
+				default: 100.0,
+				min: 20.0,
+				max: 500.0,
+				label: "Fog End",
+			},
+			{
+				name: "uFogMidPoint",
+				type: "float",
+				default: 0.4,
+				min: 0.1,
+				max: 0.9,
+				label: "Mid Point",
+			},
+			{
+				name: "uFogDensity",
+				type: "float",
+				default: 2.0,
+				min: 0.5,
+				max: 5.0,
+				label: "Density",
+			},
+		],
+		credits: "ICAROS Lab",
+		tags: ["fog", "atmosphere", "gradient", "landscape", "quest-safe"],
+		perfTier: "quest-safe",
+	},
+
+	// ── Premium Lighting Shaders ──
+
+	{
+		id: "iridescent",
+		name: "Iridescent",
+		description:
+			"Thin-film interference holographic effect — view-angle dependent color shift (soap bubbles, holographic foil)",
+		category: "lighting" as ShaderCategory,
+		fragmentShader: "", // Load via: import frag from "./lighting/iridescent.frag?raw"
+		uniforms: [
+			{
+				name: "uBaseColor",
+				type: "vec3",
+				default: [0.1, 0.1, 0.15],
+				label: "Base Color",
+			},
+			{
+				name: "uFrequency",
+				type: "float",
+				default: 6.0,
+				min: 2.0,
+				max: 15.0,
+				label: "Color Frequency",
+			},
+			{
+				name: "uIntensity",
+				type: "float",
+				default: 1.0,
+				min: 0.0,
+				max: 2.0,
+				label: "Intensity",
+			},
+			{
+				name: "uSaturation",
+				type: "float",
+				default: 1.5,
+				min: 0.5,
+				max: 3.0,
+				label: "Saturation",
+			},
+		],
+		credits: "ICAROS Lab",
+		tags: ["iridescent", "holographic", "thin-film", "fresnel", "quest-safe"],
+		perfTier: "quest-safe",
+	},
+
+	// ── Premium Generative Shaders ──
+
+	{
+		id: "concentric-rings",
+		name: "Concentric Rings",
+		description:
+			"Animated concentric ring patterns with cosine palette coloring — great for terrain or background",
+		category: "generative" as ShaderCategory,
+		fragmentShader: "", // Load via: import frag from "./generative/concentric-rings.frag?raw"
+		uniforms: [
+			{
+				name: "uRingScale",
+				type: "float",
+				default: 3.0,
+				min: 1.0,
+				max: 10.0,
+				label: "Ring Scale",
+			},
+			{
+				name: "uRingSpeed",
+				type: "float",
+				default: 0.5,
+				min: 0.0,
+				max: 2.0,
+				label: "Ring Speed",
+			},
+			{
+				name: "uRingWidth",
+				type: "float",
+				default: 0.3,
+				min: 0.05,
+				max: 0.8,
+				label: "Ring Width",
+			},
+			{
+				name: "uPaletteA",
+				type: "vec3",
+				default: [0.5, 0.5, 0.5],
+				label: "Palette A",
+			},
+			{
+				name: "uPaletteB",
+				type: "vec3",
+				default: [0.5, 0.5, 0.5],
+				label: "Palette B",
+			},
+			{
+				name: "uPaletteC",
+				type: "vec3",
+				default: [1.0, 0.7, 0.4],
+				label: "Palette C",
+			},
+			{
+				name: "uPaletteD",
+				type: "vec3",
+				default: [0.0, 0.15, 0.2],
+				label: "Palette D",
+			},
+		],
+		credits: "ICAROS Lab",
+		tags: ["rings", "concentric", "palette", "animated", "quest-safe"],
+		perfTier: "quest-safe",
+	},
+
+	// ── Premium Landscape Shaders ──
+
+	{
+		id: "erosion-striation",
+		name: "Erosion Striation",
+		description:
+			"Geological layering texture with noise-based erosion — canyon and rock wall aesthetics",
+		category: "landscape" as ShaderCategory,
+		fragmentShader: "", // Load via: import frag from "./landscape/erosion-striation.frag?raw"
+		uniforms: [
+			{
+				name: "uLayerScale",
+				type: "float",
+				default: 0.5,
+				min: 0.1,
+				max: 2.0,
+				label: "Layer Scale",
+			},
+			{
+				name: "uLayerCount",
+				type: "float",
+				default: 8.0,
+				min: 3.0,
+				max: 20.0,
+				label: "Layer Count",
+			},
+			{
+				name: "uErosionStrength",
+				type: "float",
+				default: 2.0,
+				min: 0.0,
+				max: 5.0,
+				label: "Erosion Strength",
+			},
+			{
+				name: "uRockColor",
+				type: "vec3",
+				default: [0.4, 0.35, 0.3],
+				label: "Rock Color",
+			},
+			{
+				name: "uLayerColor",
+				type: "vec3",
+				default: [0.6, 0.45, 0.35],
+				label: "Layer Color",
+			},
+			{
+				name: "uAnimSpeed",
+				type: "float",
+				default: 0.0,
+				min: 0.0,
+				max: 0.5,
+				label: "Animation Speed",
+			},
+		],
+		credits: "ICAROS Lab",
+		tags: ["erosion", "geology", "striation", "rock", "canyon"],
+		perfTier: "quest-safe",
+	},
+
+	// ── Premium Post-FX Shaders ──
+
+	{
+		id: "chromatic-aberration",
+		name: "Chromatic Aberration",
+		description:
+			"RGB channel offset lens effect — radial intensity from screen edge",
+		category: "postfx" as ShaderCategory,
+		fragmentShader: "", // Load via: import frag from "./postfx/chromatic-aberration.frag?raw"
+		uniforms: [
+			{
+				name: "uSceneTexture",
+				type: "sampler2D",
+				default: 0,
+				label: "Scene Texture",
+			},
+			{
+				name: "uIntensity",
+				type: "float",
+				default: 0.01,
+				min: 0.0,
+				max: 0.05,
+				label: "Intensity",
+			},
+			{
+				name: "uFalloff",
+				type: "float",
+				default: 2.0,
+				min: 1.0,
+				max: 4.0,
+				label: "Radial Falloff",
+			},
+		],
+		credits: "ICAROS Lab",
+		tags: ["chromatic", "aberration", "lens", "postfx", "rgb-split"],
 		perfTier: "quest-safe",
 	},
 ];

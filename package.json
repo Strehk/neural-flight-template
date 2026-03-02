@@ -29,6 +29,7 @@
 		"bits-ui": "^2.15.4",
 		"codemirror": "^6.0.2",
 		"lucide-svelte": "^0.563.0",
+		"postprocessing": "^6.38.3",
 		"simplex-noise": "^4.0.3",
 		"svelte-dnd-action": "^0.9.69",
 		"three": "^0.182.0"

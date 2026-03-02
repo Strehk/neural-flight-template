@@ -34,6 +34,7 @@ export interface UniformDef {
  * - `"lighting"` — Lighting effects (rim light, fresnel, glow)
  * - `"abstract"` — Visual experiments, Shadertoy adaptations
  * - `"particle"` — Particle rendering shaders (billboards, glow, trails)
+ * - `"postfx"` — Post-processing effects (film grain, chromatic aberration)
  */
 export type ShaderCategory =
 	| "noise"
@@ -42,7 +43,8 @@ export type ShaderCategory =
 	| "generative"
 	| "lighting"
 	| "abstract"
-	| "particle";
+	| "particle"
+	| "postfx";
 
 /** Performance tier indicating target hardware capability. */
 export type PerfTier = "quest-safe" | "desktop-only" | "showcase";
