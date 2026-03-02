@@ -110,19 +110,6 @@ export function testCompileVertex(
 	);
 }
 
-/**
- * Generic test-compile (kept for backward compat / barrel export).
- */
-export function testCompileShader(
-	gl: WebGLRenderingContext | WebGL2RenderingContext,
-	source: string,
-	type: "vertex" | "fragment",
-	lineOffset = 0,
-): ShaderError[] {
-	const glType = type === "vertex" ? gl.VERTEX_SHADER : gl.FRAGMENT_SHADER;
-	return compileAndParse(gl, source, glType, lineOffset, type);
-}
-
 // ── Internal ──
 
 function compileAndParse(

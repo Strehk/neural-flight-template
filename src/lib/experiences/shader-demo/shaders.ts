@@ -9,8 +9,7 @@
 // ============================================================================
 
 import * as THREE from "three";
-import { createShaderMaterial, updateTime } from "$lib/shaders";
-import { registerAllSnippets } from "$lib/shaders/snippets.js";
+import { createShaderMaterial } from "$lib/shaders";
 
 // ── Vertex shaders ──
 import lavaBumpVert from "$lib/shaders/vertex/lava-bump.vert?raw";
@@ -26,12 +25,6 @@ import gaussianGlowFrag from "$lib/shaders/fragment/particle/gaussian-glow.frag?
 
 // ── Fog Color (shared between terrain + water) ──
 const FOG_COLOR = new THREE.Color(0x330066);
-
-// ── Snippet Registration ────────────────────────────────────────────────────
-
-export function initSnippets(): void {
-	registerAllSnippets();
-}
 
 // ── Material Factories ──────────────────────────────────────────────────────
 
@@ -100,4 +93,3 @@ export function createParticleMaterial(): THREE.ShaderMaterial {
 	});
 }
 
-export { updateTime };

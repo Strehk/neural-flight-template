@@ -4,8 +4,6 @@ import type {
 	CameraConfig,
 	ExperienceManifest,
 	ExperienceState,
-	ParameterDef,
-	RuntimeValues,
 	SceneConfig,
 	SetupContext,
 } from "./types";
@@ -15,7 +13,7 @@ import type {
 export interface ActiveExperience {
 	manifest: ExperienceManifest;
 	state: ExperienceState;
-	runtimeValues: RuntimeValues;
+	lights: { ambient: THREE.AmbientLight; sun: THREE.DirectionalLight };
 }
 
 let active: ActiveExperience | null = null;
@@ -40,20 +38,21 @@ export async function loadExperience(
 
 	const manifest = getExperience(id);
 
-	applySceneDefaults(manifest.scene, ctx.scene);
+	const lights = applySceneDefaults(manifest.scene, ctx.scene);
 	setupCamera(manifest.camera, ctx.camera);
 
 	const state = await manifest.setup(ctx);
-	const runtimeValues = buildInitialValues(manifest.parameters);
 
-	active = { manifest, state, runtimeValues };
+	active = { manifest, state, lights };
 	return active;
 }
 
-/** Unload: call dispose(), clear state */
+/** Unload: call dispose(), remove lights, clear state */
 export function unloadExperience(scene: THREE.Scene): void {
 	if (!active) return;
 	active.manifest.dispose(active.state, scene);
+	scene.remove(active.lights.ambient);
+	scene.remove(active.lights.sun);
 	active = null;
 }
 
@@ -82,7 +81,10 @@ export function getActiveExperienceId(): string {
 
 // ── Internal Helpers ──
 
-function applySceneDefaults(config: SceneConfig, scene: THREE.Scene): void {
+function applySceneDefaults(
+	config: SceneConfig,
+	scene: THREE.Scene,
+): { ambient: THREE.AmbientLight; sun: THREE.DirectionalLight } {
 	scene.background = new THREE.Color(config.background);
 
 	// fogNear = 0 means "no fog" — only create fog when a positive distance is set
@@ -90,7 +92,6 @@ function applySceneDefaults(config: SceneConfig, scene: THREE.Scene): void {
 		scene.fog = new THREE.Fog(config.fogColor, config.fogNear, config.fogFar);
 	}
 
-	// 0xffffff = white base color — the actual brightness comes from ambientIntensity
 	const ambient = new THREE.AmbientLight(0xffffff, config.ambientIntensity);
 	scene.add(ambient);
 
@@ -101,6 +102,8 @@ function applySceneDefaults(config: SceneConfig, scene: THREE.Scene): void {
 		config.sunPosition.z,
 	);
 	scene.add(sun);
+
+	return { ambient, sun };
 }
 
 function setupCamera(
@@ -113,10 +116,3 @@ function setupCamera(
 	camera.updateProjectionMatrix();
 }
 
-function buildInitialValues(parameters: ParameterDef[]): RuntimeValues {
-	const values: RuntimeValues = {};
-	for (const param of parameters) {
-		values[param.id] = param.default;
-	}
-	return values;
-}

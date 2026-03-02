@@ -12,24 +12,16 @@
  * Only active when `import.meta.env.DEV` — zero cost in production builds.
  */
 
-const UNIFORM_PATTERN = /uniform\s+\w+\s+(\w+)\s*;/g;
-
 const SYSTEM_UNIFORM_NAMES = new Set(["uTime", "uResolution", "uMouse"]);
 
 function extractUniformNames(glslSource: string): Set<string> {
 	const names = new Set<string>();
-	let match: RegExpExecArray | null;
-
-	while ((match = UNIFORM_PATTERN.exec(glslSource)) !== null) {
+	for (const match of glslSource.matchAll(/uniform\s+\w+\s+(\w+)\s*;/g)) {
 		const name = match[1];
 		if (!SYSTEM_UNIFORM_NAMES.has(name)) {
 			names.add(name);
 		}
 	}
-
-	// Reset regex lastIndex for reuse
-	UNIFORM_PATTERN.lastIndex = 0;
-
 	return names;
 }
 

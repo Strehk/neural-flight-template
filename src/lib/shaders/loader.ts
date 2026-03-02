@@ -5,17 +5,16 @@ import standardVert from "./vertex/standard.vert?raw";
 // ── System Uniforms ──
 
 /**
- * Uniforms automatically injected into every shader material.
- *
- * - `uTime` — elapsed time in seconds (updated via {@link updateTime})
- * - `uResolution` — viewport size in pixels (vec2)
- * - `uMouse` — normalized mouse position (vec2, [0..1])
+ * Creates fresh system uniforms per material — avoids shared-reference bug
+ * where all materials would point to the same `{ value }` objects.
  */
-const SYSTEM_UNIFORMS = {
-	uTime: { value: 0 },
-	uResolution: { value: new THREE.Vector2(1, 1) },
-	uMouse: { value: new THREE.Vector2(0, 0) },
-};
+function createSystemUniforms() {
+	return {
+		uTime: { value: 0 },
+		uResolution: { value: new THREE.Vector2(1, 1) },
+		uMouse: { value: new THREE.Vector2(0, 0) },
+	};
+}
 
 // ── Snippet Registry ──
 
@@ -101,7 +100,7 @@ interface ShaderMaterialConfig {
 export function createShaderMaterial(
 	config: ShaderMaterialConfig,
 ): THREE.ShaderMaterial {
-	const uniforms = { ...SYSTEM_UNIFORMS, ...config.uniforms };
+	const uniforms = { ...createSystemUniforms(), ...config.uniforms };
 	let fragmentShader = config.fragmentShader;
 
 	validateUniforms(fragmentShader, uniforms);

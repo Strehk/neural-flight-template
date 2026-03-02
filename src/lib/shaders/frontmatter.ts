@@ -22,7 +22,7 @@
  * // @credits ICAROS Lab
  */
 
-import type { PerfTier } from "./types.js";
+import type { PerfTier, ShaderCategory } from "./types.js";
 
 export interface ShaderFrontmatter {
 	name: string;
@@ -110,10 +110,10 @@ export function fileNameToDisplayName(fileName: string): string {
  *
  * "./fragment/lighting/iridescent.frag" → "lighting"
  */
-export function pathToCategory(relativePath: string): string {
+export function pathToCategory(relativePath: string): ShaderCategory {
 	const parts = relativePath.replace(/^\.\//, "").split("/");
 	// Expected: fragment/{category}/{name}.frag
-	return parts.length >= 2 ? parts[parts.length - 2] : "unknown";
+	return (parts.length >= 2 ? parts[parts.length - 2] : "unknown") as ShaderCategory;
 }
 
 /**

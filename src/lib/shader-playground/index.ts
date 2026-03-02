@@ -42,5 +42,4 @@ export type {
 	GeometryType,
 	PlaygroundRenderer,
 	ShaderError,
-	UniformDef,
 } from "./types";

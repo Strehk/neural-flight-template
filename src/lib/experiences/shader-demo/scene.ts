@@ -32,13 +32,12 @@ import * as THREE from "three";
 import { FlightPlayer } from "$lib/three/player";
 import { createSky } from "$lib/three/sky";
 import type { ExperienceState, SetupContext, TickContext } from "../types";
+import { registerAllSnippets, updateTime } from "$lib/shaders";
 import {
 	createBubbleMaterial,
 	createParticleMaterial,
 	createTerrainMaterial,
 	createWaterMaterial,
-	initSnippets,
-	updateTime,
 } from "./shaders";
 
 // ── State ──────────────────────────────────────────────────────────────────
@@ -217,7 +216,7 @@ function createParticles(count: number): {
 // ── Setup ────────────────────────────────────────────────────────────────
 
 export async function setup(ctx: SetupContext): Promise<ShaderDemoState> {
-	initSnippets();
+	registerAllSnippets();
 
 	const player = new FlightPlayer({
 		fov: 75,

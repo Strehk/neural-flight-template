@@ -5,10 +5,9 @@
  * Three.js ShaderMaterials with automatic system uniform injection.
  *
  * @example
- * import { createShaderMaterial, registerSnippet } from '$lib/shaders';
- * import noiseGlsl from '$lib/shaders/common/noise.glsl?raw';
+ * import { createShaderMaterial, registerAllSnippets } from '$lib/shaders';
  *
- * registerSnippet('noise', noiseGlsl);
+ * registerAllSnippets();
  * const material = createShaderMaterial({ fragmentShader: myFrag });
  */
 

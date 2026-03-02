@@ -8,27 +8,6 @@
 
 export type GeometryType = "plane" | "sphere" | "cube" | "torus" | "cylinder";
 
-// ── Uniforms ──
-
-export type UniformType =
-	| "float"
-	| "vec2"
-	| "vec3"
-	| "vec4"
-	| "int"
-	| "bool"
-	| "sampler2D";
-
-export interface UniformDef {
-	name: string;
-	type: UniformType;
-	value: number | number[] | boolean;
-	min?: number;
-	max?: number;
-	step?: number;
-	label?: string;
-}
-
 // ── Shader Errors ──
 
 export interface ShaderError {

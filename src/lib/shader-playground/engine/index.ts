@@ -8,7 +8,6 @@
 export {
 	parseShaderErrors,
 	testCompileFragment,
-	testCompileShader,
 	testCompileVertex,
 } from "./compiler";
 export {
