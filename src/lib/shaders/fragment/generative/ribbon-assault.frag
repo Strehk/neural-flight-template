@@ -1,7 +1,13 @@
+// @name Ribbon Assault
+// @description Iterative Julia-like fractal with ribbon-shaped orbit traps
+// @perf-tier quest-safe
+// @tags julia-set, fractal, orbit-trap, interactive
+// @credits Dave_Hoskins — https://www.shadertoy.com/view/MdBGDK
+// @cost Julia-like orbit traps, 2D fractal
+//
+//
 // Based on Shadertoy "Ribbon Assault" by Dave_Hoskins — https://www.shadertoy.com/view/MdBGDK
 // License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
-// @perf-tier: quest-safe
-// @cost: Julia-like orbit traps, 2D fractal
 
 void mainImage(out vec4 o, vec2 U) {
     float T = uTime, f = 3., g = f, d;

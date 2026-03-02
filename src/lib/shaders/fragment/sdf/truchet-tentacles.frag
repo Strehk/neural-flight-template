@@ -1,7 +1,13 @@
+// @name Truchet Tentacles
+// @description Truchet tile-based tentacle patterns with procedural animation
+// @perf-tier desktop-only
+// @tags truchet, tiles, tentacles, procedural, animated
+// @credits WAHa_06x36 — https://www.shadertoy.com/view/ldfGWn
+// @cost ~64 march steps, truchet pattern SDF
+//
+//
 // Based on Shadertoy "Truchet Tentacles" by Patu — https://www.shadertoy.com/view/ldfGWn
 // Textures replaced with procedural equivalents
-// @perf-tier: desktop-only
-// @cost: ~64 march steps, truchet pattern SDF
 
 float rand(vec3 r) { return fract(sin(dot(r.xy, vec2(1.38984 * sin(r.z), 1.13233 * cos(r.z)))) * 653758.5453); }
 

@@ -1,8 +1,14 @@
+// @name Apollonian Fractal
+// @description Raymarched Apollonian gasket with orbit-trap coloring and ambient occlusion
+// @perf-tier desktop-only
+// @tags apollonian, fractal, raymarching, orbit-trap
+// @credits aiekick — https://www.shadertoy.com/view/MtBcR3
+// @cost ~64 march steps x 5 inversions
+//
+//
 // Based on Shadertoy "Iq Apollonian Fork" by aiekick — https://www.shadertoy.com/view/MtBcR3
 // Original Apollonian by inigo quilez — https://www.shadertoy.com/view/4ds3zn
 // License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
-// @perf-tier: desktop-only
-// @cost: ~64 march steps x 5 inversions
 
 #define AA 1
 

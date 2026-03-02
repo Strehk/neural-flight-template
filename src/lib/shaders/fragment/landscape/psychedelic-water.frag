@@ -1,7 +1,12 @@
+// @name Psychedelic Water
+// @description Animated water surface with domain-warped noise and psychedelic palette coloring
+// @perf-tier quest-safe
+// @tags water, domain-warp, psychedelic, animated
+// @credits ICAROS Lab
+//
+//
 // Psychedelic Water — Color-shifting caustics with fresnel and sparkle
 // Camera-relative caustic sampling decouples animation from flight speed.
-// @perf-tier: quest-safe
-// @category: landscape
 //
 // Required varyings from vertex shader:
 //   varying vec2 vUv;

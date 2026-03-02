@@ -1,6 +1,12 @@
+// @name Disco Tunnel
+// @description Colorful ring-based tunnel fly-through with procedural camera path and glowing ring geometry
+// @perf-tier quest-safe
+// @tags tunnel, rings, flythrough, colorful, glow
+// @credits WAHa_06x36 — https://www.shadertoy.com/view/XstfzB
+// @cost ring geometry, no raymarching
+//
+//
 // Based on Shadertoy "Disco tunnel" by WAHa_06x36 — https://www.shadertoy.com/view/XstfzB
-// @perf-tier: quest-safe
-// @cost: ring geometry, no raymarching
 
 vec2 position(float z) {
     return vec2(

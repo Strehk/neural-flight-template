@@ -1,3 +1,9 @@
+// @name Fresnel Glow
+// @description Fresnel-based edge glow with transparency for energy shields and holographic effects
+// @perf-tier quest-safe
+// @tags fresnel, glow, transparency, quest-safe
+// @credits ICAROS Lab
+
 precision highp float;
 
 // Fresnel Glow Fragment Shader — Edge-based glow effect

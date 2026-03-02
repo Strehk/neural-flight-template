@@ -1,7 +1,13 @@
+// @name Dreaming Clouds
+// @description Layered procedural cloudscape with dreamy atmosphere
+// @perf-tier quest-safe
+// @tags clouds, procedural, atmosphere, landscape
+// @credits nadc2000 — https://www.shadertoy.com/view/MtXXz4
+// @cost procedural cloud noise, no raymarching
+//
 // Based on Shadertoy "Dreaming about Clouds" by iq — https://www.shadertoy.com/view/MtXXz4
 // Textures replaced with procedural equivalents
-// @perf-tier: quest-safe
-// @cost: procedural cloud noise, no raymarching
+
 #pragma include <math>
 
 // Procedural 3D noise replacing textureLod(iChannel0, (uv+0.5)/256.0, 0.0)

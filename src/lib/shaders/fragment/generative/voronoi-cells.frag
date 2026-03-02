@@ -1,3 +1,9 @@
+// @name Voronoi Cells
+// @description Cellular voronoi pattern with glowing edges — organic cell aesthetics
+// @perf-tier quest-safe
+// @tags voronoi, cells, generative, quest-safe
+// @credits ICAROS Lab
+
 precision highp float;
 
 // Voronoi Cells Fragment Shader — Cellular pattern with edge glow

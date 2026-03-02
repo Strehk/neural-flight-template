@@ -1,9 +1,15 @@
+// @name Galaxy Audio Visualizer
+// @description Colorful galaxy visualization with audio-reactive rings
+// @perf-tier quest-safe
+// @tags galaxy, audio, visualizer, rings, colorful
+// @credits ArthurTent — https://www.shadertoy.com/view/MXXcD4
+// @cost galaxy spiral math, no raymarching
+//
+//
 // Based on Shadertoy "colorful galaxy audio visualizer" by berelium — https://www.shadertoy.com/view/MXXcD4
 // Textures replaced with procedural equivalents (audio → time-based)
-// @perf-tier: quest-safe
-// @cost: galaxy spiral math, no raymarching
-
 // Audio FFT replacement: time-based oscillation
+
 #define FFT(a) pow(0.5 + 0.3 * sin(uTime * float(a) * 0.05 + float(a) * 0.3), 5.)
 
 #define iterations 13

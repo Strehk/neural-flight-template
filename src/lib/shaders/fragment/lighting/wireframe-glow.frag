@@ -1,6 +1,12 @@
+// @name Wireframe Glow
+// @description fwidth-based wireframe edges with configurable bloom glow and fill color
+// @perf-tier quest-safe
+// @tags wireframe, glow, fwidth, edges, quest-safe
+// @credits ICAROS Lab
+// @cost fwidth + smoothstep per fragment, no loops
+//
+//
 // Wireframe Glow — fwidth-based wireframe with bloom-ready emission
-// @perf-tier: quest-safe
-// @cost: fwidth + smoothstep per fragment, no loops
 //
 // Requires: barycentric coordinates passed as vBarycentric from vertex shader,
 // OR use with Three.js WireframeGeometry for simpler setup.

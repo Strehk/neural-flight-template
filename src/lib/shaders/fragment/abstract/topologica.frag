@@ -1,8 +1,14 @@
+// @name Topologica
+// @description Topological VR-ready surface with animated mesh deformation
+// @perf-tier showcase
+// @tags topological, mesh, deformation, animated, vr
+// @credits ajb — https://www.shadertoy.com/view/3dyXRz
+// @cost ~210 march steps, spiral space warping, rust noise, very expensive
+//
 // Based on Shadertoy "Topologica VR" by Otavio Good — https://www.shadertoy.com/view/3dyXRz
 // Textures replaced with procedural equivalents
 // License CC0 - http://creativecommons.org/publicdomain/zero/1.0/
-// @perf-tier: showcase
-// @cost: ~210 march steps, spiral space warping, rust noise, very expensive
+
 #pragma include <math>
 
 float Hash2d(vec2 uv) { float f = uv.x + uv.y * 47.0; return fract(cos(f * 3.333) * 100003.9); }

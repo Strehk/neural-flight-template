@@ -1,6 +1,11 @@
+// @name CineShader Lava
+// @description Smooth metaball union with raymarching and iridescent coloring
+// @perf-tier desktop-only
+// @tags raymarching, metaballs, smooth-union, iridescent
+// @credits edankwan — https://www.shadertoy.com/view/3sySRK
+// @cost ~64 march steps, smooth metaball union
+//
 // Based on Shadertoy "CineShader Lava" by edankwan — https://www.shadertoy.com/view/3sySRK
-// @perf-tier: desktop-only
-// @cost: ~64 march steps, smooth metaball union
 
 #pragma include <sdf>
 

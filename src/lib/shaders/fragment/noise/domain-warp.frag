@@ -1,3 +1,9 @@
+// @name Domain Warp
+// @description IQ-style domain warping — feeds noise output back as coordinates for organic patterns
+// @perf-tier quest-safe
+// @tags domain-warp, noise, organic, quest-safe, teaching
+// @credits ICAROS Lab — technique by Inigo Quilez
+
 precision highp float;
 
 // Domain Warp Fragment Shader — IQ-style warped noise patterns

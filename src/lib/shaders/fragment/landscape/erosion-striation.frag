@@ -1,6 +1,12 @@
+// @name Erosion Striation
+// @description Geological layering texture with noise-based erosion — canyon and rock wall aesthetics
+// @perf-tier quest-safe
+// @tags erosion, geology, striation, rock, canyon
+// @credits ICAROS Lab
+// @cost ~3 noise calls, no raymarching
+//
 // Erosion Striation — Geological layering texture
-// @perf-tier: quest-safe
-// @cost: ~3 noise calls, no raymarching
+
 #pragma include <noise>
 
 uniform float uLayerScale;

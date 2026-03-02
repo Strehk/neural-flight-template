@@ -1,7 +1,12 @@
+// @name Shader Art Intro
+// @description Elegant fractal UV subdivision with cosine palette coloring — great teaching example
+// @perf-tier quest-safe
+// @tags generative, palette, fractal, beginner, cosine-palette
+// @credits kishimisu — https://www.shadertoy.com/view/mtyGWy
+// @cost UV subdivision + cosine palette, no loops
+//
 // Based on Shadertoy "Shader Art Coding Introduction" by kishimisu — https://www.shadertoy.com/view/mtyGWy
 // License: Not specified
-// @perf-tier: quest-safe
-// @cost: UV subdivision + cosine palette, no loops
 
 #pragma include <color>
 

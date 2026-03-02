@@ -1,8 +1,13 @@
+// @name Psychedelic Terrain
+// @description FBM terrain coloring with animated cosine palette and fog
+// @perf-tier quest-safe
+// @tags terrain, fbm, cosine-palette, fog, psychedelic
+// @credits ICAROS Lab
+//
+//
 // Psychedelic Terrain — Neon cosine palette with domain warp and contour lines
 // Camera-relative domain warp decouples color animation from flight speed.
 // Terrain height scrolling is inherent to infinite terrain (world-space FBM) — not a bug.
-// @perf-tier: quest-safe
-// @category: landscape
 //
 // Required varyings from vertex shader:
 //   varying vec2 vUv;

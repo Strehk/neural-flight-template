@@ -1,9 +1,15 @@
+// @name Warping Procedural 2
+// @description Multi-layer domain warping with FBM and procedural lighting
+// @perf-tier quest-safe
+// @tags domain-warp, fbm, noise, procedural
+// @credits iq — https://www.shadertoy.com/view/lsl3RH
+// @cost multi-layer domain warping with fbm
+//
+//
 // Based on Shadertoy "Warping - procedural 2" by iq — https://www.shadertoy.com/view/lsl3RH
 // Copyright Inigo Quilez, 2013 — https://iquilezles.org/
 // Educational purposes only. See original for full license terms.
 // Tutorial: https://iquilezles.org/articles/warp
-// @perf-tier: quest-safe
-// @cost: multi-layer domain warping with fbm
 
 const mat2 m = mat2(0.80, 0.60, -0.60, 0.80);
 

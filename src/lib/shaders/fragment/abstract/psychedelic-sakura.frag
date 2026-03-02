@@ -1,6 +1,11 @@
+// @name Psychedelic Sakura
+// @description Polar flower pattern with cosine palette coloring
+// @perf-tier quest-safe
+// @tags polar, flower, cosine-palette, psychedelic
+// @credits Reva — https://www.shadertoy.com/view/wlGXRD
+// @cost polar math + cosine palette, no loops
+//
 // Based on Shadertoy "PsychedelicSakura" by Reva — https://www.shadertoy.com/view/wlGXRD
-// @perf-tier: quest-safe
-// @cost: polar math + cosine palette, no loops
 
 #pragma include <color>
 

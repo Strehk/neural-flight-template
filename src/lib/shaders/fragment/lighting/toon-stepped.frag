@@ -1,6 +1,12 @@
+// @name Toon Stepped
+// @description Cel-shading with configurable step count, shadow color, and Fresnel outline
+// @perf-tier quest-safe
+// @tags toon, cel-shading, stepped, outline, quest-safe
+// @credits ICAROS Lab
+// @cost 1 dot product + floor, no loops
+//
+//
 // Toon / Cel-Shading — Configurable stepped lighting
-// @perf-tier: quest-safe
-// @cost: 1 dot product + floor, no loops
 
 uniform vec3 uBaseColor;
 uniform vec3 uShadowColor;

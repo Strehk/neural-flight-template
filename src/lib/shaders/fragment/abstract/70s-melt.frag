@@ -1,6 +1,12 @@
+// @name 70s Melt
+// @description Iterative sine distortion creating psychedelic melt patterns
+// @perf-tier quest-safe
+// @tags sine, distortion, psychedelic, vignette
+// @credits tomorrowevening — https://www.shadertoy.com/view/XsX3zl
+// @cost iterative sine distortion, no raymarching
+//
+//
 // Based on Shadertoy "70s Melt" by tomorrowevening — https://www.shadertoy.com/view/XsX3zl
-// @perf-tier: quest-safe
-// @cost: iterative sine distortion, no raymarching
 
 float cosRange(float amt, float range, float minimum) {
     return (((1.0 + cos(radians(amt))) * 0.5) * range) + minimum;

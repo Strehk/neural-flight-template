@@ -1,8 +1,12 @@
+// @name Lava Blobs
+// @description Raymarched metaballs with smooth union and warm lava-lamp coloring
+// @perf-tier quest-safe
+// @tags raymarching, metaballs, smooth-union, lava, quest-safe
+// @credits ICAROS Lab — inspired by edankwan cineshader-lava
+//
 // Lava Blobs — Raymarched metaballs with smooth union
 // Quest-optimized: 8 metaballs, 32 march steps, early exit
 // Based on cineshader-lava pattern but tuned for mobile VR
-// @perf-tier: quest-safe
-// @category: sdf
 
 #pragma include <sdf>
 

@@ -1,7 +1,12 @@
+// @name Abstract Vortex
+// @description Low-step volumetric raymarching through turbulent dot noise field with ACES tonemapping
+// @perf-tier quest-safe
+// @tags volumetric, vortex, tunnel, noise, tonemapping, efficient
+// @credits Frostbyte_ — https://www.shadertoy.com/view/wcyBD3
+// @cost ~10 march steps, simple noise
+//
 // Based on Shadertoy "Abstract Vortex" by Frostbyte_ — https://www.shadertoy.com/view/wcyBD3
 // Licensed under CC BY-NC-SA 4.0
-// @perf-tier: quest-safe
-// @cost: ~10 march steps, simple noise
 
 #pragma include <transforms>
 

@@ -1,7 +1,13 @@
+// @name Fbm Lightning
+// @description FBM-based lightning bolt effect with procedural glow
+// @perf-tier quest-safe
+// @tags fbm, lightning, glow, procedural
+// @credits nayk — https://www.shadertoy.com/view/MXyyWV
+// @cost fbm noise, no raymarching
+//
 // Based on Shadertoy "fbm lightning and hole" by XT95 — https://www.shadertoy.com/view/MXyyWV
 // Textures replaced with procedural equivalents
-// @perf-tier: quest-safe
-// @cost: fbm noise, no raymarching
+
 #pragma include <math>
 #pragma include <transforms>
 

@@ -1,3 +1,9 @@
+// @name Ocean Surface
+// @description Procedural water surface with caustics and fresnel reflection
+// @perf-tier quest-safe
+// @tags water, ocean, caustics, fresnel, quest-safe
+// @credits ICAROS Lab
+
 precision highp float;
 
 // Ocean Surface Fragment Shader — Procedural water rendering

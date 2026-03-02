@@ -1,6 +1,12 @@
+// @name Star in Space
+// @description Volumetric star field with water highlights and spiral twist
+// @perf-tier quest-safe
+// @tags volumetric, star-field, water, spiral
+// @credits nayk — https://www.shadertoy.com/view/XXySWy
+// @cost volumetric star field, lightweight iteration
+//
+//
 // Based on Shadertoy "star in space3" by nayk — https://www.shadertoy.com/view/XXySWy
-// @perf-tier: quest-safe
-// @cost: volumetric star field, lightweight iteration
 
 #define iterations 10
 #define formuparam 0.53

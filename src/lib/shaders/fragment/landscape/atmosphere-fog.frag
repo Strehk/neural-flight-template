@@ -1,6 +1,12 @@
+// @name Atmosphere Fog
+// @description Multi-color gradient fog with exponential density
+// @perf-tier quest-safe
+// @tags fog, atmosphere, gradient, landscape, quest-safe
+// @credits ICAROS Lab
+// @cost 2 mix operations, no loops
+//
+//
 // Atmosphere Fog — Multi-color gradient fog (replaces single-tone Three.js Fog)
-// @perf-tier: quest-safe
-// @cost: 2 mix operations, no loops
 //
 // Usage: Apply in fragment shader after scene color computation.
 // Blends scene color toward fog gradient based on fragment depth.

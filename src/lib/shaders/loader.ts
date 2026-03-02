@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { ShaderDef, UniformDef } from "./types.js";
+import { validateUniforms } from "./validation.js";
 import standardVert from "./vertex/standard.vert?raw";
 
 // ── System Uniforms ──
@@ -103,6 +103,9 @@ export function createShaderMaterial(
 ): THREE.ShaderMaterial {
 	const uniforms = { ...SYSTEM_UNIFORMS, ...config.uniforms };
 	let fragmentShader = config.fragmentShader;
+
+	validateUniforms(fragmentShader, uniforms);
+
 	if (!fragmentShader.includes("uniform float uTime")) {
 		fragmentShader = FRAGMENT_UNIFORM_HEADER + fragmentShader;
 	}
@@ -113,83 +116,6 @@ export function createShaderMaterial(
 		transparent: config.transparent ?? false,
 		side: config.side ?? THREE.FrontSide,
 		depthWrite: config.depthWrite ?? true,
-	});
-}
-
-// ── ShaderDef → Material ──
-
-function uniformDefToThree(def: UniformDef): { value: unknown } {
-	return { value: def.default };
-}
-
-/**
- * Converts a {@link ShaderDef} registry entry into a live Three.js ShaderMaterial.
- *
- * Maps each {@link UniformDef} to a Three.js uniform value and delegates
- * to {@link createShaderMaterial} for system uniform injection and include resolution.
- *
- * @param def - Shader definition from the registry (must have `fragmentShader` loaded)
- * @returns Ready-to-use Three.js ShaderMaterial
- */
-export function createMaterialFromDef(def: ShaderDef): THREE.ShaderMaterial {
-	if (!def.fragmentShader) {
-		throw new Error(
-			`ShaderDef "${def.id}" has empty fragmentShader. Load via ?raw import first.`,
-		);
-	}
-	const uniforms: Record<string, { value: unknown }> = {};
-	for (const u of def.uniforms) {
-		uniforms[u.name] = uniformDefToThree(u);
-	}
-	return createShaderMaterial({
-		fragmentShader: def.fragmentShader,
-		vertexShader: def.vertexShader,
-		uniforms,
-	});
-}
-
-// ── Shadertoy Compatibility ──
-
-const SHADERTOY_HEADER = `
-uniform float uTime;
-uniform vec2 uResolution;
-uniform vec2 uMouse;
-`;
-
-/**
- * Shadertoy compatibility layer — wraps a `mainImage()` function into a
- * full-screen Three.js ShaderMaterial.
- *
- * Automatically converts Shadertoy built-in names:
- * - `iTime` → `uTime`
- * - `iResolution` → `uResolution`
- * - `iMouse` → `uMouse`
- *
- * Generates a `void main()` that calls `mainImage(gl_FragColor, gl_FragCoord.xy)`.
- *
- * @param config.mainImageCode - Shadertoy GLSL containing a `mainImage()` function
- * @param config.extraUniforms - Additional uniforms beyond the system set
- * @returns Three.js ShaderMaterial compatible with Shadertoy code
- */
-export function createShadertoyMaterial(config: {
-	mainImageCode: string;
-	extraUniforms?: Record<string, { value: unknown }>;
-}): THREE.ShaderMaterial {
-	const adapted = config.mainImageCode
-		.replace(/iTime/g, "uTime")
-		.replace(/iResolution/g, "uResolution")
-		.replace(/iMouse/g, "uMouse");
-
-	const fragmentShader = `${SHADERTOY_HEADER}
-${adapted}
-
-void main() {
-  mainImage(gl_FragColor, gl_FragCoord.xy);
-}`;
-
-	return createShaderMaterial({
-		fragmentShader,
-		uniforms: config.extraUniforms,
 	});
 }
 

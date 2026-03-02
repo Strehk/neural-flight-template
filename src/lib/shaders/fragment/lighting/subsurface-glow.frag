@@ -1,8 +1,13 @@
+// @name Subsurface Glow
+// @description Subsurface scattering approximation — translucent warm glow for organic meshes
+// @perf-tier quest-safe
+// @tags subsurface, glow, organic, translucent, quest-safe
+// @credits ICAROS Lab
+//
+//
 // Subsurface Glow — Translucent warm glow for organic blob meshes
 // Fresnel-based rim + view-dependent subsurface transmission + animated color shift
 // Reusable for glowing organic objects (jellyfish, crystals, lava blobs)
-// @perf-tier: quest-safe
-// @category: lighting
 //
 // Required varyings from vertex shader:
 //   varying vec3 vNormal;

@@ -1,8 +1,14 @@
+// @name Mandelbrot Smooth
+// @description Smooth iteration count Mandelbrot with animated zoom and cosine coloring
+// @perf-tier quest-safe
+// @tags mandelbrot, fractal, zoom, antialiasing
+// @credits iq — https://www.shadertoy.com/view/4df3Rn
+// @cost Mandelbrot iteration, 2D only
+//
+//
 // Based on Shadertoy "Mandelbrot - smooth" by iq — https://www.shadertoy.com/view/4df3Rn
 // Created by inigo quilez - iq/2013 — https://iquilezles.org
 // Educational purposes only. See original for full license terms.
-// @perf-tier: quest-safe
-// @cost: Mandelbrot iteration, 2D only
 
 #define AA 2
 

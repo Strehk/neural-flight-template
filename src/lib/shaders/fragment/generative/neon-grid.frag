@@ -1,6 +1,12 @@
+// @name Neon Grid
+// @description Emissive perspective grid lines for ground planes with distance fade
+// @perf-tier quest-safe
+// @tags grid, neon, emissive, synthwave, quest-safe
+// @credits ICAROS Lab
+// @cost fract + smoothstep per axis, no loops
+//
+//
 // Neon Grid — Emissive perspective grid lines for ground planes
-// @perf-tier: quest-safe
-// @cost: fract + smoothstep per axis, no loops
 
 uniform vec3 uGridColor;
 uniform float uLineWidth;

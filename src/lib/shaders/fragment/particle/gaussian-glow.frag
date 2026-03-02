@@ -1,7 +1,12 @@
+// @name Gaussian Glow
+// @description Soft gaussian billboard glow for particle systems with radial falloff
+// @perf-tier quest-safe
+// @tags particle, glow, gaussian, billboard, quest-safe
+// @credits ICAROS Lab
+//
+//
 // Gaussian Glow — Soft point sprite with HSV color cycling
 // Gaussian falloff creates smooth glowing particles without hard edges.
-// @perf-tier: quest-safe
-// @category: particle
 //
 // Required varyings from vertex shader:
 //   varying float vPulse;

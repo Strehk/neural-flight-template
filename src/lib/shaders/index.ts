@@ -1,8 +1,8 @@
 /**
  * Shader Library — Modular GLSL shader system for Three.js
  *
- * Provides a registry of fragment shaders, common GLSL snippets,
- * and factory functions to create Three.js ShaderMaterials.
+ * Provides common GLSL snippets and factory functions to create
+ * Three.js ShaderMaterials with automatic system uniform injection.
  *
  * @example
  * import { createShaderMaterial, registerSnippet } from '$lib/shaders';
@@ -13,11 +13,20 @@
  */
 
 export {
-	createMaterialFromDef,
 	createShaderMaterial,
-	createShadertoyMaterial,
 	registerSnippet,
 	resolveIncludes,
 	updateTime,
 } from "./loader.js";
-export type { ShaderCategory, ShaderDef, UniformDef } from "./types.js";
+
+export type { PerfTier, ShaderCategory } from "./types.js";
+
+export {
+	fileNameToDisplayName,
+	parseFrontmatter,
+	pathToCategory,
+	pathToId,
+} from "./frontmatter.js";
+export type { ShaderFrontmatter } from "./frontmatter.js";
+
+export { registerAllSnippets } from "./snippets.js";

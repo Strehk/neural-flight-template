@@ -1,7 +1,13 @@
+// @name Eye of Old Magic Dragon
+// @description Multi-layered composition blending 4D Mandelbox fractal, Star Nest volumetrics, FBM nebula, and star burst effects
+// @perf-tier showcase
+// @tags fractal, mandelbox, volumetric, star-nest, composition, complex
+// @credits nayk — https://www.shadertoy.com/view/4c3fRj
+// @cost ~8 volsteps x 6 iterations + 11 fractal iterations + fbm, very expensive
+//
+//
 // Based on Shadertoy "eye of old magic dragon" by nayk — https://www.shadertoy.com/view/4c3fRj
 // Incorporates "Star Nest" by Pablo Roman Andrioli (MIT License)
-// @perf-tier: showcase
-// @cost: ~8 volsteps x 6 iterations + 11 fractal iterations + fbm, very expensive
 
 #define iterations 6
 #define formuparam 0.53

@@ -1,7 +1,13 @@
+// @name Alien Core
+// @description Raymarched alien core with organic noise deformation
+// @perf-tier desktop-only
+// @tags raymarching, organic, noise, deformation, alien
+// @credits glkt — https://www.shadertoy.com/view/4tcXRr
+// @cost ~64 march steps, 1 noise per step
+//
 // Based on Shadertoy "Alien Core" by GLKITTY — https://www.shadertoy.com/view/4tcXRr
 // Textures replaced with procedural equivalents
-// @perf-tier: desktop-only
-// @cost: ~64 march steps, 1 noise per step
+
 #pragma include <math>
 
 vec3 rotateY(vec3 v, float t) {

@@ -1,8 +1,14 @@
+// @name Repelling
+// @description Repelling metaballs with smooth distance field blending
+// @perf-tier desktop-only
+// @tags metaballs, smooth-union, sdf, blending
+// @credits iq — https://www.shadertoy.com/view/XdjXWK
+// @cost ~64 march steps, sphere repulsion SDF
+//
 // Based on Shadertoy "Repelling" by iq — https://www.shadertoy.com/view/XdjXWK
 // Textures replaced with procedural equivalents
 // Copyright Inigo Quilez, 2014 - https://iquilezles.org/ (educational use)
-// @perf-tier: desktop-only
-// @cost: ~64 march steps, sphere repulsion SDF
+
 #pragma include <math>
 
 #define NUMPASES 2

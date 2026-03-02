@@ -1,6 +1,12 @@
+// @name Galaxy Sphere Warp
+// @description Volumetric star field with perlin cloud layers and mouse rotation
+// @perf-tier quest-safe
+// @tags volumetric, galaxy, perlin-noise, clouds
+// @credits EthanZappa — https://www.shadertoy.com/view/4ffXDf
+// @cost volumetric star field with perlin clouds
+//
+//
 // Based on Shadertoy "Galaxy Sphere Warp" by EthanZappa — https://www.shadertoy.com/view/4ffXDf
-// @perf-tier: quest-safe
-// @cost: volumetric star field with perlin clouds
 
 #define iterations 17
 #define formuparam 0.53

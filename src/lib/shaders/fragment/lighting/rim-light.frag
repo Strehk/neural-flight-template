@@ -1,3 +1,9 @@
+// @name Rim Light
+// @description Configurable rim/backlight effect — classic edge lighting for any geometry
+// @perf-tier quest-safe
+// @tags rim-light, lighting, quest-safe
+// @credits ICAROS Lab
+
 precision highp float;
 
 // Rim Light Fragment Shader — Configurable edge lighting

@@ -1,6 +1,12 @@
+// @name Fractal Pyramid
+// @description Iterated folding fractal with volumetric color accumulation
+// @perf-tier desktop-only
+// @tags fractal, folding, raymarching, volumetric
+// @credits bradjamesgrant — https://www.shadertoy.com/view/tsXBzS
+// @cost ~64 march steps, iterated folding fractal
+//
+//
 // Based on Shadertoy "fractal pyramid" by bradjamesgrant — https://www.shadertoy.com/view/tsXBzS
-// @perf-tier: desktop-only
-// @cost: ~64 march steps, iterated folding fractal
 
 vec3 palette(float d) {
     return mix(vec3(0.2, 0.7, 0.9), vec3(1., 0., 1.), d);

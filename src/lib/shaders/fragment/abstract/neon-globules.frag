@@ -1,6 +1,11 @@
+// @name Neon Globules
+// @description Volumetric simplex noise planes with neon glow and mouse-controlled camera
+// @perf-tier quest-safe
+// @tags volumetric, simplex-noise, neon, glow
+// @credits WAHa_06x36 — https://www.shadertoy.com/view/WlGXR1
+// @cost simplex noise planes, no raymarching
+//
 // Based on Shadertoy "Neon globules" by WAHa_06x36 — https://www.shadertoy.com/view/WlGXR1
-// @perf-tier: quest-safe
-// @cost: simplex noise planes, no raymarching
 
 #pragma include <math>
 

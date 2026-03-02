@@ -8,13 +8,13 @@
 // Rule: NEVER put inline GLSL in scene.ts. ALL GLSL lives in the shader library.
 //
 // Example:
-//   import { createShaderMaterial, registerSnippet, updateTime } from '$lib/shaders';
-//   import noiseGlsl from '$lib/shaders/common/noise.glsl?raw';
+//   import { createShaderMaterial, updateTime } from '$lib/shaders';
+//   import { registerAllSnippets } from '$lib/shaders/snippets.js';
 //   import myVert from '$lib/shaders/vertex/terrain.vert?raw';
 //   import myFrag from '$lib/shaders/fragment/landscape/my-effect.frag?raw';
 //
 //   export function initSnippets(): void {
-//     registerSnippet('noise', noiseGlsl);
+//     registerAllSnippets();
 //   }
 //
 //   export function createMyMaterial(): THREE.ShaderMaterial {

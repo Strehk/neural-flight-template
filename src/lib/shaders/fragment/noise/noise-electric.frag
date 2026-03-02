@@ -1,8 +1,14 @@
+// @name Noise Electric
+// @description Electric noise animation with sharp lightning patterns
+// @perf-tier quest-safe
+// @tags noise, electric, lightning, sharp, animated
+// @credits nimitz — https://www.shadertoy.com/view/ldlXRS
+// @cost animated noise, no raymarching
+//
 // Based on Shadertoy "Noise animation - Electric" by nimitz (stormoid.com) — https://www.shadertoy.com/view/ldlXRS
 // Textures replaced with procedural equivalents
 // License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
-// @perf-tier: quest-safe
-// @cost: animated noise, no raymarching
+
 #pragma include <math>
 
 #define time uTime*0.15

@@ -1,7 +1,13 @@
+// @name Ring Of Fire
+// @description Ring of fire music visualizer with particle-like emission
+// @perf-tier quest-safe
+// @tags ring, fire, music, particles, emission
+// @credits orblivius — https://www.shadertoy.com/view/M33XRN
+// @cost polar ring geometry, no raymarching
+//
+//
 // Based on Shadertoy "Ring of Fire Music Visualizer" by Orblivius — https://www.shadertoy.com/view/M33XRN
 // Textures replaced with procedural equivalents (audio → time-based)
-// @perf-tier: quest-safe
-// @cost: polar ring geometry, no raymarching
 
 #define PI 3.141592
 

@@ -1,7 +1,13 @@
+// @name Fractal Flythrough
+// @description Camera flythrough of repeating fractal structure with reflections
+// @perf-tier desktop-only
+// @tags raymarching, fractal, flythrough, reflections
+// @credits Shane — https://www.shadertoy.com/view/4s3SRN
+// @cost ~48 march steps, no reflections
+//
 // Based on Shadertoy "Fractal Flythrough" by Shane — https://www.shadertoy.com/view/4s3SRN
 // Textures replaced with procedural equivalents (tri-planar + cube map → procedural noise + env)
-// @perf-tier: desktop-only
-// @cost: ~48 march steps, no reflections
+
 #pragma include <math>
 
 const float FAR = 50.0;

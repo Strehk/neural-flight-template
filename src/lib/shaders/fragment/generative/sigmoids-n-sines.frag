@@ -1,6 +1,12 @@
+// @name Sigmoids n Sines
+// @description Iterated sigmoid and sine wave feedback system producing organic color patterns
+// @perf-tier quest-safe
+// @tags generative, math, feedback, sigmoid, organic, antialiased
+// @credits victor_shepardson — https://www.shadertoy.com/view/ltfXzj
+// @cost sigmoid/sine feedback, no raymarching
+//
+//
 // Based on Shadertoy "[SIG15] sigmoids n sines" by victor_shepardson — https://www.shadertoy.com/view/ltfXzj
-// @perf-tier: quest-safe
-// @cost: sigmoid/sine feedback, no raymarching
 
 const float pi = 3.14159;
 

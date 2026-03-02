@@ -1,7 +1,13 @@
+// @name Music Grassy Space
+// @description Abstract grassy space with musical frequency response
+// @perf-tier quest-safe
+// @tags music, frequency, abstract, space
+// @credits 0xAA55 — https://www.shadertoy.com/view/Ds2yDy
+// @cost procedural noise field, no heavy raymarching
+//
 // Based on Shadertoy "Music Abstract Grassy Space" by Ds2yDy — https://www.shadertoy.com/view/Ds2yDy
 // Textures replaced with procedural equivalents (audio → time-based, textures → procedural noise)
-// @perf-tier: quest-safe
-// @cost: procedural noise field, no heavy raymarching
+
 #pragma include <math>
 
 #define FAR 50.

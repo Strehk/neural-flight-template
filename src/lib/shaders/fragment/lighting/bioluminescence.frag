@@ -1,3 +1,9 @@
+// @name Bioluminescence
+// @description Deep-sea bioluminescent glow driven by noise and cosine palette coloring
+// @perf-tier quest-safe
+// @tags bioluminescence, noise, glow, quest-safe
+// @credits ICAROS Lab
+
 precision highp float;
 
 // Bioluminescence Fragment Shader — Deep-sea pulsing glow

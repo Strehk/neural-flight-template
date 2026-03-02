@@ -9,16 +9,8 @@
 // ============================================================================
 
 import * as THREE from "three";
-import {
-	createShaderMaterial,
-	registerSnippet,
-	updateTime,
-} from "$lib/shaders";
-
-// ── Common snippets ──
-import colorGlsl from "$lib/shaders/common/color.glsl?raw";
-import mathGlsl from "$lib/shaders/common/math.glsl?raw";
-import noiseGlsl from "$lib/shaders/common/noise.glsl?raw";
+import { createShaderMaterial, updateTime } from "$lib/shaders";
+import { registerAllSnippets } from "$lib/shaders/snippets.js";
 
 // ── Vertex shaders ──
 import lavaBumpVert from "$lib/shaders/vertex/lava-bump.vert?raw";
@@ -38,9 +30,7 @@ const FOG_COLOR = new THREE.Color(0x330066);
 // ── Snippet Registration ────────────────────────────────────────────────────
 
 export function initSnippets(): void {
-	registerSnippet("math", mathGlsl);
-	registerSnippet("noise", noiseGlsl);
-	registerSnippet("color", colorGlsl);
+	registerAllSnippets();
 }
 
 // ── Material Factories ──────────────────────────────────────────────────────

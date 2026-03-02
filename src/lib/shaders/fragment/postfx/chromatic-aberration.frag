@@ -1,6 +1,12 @@
+// @name Chromatic Aberration
+// @description RGB channel offset lens effect with radial intensity from screen edge
+// @perf-tier quest-safe
+// @tags chromatic, aberration, lens, postfx, rgb-split
+// @credits ICAROS Lab
+// @cost 3 texture lookups (one per channel), no loops
+//
+//
 // Chromatic Aberration — RGB channel offset lens effect
-// @perf-tier: quest-safe
-// @cost: 3 texture lookups (one per channel), no loops
 //
 // Usage: Render scene to texture, then apply as fullscreen quad.
 // The scene texture must be passed as uSceneTexture.

@@ -1,6 +1,12 @@
+// @name Concentric Rings
+// @description Animated concentric ring patterns with cosine palette coloring
+// @perf-tier quest-safe
+// @tags rings, concentric, palette, animated, quest-safe
+// @credits ICAROS Lab
+// @cost 1 length + 1 sin + 1 cosinePalette per pixel, no loops
+//
 // Concentric Rings — Animated ring patterns with palette coloring
-// @perf-tier: quest-safe
-// @cost: 1 length + 1 sin + 1 cosinePalette per pixel, no loops
+
 #pragma include <color>
 
 uniform float uRingScale;

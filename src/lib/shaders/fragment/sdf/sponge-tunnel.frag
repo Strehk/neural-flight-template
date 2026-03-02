@@ -1,6 +1,12 @@
+// @name Sponge Tunnel
+// @description Raymarched Menger sponge tunnel with polar modulation
+// @perf-tier desktop-only
+// @tags raymarching, menger-sponge, fractal, tunnel
+// @credits hatuxes — https://www.shadertoy.com/view/ttK3Wt
+// @cost ~48 march steps x 3 fractal levels
+//
+//
 // Based on Shadertoy "Sponge Tunnel" by hatuxes — https://www.shadertoy.com/view/ttK3Wt
-// @perf-tier: desktop-only
-// @cost: ~48 march steps x 3 fractal levels
 
 const float pi = acos(-1.0);
 const float pi2 = pi * 2.0;

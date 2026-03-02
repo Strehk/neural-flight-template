@@ -1,7 +1,13 @@
+// @name Mystery Mountains
+// @description Raymarched mountain landscape with procedural terrain noise
+// @perf-tier desktop-only
+// @tags raymarching, mountains, terrain, landscape, procedural
+// @credits Dave_Hoskins — https://www.shadertoy.com/view/llsGW7
+// @cost ~300 iterations, 3 noise per iteration
+//
 // Based on Shadertoy "[2TC 15] Mystery Mountains" by David Hoskins — https://www.shadertoy.com/view/llsGW7
 // Textures replaced with procedural equivalents
-// @perf-tier: desktop-only
-// @cost: ~300 iterations, 3 noise per iteration
+
 #pragma include <math>
 
 // Procedural noise replacement for texture lookup

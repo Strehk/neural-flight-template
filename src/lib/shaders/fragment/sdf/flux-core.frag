@@ -1,12 +1,17 @@
+// @name Flux Core
+// @description Complex raymarched fractal structure with spiral space warping and volumetric glows
+// @perf-tier desktop-only
+// @tags raymarching, sdf, fractal, spiral, glow, complex
+// @credits otaviogood — https://www.shadertoy.com/view/ltlSWf
+// @cost ~80 march steps, 2 AO samples, no shadows
+//
+//
 // Based on Shadertoy "Flux Core" by otaviogood — https://www.shadertoy.com/view/ltlSWf
 // License CC0 — http://creativecommons.org/publicdomain/zero/1.0/
-// @perf-tier: desktop-only
-// @cost: ~80 march steps, 2 AO samples, no shadows
-
 // --- Config ---
 // #define MANUAL_CAMERA
-
 // --- State ---
+
 float localTime = 0.0;
 float seed = 1.0;
 float animStructure = 1.0;

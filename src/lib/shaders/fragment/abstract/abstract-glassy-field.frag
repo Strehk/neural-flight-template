@@ -1,7 +1,13 @@
+// @name Abstract Glassy Field
+// @description Complex reflective abstract field with raymarching
+// @perf-tier quest-safe
+// @tags raymarching, reflective, abstract, glassy
+// @credits Shane — https://www.shadertoy.com/view/4ttGDH
+// @cost procedural noise field, lightweight
+//
 // Based on Shadertoy "Abstract Glassy Field" by Shane — https://www.shadertoy.com/view/4ttGDH
 // Textures replaced with procedural equivalents (tri-planar + env map → procedural noise)
-// @perf-tier: quest-safe
-// @cost: procedural noise field, lightweight
+
 #pragma include <math>
 
 #define FAR 50.

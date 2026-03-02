@@ -1,7 +1,12 @@
+// @name Gradient Material
+// @description Multi-stop UV-based gradient on any geometry with configurable colors and angle
+// @perf-tier quest-safe
+// @tags gradient, material, uv, configurable, quest-safe
+// @credits ICAROS Lab
+// @cost no loops, pure UV math
+//
+//
 // Gradient Material — Multi-stop UV-based gradient on any geometry
-// @perf-tier: quest-safe
-// @cost: no loops, pure UV math
-
 // Configurable uniforms:
 // uGradientStart  vec3  — bottom/left color
 // uGradientMid    vec3  — middle color

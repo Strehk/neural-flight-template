@@ -1,6 +1,12 @@
+// @name Film Grain
+// @description Analog film grain noise overlay — time-animated, configurable intensity
+// @perf-tier quest-safe
+// @tags film, grain, noise, postfx, overlay
+// @credits ICAROS Lab
+// @cost 2 hash calls per pixel, no loops
+//
+//
 // Film Grain — Analog noise overlay for post-processing
-// @perf-tier: quest-safe
-// @cost: 2 hash calls per pixel, no loops
 //
 // Usage: Render scene to texture, then draw fullscreen quad with this shader.
 // Blend with scene via uIntensity.

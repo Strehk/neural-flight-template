@@ -1,6 +1,12 @@
+// @name Iridescent
+// @description Thin-film interference holographic effect with view-angle dependent color shift
+// @perf-tier quest-safe
+// @tags iridescent, holographic, thin-film, fresnel, quest-safe
+// @credits ICAROS Lab
+// @cost 1 dot product + 1 cos, no loops
+//
+//
 // Iridescent — Thin-film interference holographic effect
-// @perf-tier: quest-safe
-// @cost: 1 dot product + 1 cos, no loops
 //
 // View-angle dependent color shift simulating thin-film interference
 // (soap bubbles, oil slick, holographic foil)
