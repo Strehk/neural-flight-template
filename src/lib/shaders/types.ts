@@ -33,6 +33,7 @@ export interface UniformDef {
  * - `"generative"` — Fractals, creative coding, algorithmic art
  * - `"lighting"` — Lighting effects (rim light, fresnel, glow)
  * - `"abstract"` — Visual experiments, Shadertoy adaptations
+ * - `"particle"` — Particle rendering shaders (billboards, glow, trails)
  */
 export type ShaderCategory =
 	| "noise"
@@ -40,7 +41,8 @@ export type ShaderCategory =
 	| "landscape"
 	| "generative"
 	| "lighting"
-	| "abstract";
+	| "abstract"
+	| "particle";
 
 /** Performance tier indicating target hardware capability. */
 export type PerfTier = "quest-safe" | "desktop-only" | "showcase";

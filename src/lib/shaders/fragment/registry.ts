@@ -1,7 +1,7 @@
 import type { ShaderCategory, ShaderDef } from "../types.js";
 
 // ── Fragment Shader Registry ──
-// 36 adapted Shadertoy shaders, categorized and Three.js-compatible
+// 39 shaders (36 Shadertoy adaptations + 3 ICAROS originals), categorized and Three.js-compatible
 
 export const SHADER_REGISTRY: ShaderDef[] = [
 	{
@@ -567,6 +567,30 @@ export const SHADER_REGISTRY: ShaderDef[] = [
 		perfTier: "quest-safe",
 	},
 	{
+		id: "psychedelic-terrain",
+		name: "Psychedelic Terrain",
+		description:
+			"FBM terrain coloring with animated cosine palette and fog — extracted from Shader Landscape v3",
+		category: "landscape" as ShaderCategory,
+		fragmentShader: "", // Load via: import frag from "./landscape/psychedelic-terrain.frag?raw"
+		uniforms: [],
+		credits: "ICAROS Lab",
+		tags: ["terrain", "fbm", "cosine-palette", "fog", "psychedelic"],
+		perfTier: "quest-safe",
+	},
+	{
+		id: "psychedelic-water",
+		name: "Psychedelic Water",
+		description:
+			"Animated water surface with domain-warped noise and psychedelic palette coloring",
+		category: "landscape" as ShaderCategory,
+		fragmentShader: "", // Load via: import frag from "./landscape/psychedelic-water.frag?raw"
+		uniforms: [],
+		credits: "ICAROS Lab",
+		tags: ["water", "domain-warp", "psychedelic", "animated"],
+		perfTier: "quest-safe",
+	},
+	{
 		id: "ocean-surface",
 		name: "Ocean Surface",
 		description:
@@ -761,6 +785,18 @@ export const SHADER_REGISTRY: ShaderDef[] = [
 		],
 		credits: "ICAROS Lab",
 		tags: ["subsurface", "glow", "organic", "translucent", "quest-safe"],
+		perfTier: "quest-safe",
+	},
+	{
+		id: "gaussian-glow",
+		name: "Gaussian Glow",
+		description:
+			"Soft gaussian billboard glow for particle systems — radial falloff with configurable color",
+		category: "particle" as ShaderCategory,
+		fragmentShader: "", // Load via: import frag from "./particle/gaussian-glow.frag?raw"
+		uniforms: [],
+		credits: "ICAROS Lab",
+		tags: ["particle", "glow", "gaussian", "billboard", "quest-safe"],
 		perfTier: "quest-safe",
 	},
 ];

@@ -169,8 +169,9 @@ export const manifest: ExperienceManifest = {
   name: "Shader Landscape",
   description:
     "Psychedelic flythrough landscape — terrain, water, sky, particles, all GPU-shaded",
-  version: "2.0.0",
+  version: "3.0.0",
   author: "ICAROS Lab",
+  thumbnail: "/experiences/shader-demo/preview.webp",
 
   // I/O contract — orientation for flight, speed for boost/brake
   parameters,
