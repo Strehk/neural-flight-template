@@ -1,3 +1,4 @@
+import { manifest as gradientPrism } from "./gradient-prism";
 import { manifest as mountainFlight } from "./mountain-flight";
 import { manifest as shaderDemo } from "./shader-demo";
 import type { ExperienceManifest } from "./types";
@@ -11,6 +12,7 @@ import type { ExperienceManifest } from "./types";
 // The ID must match the folder name and the manifest.id field.
 
 const CATALOG: Record<string, ExperienceManifest> = {
+	"gradient-prism": gradientPrism,
 	"mountain-flight": mountainFlight,
 	"shader-demo": shaderDemo,
 };

@@ -15,6 +15,8 @@
 import * as THREE from "three";
 import {
 	BloomEffect,
+	BokehEffect,
+	ChromaticAberrationEffect,
 	EffectComposer,
 	EffectPass,
 	NoiseEffect,
@@ -39,10 +41,22 @@ export interface VignetteConfig {
 	darkness?: number;
 }
 
+export interface ChromaticConfig {
+	offset?: number;
+}
+
+export interface DepthOfFieldConfig {
+	focusDistance?: number;
+	focalLength?: number;
+	bokehScale?: number;
+}
+
 export interface PostFXConfig {
 	bloom?: BloomConfig | false;
 	filmGrain?: FilmGrainConfig | false;
 	vignette?: VignetteConfig | false;
+	chromatic?: ChromaticConfig | false;
+	depthOfField?: DepthOfFieldConfig | false;
 	multisampling?: number;
 }
 
@@ -52,6 +66,8 @@ export interface PostFXPipeline {
 	resize: (width: number, height: number) => void;
 	setBloomIntensity: (value: number) => void;
 	setGrainOpacity: (value: number) => void;
+	setChromaticOffset: (value: number) => void;
+	setBokehScale: (value: number) => void;
 	dispose: () => void;
 }
 
@@ -83,9 +99,11 @@ export function createPostFXPipeline(
 
 	composer.addPass(new RenderPass(scene, camera));
 
-	const effects: InstanceType<typeof BloomEffect | typeof NoiseEffect | typeof VignetteEffect>[] = [];
+	const effects: (BloomEffect | NoiseEffect | VignetteEffect)[] = [];
 	let bloomEffect: BloomEffect | null = null;
 	let grainEffect: NoiseEffect | null = null;
+	let chromaEffect: ChromaticAberrationEffect | null = null;
+	let bokehEffect: BokehEffect | null = null;
 
 	// Bloom
 	if (config?.bloom !== false) {
@@ -119,8 +137,35 @@ export function createPostFXPipeline(
 		effects.push(vignetteEffect);
 	}
 
+	// Non-convolution effects in one shared pass
 	if (effects.length > 0) {
 		composer.addPass(new EffectPass(camera, ...effects));
+	}
+
+	// Convolution effects need their own passes
+	// Chromatic Aberration
+	if (config?.chromatic !== false && config?.chromatic) {
+		const cc = typeof config.chromatic === "object" ? config.chromatic : {};
+		const offsetVal = cc.offset ?? 0.001;
+		chromaEffect = new ChromaticAberrationEffect({
+			offset: new THREE.Vector2(offsetVal, offsetVal),
+			radialModulation: true,
+			modulationOffset: 0.2,
+		});
+		composer.addPass(new EffectPass(camera, chromaEffect));
+	}
+
+	// Depth of Field (Bokeh)
+	if (config?.depthOfField !== false && config?.depthOfField) {
+		const dc =
+			typeof config.depthOfField === "object" ? config.depthOfField : {};
+		bokehEffect = new BokehEffect({
+			focus: dc.focusDistance ?? 0.35,
+			dof: dc.focalLength ?? 0.08,
+			aperture: dc.bokehScale ?? 0.015,
+			maxBlur: 0.02,
+		});
+		composer.addPass(new EffectPass(camera, bokehEffect));
 	}
 
 	return {
@@ -136,6 +181,15 @@ export function createPostFXPipeline(
 		},
 		setGrainOpacity(value: number) {
 			if (grainEffect) grainEffect.blendMode.opacity.value = value;
+		},
+		setChromaticOffset(value: number) {
+			if (chromaEffect) chromaEffect.offset.set(value, value);
+		},
+		setBokehScale(value: number) {
+			if (bokehEffect) {
+				const u = bokehEffect.uniforms.get("aperture");
+				if (u) u.value = value;
+			}
 		},
 		dispose() {
 			composer.dispose();

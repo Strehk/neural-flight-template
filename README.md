@@ -114,6 +114,9 @@ adb reverse tcp:5173 tcp:5173
 | `/controller` | Laptop | 🎮 D-Pad controller + Settings sidebar |
 | `/node-editor` | Laptop | 🔧 Visual node editor for VR parameters |
 | `/shader-playground` | Laptop | 🎨 Live GLSL shader editor with 3D preview |
+| `/lab` | Laptop | 🧪 Experimental shader visualizations |
+| `/spectator` | Any | 👁️ Spectator view *(planned)* |
+| `/dmx` | Laptop | 💡 DMX lighting control *(planned)* |
 
 ---
 
@@ -127,23 +130,43 @@ src/
 │   ├── gyro/+page.svelte            # Gyroscope controller
 │   ├── controller/+page.svelte      # Desktop controller
 │   ├── node-editor/+page.svelte     # Visual node editor
-│   └── shader-playground/+page.svelte  # Shader Playground
+│   ├── shader-playground/+page.svelte  # Shader Playground
+│   └── lab/+page.svelte             # Experimental shader visualizations
 │
 ├── lib/
 │   ├── experiences/             # 🌍 VR experiences (student-built)
 │   │   ├── catalog.ts           # Experience registry
 │   │   ├── loader.ts            # Lifecycle management
 │   │   ├── types.ts             # ExperienceManifest, ParameterDef
-│   │   ├── mountain-flight/     # Reference experience
+│   │   ├── mountain-flight/     # Reference experience (terrain + flight)
+│   │   ├── shader-demo/         # Shader visualization experience
 │   │   └── template/            # Copy-template for students
 │   │
-│   ├── three/                   # 🎮 Shared 3D building blocks
+│   ├── three/                   # 🎮 Shared 3D building blocks (16 core files)
 │   │   ├── scene.ts             # Scene factory (lights, fog)
 │   │   ├── player.ts            # FlightPlayer (camera + physics)
 │   │   ├── sky.ts               # Low-poly gradient sky
 │   │   ├── clouds.ts            # Procedural cloud groups
 │   │   ├── rings.ts             # Collectible rings
-│   │   └── terrain/             # Chunked terrain system
+│   │   ├── gradient-sky.ts      # Gradient sky dome
+│   │   ├── grid-floor.ts        # Grid floor plane
+│   │   ├── starfield.ts         # Particle starfield
+│   │   ├── reflective-ground.ts # Reflective ground plane
+│   │   ├── floating-objects.ts  # Floating geometry
+│   │   ├── blob-terrain.ts      # Organic blob terrain
+│   │   ├── procedural-city.ts   # Procedural city generator
+│   │   ├── parametric-lines.ts  # Parametric line drawings
+│   │   ├── postfx-pipeline.ts   # Post-processing pipeline
+│   │   ├── terrain/             # Chunked terrain system (6 files)
+│   │   └── lab/                 # Experimental building blocks (10 files)
+│   │
+│   ├── shaders/                 # ✨ Shared GLSL shader library
+│   │   ├── common/              # Reusable GLSL includes (noise, sdf, math, color)
+│   │   ├── vertex/              # Vertex shaders with frontmatter metadata
+│   │   ├── fragment/            # Fragment shaders (abstract, generative, landscape, ...)
+│   │   ├── frontmatter.ts       # GLSL frontmatter parser
+│   │   ├── loader.ts            # Shader discovery + loading
+│   │   └── validation.ts        # Shader validation utilities
 │   │
 │   ├── shader-playground/       # 🎨 Signal-based GLSL editor
 │   │   ├── modules/             # 24 shader modules (control, vertex, fragment)
@@ -157,14 +180,28 @@ src/
 │   │   ├── canvas/              # SvelteFlow infrastructure
 │   │   └── graph/               # Compute engine (headless)
 │   │
+│   ├── network/                 # 📶 Network utilities
+│   │   ├── qr.ts                # QR code generation for device URLs
+│   │   ├── detect.ts            # Hotspot / network detection
+│   │   └── types.ts             # Network type definitions
+│   │
+│   ├── components/              # 🎨 UI components (bits-ui based)
+│   │   ├── NetworkPanel.svelte  # QR codes + device connection panel
+│   │   ├── SettingsSidebar.svelte # Live parameter controls
+│   │   ├── ControlPad.svelte    # Virtual D-Pad
+│   │   └── ...                  # 10 shared components total
+│   │
 │   ├── ws/                      # 📡 WebSocket protocol
 │   ├── gyro/                    # 📱 Device Orientation
 │   ├── config/                  # ⚙️ Configuration constants
-│   ├── components/              # 🎨 UI components (bits-ui)
 │   └── types/                   # 📝 TypeScript interfaces
 │
 ├── hooks.server.ts              # WebSocket upgrade handler
 └── app.css                      # Global design system
+
+scripts/
+└── hotspot/                     # 📶 macOS Wi-Fi hotspot management
+    └── hotspot.sh               # start / stop / setup commands
 ```
 
 ---
@@ -235,6 +272,7 @@ Learn GLSL shaders interactively at `/shader-playground`:
 - Drag modules into a rack, connect signals, see 3D results instantly
 - 24 modules: color, noise, displacement, SDF, post-processing
 - Modulation engine with LFO waveforms for animated effects
+- Shared shader library (`src/lib/shaders/`) with 70+ curated GLSL shaders (vertex + fragment), organized by category with frontmatter metadata
 
 > 📖 Details: [`src/lib/shader-playground/README.md`](src/lib/shader-playground/README.md)
 
@@ -242,8 +280,21 @@ Learn GLSL shaders interactively at `/shader-playground`:
 
 - **New input source**: Create a route, send `OrientationData` via WebSocket
 - **New output client**: Create a route, listen for WebSocket messages
-- **Modify VR world**: Edit files in `src/lib/three/`
+- **Modify VR world**: Edit files in `src/lib/three/` (16 core building blocks + lab experiments)
 - **Node Editor**: Visually wire signal processors to VR parameters at `/node-editor`
+
+### 📶 Network Panel & Device Setup
+
+The Network Panel (`/controller` sidebar) generates QR codes for quick device connection:
+- Scan QR code on phone → opens `/gyro` controller instantly
+- Automatic hotspot detection for offline classroom setups
+- macOS hotspot scripts for cable-free Quest + Phone setup
+
+```bash
+bun run hotspot:setup   # First-time Wi-Fi hotspot configuration
+bun run hotspot:start   # Start macOS Wi-Fi hotspot
+bun run hotspot:stop    # Stop macOS Wi-Fi hotspot
+```
 
 ---
 
@@ -254,6 +305,8 @@ Learn GLSL shaders interactively at `/shader-playground`:
 - [x] Node Editor — visual parameter control (Eurorack metaphor)
 - [x] Experience System — modular VR worlds (manifest, catalog, loader)
 - [x] Shader Playground — signal-based GLSL editor with 3D preview
+- [x] Network Panel — QR code device setup + hotspot scripts
+- [x] Shared Shader Library — 70+ curated GLSL shaders with frontmatter metadata
 - [ ] More Experiences — students build diverse VR worlds
 - [ ] Shader ↔ Experience integration — use playground shaders in VR scenes
 - [ ] Tutorial system — guided GLSL learning paths (3 tracks, 14 lessons)
@@ -268,6 +321,11 @@ Learn GLSL shaders interactively at `/shader-playground`:
 bun run dev                            # Start HTTPS dev server
 bunx biome check --write .             # Lint + format code
 bunx svelte-check --threshold warning  # Type check
+
+# Hotspot (macOS — offline classroom setup)
+bun run hotspot:setup                  # First-time Wi-Fi hotspot config
+bun run hotspot:start                  # Start Wi-Fi hotspot
+bun run hotspot:stop                   # Stop Wi-Fi hotspot
 ```
 
 ---
@@ -304,7 +362,13 @@ adb reverse --list              # Verify tunnel exists
 | Runtime | Bun |
 | 3D Engine | Three.js |
 | VR/AR | WebXR API |
-| UI | bits-ui |
+| UI | bits-ui + lucide-svelte |
+| Node Editor | @xyflow/svelte (SvelteFlow) |
+| Code Editor | CodeMirror |
+| Post-Processing | postprocessing |
+| Noise | simplex-noise |
+| QR Codes | qrcode |
+| Drag & Drop | svelte-dnd-action |
 | Linting | Biome |
 
 ---
