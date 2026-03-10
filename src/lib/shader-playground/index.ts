@@ -1,19 +1,19 @@
 /**
- * Shader Playground v2 — Barrel Export
+ * Shader Playground v3 — Barrel Export (TSL)
  *
- * Dual-stage signal-based module system with typed ports and codegen.
+ * TSL-based module system with typed ports and node composition.
  */
 
 // Engine
-export { createPlaygroundRenderer, DEFAULT_VERTEX } from "./engine/index";
+export { createPlaygroundRenderer } from "./engine/index";
 
 // State
 export { createShaderRackState } from "./state.svelte";
 export type { ShaderRackState } from "./state.svelte";
 
 // Codegen
-export { assembleShaders } from "./codegen";
-export type { CodegenResult } from "./codegen";
+export { composeTslNodes } from "./codegen";
+export type { TslCodegenResult } from "./codegen";
 
 // Control Engine
 export { computeControlOutput } from "./control-engine";
@@ -28,12 +28,13 @@ export type {
 	RackModuleInstance,
 	RackModuleType,
 	SignalType,
+	TslNodeContext,
+	TslNodeResult,
 } from "./modules/types";
 export { MODULE_REGISTRY } from "./modules/registry";
 export {
 	MODULE_CATEGORIES,
 	SIGNAL_COLORS,
-	SIGNAL_GLSL_TYPE,
 	getStage,
 } from "./modules/types";
 

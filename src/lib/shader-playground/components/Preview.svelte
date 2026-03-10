@@ -11,18 +11,23 @@ let { onrenderer }: Props = $props();
 
 let canvasEl: HTMLCanvasElement | undefined = $state();
 let renderer: PlaygroundRenderer | undefined = $state();
+let observer: ResizeObserver | undefined;
 
 onMount(() => {
 	if (!canvasEl) return;
-	renderer = createPlaygroundRenderer(canvasEl);
-	onrenderer?.(renderer);
+	createPlaygroundRenderer(canvasEl).then((r) => {
+		renderer = r;
+		onrenderer?.(r);
+	});
 
-	const observer = new ResizeObserver(() => renderer?.resize());
+	observer = new ResizeObserver(() => renderer?.resize());
 	observer.observe(canvasEl);
-	return () => observer.disconnect();
 });
 
-onDestroy(() => renderer?.dispose());
+onDestroy(() => {
+	observer?.disconnect();
+	renderer?.dispose();
+});
 </script>
 
 <div class="sp-preview-container">

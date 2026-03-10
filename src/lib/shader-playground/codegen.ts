@@ -1,692 +1,211 @@
 /**
- * Codegen v3 — Dual-Stage GLSL Assembly with Human-Readable Names
+ * Codegen v4 — TSL Node Composition
  *
- * Transforms RackModuleInstance[] → vertex + fragment shaders.
- * Linear chain: ports connect automatically by SignalType in rack order.
- * Control modules inject uniforms into both stages.
- * Modulation routes allow controls to modulate vertex/fragment params.
- *
- * v3: Human-readable variable names, structured block comments,
- *     per-module snippet map, modulation routing support.
+ * Transforms RackModuleInstance[] → TSL colorNode + positionNode.
+ * Linear chain: fragment modules compose colorNode, vertex modules compose positionNode.
+ * Control modules inject uniforms. Modulation routes modulate param uniforms.
  */
 
-import NOISE_GLSL from "./modules/snippets/noise.glsl?raw";
-import PALETTE_GLSL from "./modules/snippets/palette.glsl?raw";
+import type { Node, UniformNode } from "three/webgpu";
+import {
+	float,
+	normalLocal,
+	positionLocal,
+	uniform,
+	uv,
+	vec4,
+	time,
+} from "three/tsl";
 import { MODULE_REGISTRY } from "./modules/registry";
 import type {
-	ModuleDefinition,
-	ModulePort,
 	ModulationRoute,
-	PortVarMap,
 	RackModuleInstance,
 	SignalType,
 } from "./modules/types";
-import { SIGNAL_GLSL_TYPE, getStage } from "./modules/types";
-
-// ── Snippet Library ──
-
-const SNIPPET_LIBRARY: Record<string, string> = {
-	snoise: NOISE_GLSL,
-	cosinePalette: PALETTE_GLSL,
-};
-
-// ── Human-Readable Name Map ──
-
-/** Maps moduleId → slug like "twist", "palette_1", "noise_2" */
-type NameMap = Map<string, string>;
-
-function buildNameMap(modules: RackModuleInstance[]): NameMap {
-	const nameMap: NameMap = new Map();
-	const slugCounts = new Map<string, number>();
-
-	for (const mod of modules) {
-		const base = mod.label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
-		const count = (slugCounts.get(base) ?? 0) + 1;
-		slugCounts.set(base, count);
-		const slug = count > 1 ? `${base}_${count}` : base;
-		nameMap.set(mod.id, slug);
-	}
-
-	// Second pass: add _1 suffix to first occurrence if duplicates exist
-	for (const [id, slug] of nameMap) {
-		const base = slug.replace(/_\d+$/, "");
-		if ((slugCounts.get(base) ?? 0) > 1 && slug === base) {
-			nameMap.set(id, `${base}_1`);
-		}
-	}
-
-	return nameMap;
-}
-
-// ── Naming Helpers ──
-
-function humanName(nameMap: NameMap, moduleId: string): string {
-	return nameMap.get(moduleId) ?? moduleId;
-}
-
-function uniformName(nameMap: NameMap, moduleId: string, param: string): string {
-	return `u_${humanName(nameMap, moduleId)}_${param}`;
-}
-
-function portVarName(nameMap: NameMap, moduleId: string, portName: string): string {
-	return `${humanName(nameMap, moduleId)}_${portName}`;
-}
+import { getStage } from "./modules/types";
 
 // ── Public API ──
 
-export interface CodegenResult {
-	fragmentGlsl: string;
-	vertexGlsl: string | null;
-	uniforms: { name: string; value: number }[];
-	/** Maps "moduleId:paramName" → GLSL uniform name for real-time updates */
-	uniformMap: Map<string, string>;
-	/** Maps moduleId → GLSL snippet (body code only, no boilerplate) */
-	moduleSnippets: Map<string, string>;
+export interface TslCodegenResult {
+	colorNode: Node;
+	positionNode: Node | null;
+	/** Maps "moduleId:paramName" → live UniformNode for direct value updates */
+	uniformRefs: Map<string, UniformNode<number>>;
+	/** Maps moduleId → readable description of what the module does */
+	moduleDescriptions: Map<string, string>;
 }
 
-export function assembleShaders(
+export function composeTslNodes(
 	modules: RackModuleInstance[],
 	modulationRoutes: ModulationRoute[] = [],
-): CodegenResult {
+): TslCodegenResult {
 	const active = modules
 		.filter((m) => m.enabled)
 		.sort((a, b) => a.order - b.order);
 
-	const nameMap = buildNameMap(active);
-
 	const vertexModules = active.filter((m) => getStage(m.type) === "vertex");
-	const fragmentModules = active.filter(
-		(m) => getStage(m.type) === "fragment",
-	);
-	const controlModules = active.filter(
-		(m) => getStage(m.type) === "control",
-	);
+	const fragmentModules = active.filter((m) => getStage(m.type) === "fragment");
 
-	const uniformMap = new Map<string, string>();
-	const moduleSnippets = new Map<string, string>();
+	const uniformRefs = new Map<string, UniformNode<number>>();
+	const moduleDescriptions = new Map<string, string>();
 
-	// Build uniform map for all modules
+	// ── Create uniform nodes for all module params ──
+	const moduleUniforms = new Map<string, Record<string, UniformNode<number>>>();
 	for (const mod of active) {
-		for (const key of Object.keys(mod.params)) {
-			const uName = uniformName(nameMap, mod.id, key);
-			uniformMap.set(`${mod.id}:${key}`, uName);
+		const def = MODULE_REGISTRY.get(mod.type);
+		if (!def) continue;
+		const params: Record<string, UniformNode<number>> = {};
+		for (const [key, value] of Object.entries(mod.params)) {
+			const u = uniform(value);
+			params[key] = u;
+			uniformRefs.set(`${mod.id}:${key}`, u);
 		}
+		moduleUniforms.set(mod.id, params);
 	}
 
-	// Register output uniforms for control modules used as modulation sources
-	const sourceModuleIds = new Set(modulationRoutes.map((r) => r.sourceModuleId));
-	for (const sourceId of sourceModuleIds) {
-		const mod = active.find((m) => m.id === sourceId);
-		if (mod && getStage(mod.type) === "control") {
-			const outputName = `u_${humanName(nameMap, mod.id)}_output`;
-			uniformMap.set(`${mod.id}:__output`, outputName);
-		}
-	}
-
-	const controlResult = resolveControlUniforms(controlModules, nameMap);
-
-	// Resolve modulation: which params are modulated by which control?
+	// ── Apply modulation: wrap base uniform with modulation offset ──
 	const activeRoutes = modulationRoutes.filter(
-		(r) => active.some((m) => m.id === r.sourceModuleId) &&
+		(r) =>
+			active.some((m) => m.id === r.sourceModuleId) &&
 			active.some((m) => m.id === r.targetModuleId),
 	);
 
-	// Add output uniform declarations for modulation source controls
-	const sourceOutputUniforms = resolveSourceOutputUniforms(
-		activeRoutes,
-		controlModules,
-		nameMap,
-	);
+	const modulatedParams = new Map<string, Node>();
+	const modulationDepthRefs = new Map<string, UniformNode<number>>();
+	const sourceOutputRefs = new Map<string, UniformNode<number>>();
 
-	const vertexGlsl =
-		vertexModules.length > 0
-			? assembleVertexShader(vertexModules, controlResult, sourceOutputUniforms, nameMap, moduleSnippets, activeRoutes)
-			: null;
-	const fragmentGlsl = assembleFragmentShader(
-		fragmentModules,
-		controlResult,
-		sourceOutputUniforms,
-		nameMap,
-		moduleSnippets,
-		activeRoutes,
-	);
-
-	// Add modulation depth uniforms to map + values
-	const modulationUniforms = resolveModulationUniforms(activeRoutes, nameMap);
-
-	return {
-		fragmentGlsl,
-		vertexGlsl,
-		uniforms: [
-			...controlResult.values,
-			...sourceOutputUniforms.values,
-			...collectModuleUniforms(active, nameMap),
-			...modulationUniforms.values,
-		],
-		uniformMap,
-		moduleSnippets,
-	};
-}
-
-// ── Control Uniform Resolution ──
-
-interface UniformBlock {
-	declarations: string[];
-	values: { name: string; value: number }[];
-}
-
-function resolveControlUniforms(
-	controlModules: RackModuleInstance[],
-	nameMap: NameMap,
-): UniformBlock {
-	const declarations: string[] = [];
-	const values: { name: string; value: number }[] = [];
-
-	for (const mod of controlModules) {
-		const hName = humanName(nameMap, mod.id);
-		for (const [key, value] of Object.entries(mod.params)) {
-			const uName = uniformName(nameMap, mod.id, key);
-			declarations.push(`uniform float ${uName};  // ${mod.label} → ${key}`);
-			values.push({ name: uName, value });
-		}
-	}
-
-	return { declarations, values };
-}
-
-// ── Source Output Uniforms (CPU-computed per tick) ──
-
-function resolveSourceOutputUniforms(
-	routes: ModulationRoute[],
-	controlModules: RackModuleInstance[],
-	nameMap: NameMap,
-): UniformBlock {
-	const declarations: string[] = [];
-	const values: { name: string; value: number }[] = [];
-	const seen = new Set<string>();
-
-	for (const route of routes) {
-		if (seen.has(route.sourceModuleId)) continue;
-		seen.add(route.sourceModuleId);
-
-		const mod = controlModules.find((m) => m.id === route.sourceModuleId);
-		if (!mod) continue;
-
-		const outputName = `u_${humanName(nameMap, mod.id)}_output`;
-		declarations.push(`uniform float ${outputName};  // ${mod.label} → CPU output`);
-		values.push({ name: outputName, value: 0.0 });
-	}
-
-	return { declarations, values };
-}
-
-// ── Collect non-control module uniforms ──
-
-function collectModuleUniforms(
-	modules: RackModuleInstance[],
-	nameMap: NameMap,
-): { name: string; value: number }[] {
-	const uniforms: { name: string; value: number }[] = [];
-
-	for (const mod of modules) {
-		if (getStage(mod.type) === "control") continue;
-		for (const [key, value] of Object.entries(mod.params)) {
-			uniforms.push({ name: uniformName(nameMap, mod.id, key), value });
-		}
-	}
-
-	return uniforms;
-}
-
-// ── Modulation Resolution ──
-
-interface ModulationBlock {
-	/** Uniform declarations for depth values */
-	declarations: string[];
-	/** Pre-computation lines (e.g. float mod_twist_amount = ...) */
-	preCompute: string[];
-	/** Maps targetModuleId:paramName → modulated variable name */
-	paramOverrides: Map<string, string>;
-	/** Uniform values for depth */
-	values: { name: string; value: number }[];
-}
-
-function resolveModulationUniforms(
-	routes: ModulationRoute[],
-	nameMap: NameMap,
-): { declarations: string[]; values: { name: string; value: number }[] } {
-	const declarations: string[] = [];
-	const values: { name: string; value: number }[] = [];
-
-	for (const route of routes) {
-		const targetHuman = humanName(nameMap, route.targetModuleId);
-		const depthName = `u_mod_${targetHuman}_${route.targetParam}_depth`;
-		declarations.push(`uniform float ${depthName};  // Mod depth: ${route.targetParam}`);
-		values.push({ name: depthName, value: route.depth });
-	}
-
-	return { declarations, values };
-}
-
-function resolveModulationBlock(
-	routes: ModulationRoute[],
-	modules: RackModuleInstance[],
-	nameMap: NameMap,
-): ModulationBlock {
-	const declarations: string[] = [];
-	const preCompute: string[] = [];
-	const paramOverrides = new Map<string, string>();
-	const values: { name: string; value: number }[] = [];
-
-	for (const route of routes) {
-		const sourceHuman = humanName(nameMap, route.sourceModuleId);
-		const targetHuman = humanName(nameMap, route.targetModuleId);
-		const depthName = `u_mod_${targetHuman}_${route.targetParam}_depth`;
-		const sourceUniform = `u_${sourceHuman}_output`;
-		const baseUniform = `u_${targetHuman}_${route.targetParam}`;
-		const modVar = `mod_${targetHuman}_${route.targetParam}`;
-
-		// Look up target param range for normalized scaling
-		const targetMod = modules.find((m) => m.id === route.targetModuleId);
-		const targetDef = targetMod ? MODULE_REGISTRY.get(targetMod.type) : undefined;
+	for (const route of activeRoutes) {
+		const targetDef = MODULE_REGISTRY.get(
+			active.find((m) => m.id === route.targetModuleId)?.type ?? "slider",
+		);
 		const range = targetDef?.paramRanges?.[route.targetParam];
 		const rangeSize = range ? range.max - range.min : 1;
 
-		preCompute.push(
-			`  float ${modVar} = ${baseUniform} + ${sourceUniform} * ${depthName} * ${rangeSize.toFixed(1)};`,
-		);
-		paramOverrides.set(`${route.targetModuleId}:${route.targetParam}`, modVar);
-	}
+		// Source output uniform (CPU-driven per tick)
+		let sourceRef = sourceOutputRefs.get(route.sourceModuleId);
+		if (!sourceRef) {
+			sourceRef = uniform(0);
+			sourceOutputRefs.set(route.sourceModuleId, sourceRef);
+			uniformRefs.set(`${route.sourceModuleId}:__output`, sourceRef);
+		}
 
-	return { declarations, preCompute, paramOverrides, values };
-}
+		// Depth uniform
+		const depthRef = uniform(route.depth);
+		modulationDepthRefs.set(route.id, depthRef);
+		uniformRefs.set(`__mod_depth:${route.id}`, depthRef);
 
-/** Emit pre-compute lines from modBlock that target a specific module. */
-function emitModulationPreCompute(
-	bodyLines: string[],
-	modBlock: ModulationBlock,
-	nameMap: NameMap,
-	targetModuleId: string,
-): void {
-	const targetHuman = humanName(nameMap, targetModuleId);
-	const prefix = `  float mod_${targetHuman}_`;
-	for (const line of modBlock.preCompute) {
-		if (line.startsWith(prefix)) {
-			bodyLines.push(line);
+		// Modulated = base + source * depth * range
+		const baseRef = moduleUniforms.get(route.targetModuleId)?.[route.targetParam];
+		if (baseRef) {
+			const modulated = baseRef.add(sourceRef.mul(depthRef).mul(rangeSize));
+			modulatedParams.set(`${route.targetModuleId}:${route.targetParam}`, modulated);
 		}
 	}
-}
 
-// ── Fragment Assembly ──
-
-const FALLBACK_FRAGMENT = `
-uniform float uTime;
-uniform vec2 uResolution;
-varying vec2 vUv;
-varying vec3 vNormal;
-uniform vec3 uLightDir;
-uniform float uLightIntensity;
-uniform float uAmbient;
-
-void main() {
-  vec3 color = 0.5 + 0.5 * cos(uTime + vUv.xyx + vec3(0.0, 2.0, 4.0));
-  float diffuse = max(dot(vNormal, uLightDir), 0.0);
-  float light = uAmbient + diffuse * uLightIntensity;
-  gl_FragColor = vec4(color * light, 1.0);
-}
-`;
-
-function assembleFragmentShader(
-	fragmentModules: RackModuleInstance[],
-	controlUniforms: UniformBlock,
-	sourceOutputUniforms: UniformBlock,
-	nameMap: NameMap,
-	moduleSnippets: Map<string, string>,
-	modulationRoutes: ModulationRoute[],
-): string {
-	if (fragmentModules.length === 0 && controlUniforms.declarations.length === 0) {
-		return FALLBACK_FRAGMENT;
+	// ── Helper: get param node (modulated or base) ──
+	function getParams(mod: RackModuleInstance): Record<string, UniformNode<number>> {
+		const base = moduleUniforms.get(mod.id) ?? {};
+		const result: Record<string, UniformNode<number>> = {};
+		for (const [key, u] of Object.entries(base)) {
+			const modKey = `${mod.id}:${key}`;
+			// Use modulated version if available, cast back to uniform-compatible node
+			result[key] = (modulatedParams.get(modKey) ?? u) as UniformNode<number>;
+		}
+		return result;
 	}
 
-	const uniformDecls: string[] = [];
-	const bodyLines: string[] = [];
-	const requiredSnippets = new Set<string>();
-	const lastOutput: Partial<Record<SignalType, string>> = {};
+	// ── Fragment signal defaults ──
+	function getFragmentDefault(type: SignalType): Node {
+		switch (type) {
+			case "color":
+				return vec4(
+					time.add(uv().x).cos().mul(0.5).add(0.5),
+					time.add(uv().y).add(2).cos().mul(0.5).add(0.5),
+					time.add(uv().x).add(4).cos().mul(0.5).add(0.5),
+					1.0,
+				);
+			case "scalar":
+				return float(0.5);
+			case "uv":
+				return uv();
+			case "normal":
+				return normalLocal;
+			case "sdf":
+				return float(0);
+		}
+	}
 
-	// Resolve modulation for fragment stage
-	const fragRoutes = modulationRoutes.filter((r) => {
-		const mod = fragmentModules.find((m) => m.id === r.targetModuleId);
-		return mod !== undefined;
-	});
-	const modBlock = resolveModulationBlock(fragRoutes, fragmentModules, nameMap);
+	// ── Compose fragment chain ──
+	const lastOutput: Partial<Record<SignalType, Node>> = {};
 
-	// Process fragment modules through signal chain
-	for (let idx = 0; idx < fragmentModules.length; idx++) {
-		const mod = fragmentModules[idx];
+	for (const mod of fragmentModules) {
 		const def = MODULE_REGISTRY.get(mod.type);
 		if (!def) continue;
 
-		if (def.requiredSnippets) {
-			for (const s of def.requiredSnippets) requiredSnippets.add(s);
-		}
-
-		const hName = humanName(nameMap, mod.id);
-		const paramUniforms: Record<string, string> = {};
-		for (const [key] of Object.entries(mod.params)) {
-			const uName = uniformName(nameMap, mod.id, key);
-			uniformDecls.push(`uniform float ${uName};  // ${mod.label} → ${key}`);
-			// Check if this param is modulated
-			const override = modBlock.paramOverrides.get(`${mod.id}:${key}`);
-			paramUniforms[key] = override ?? uName;
-		}
-
-		const { vars, inPorts, outPorts } = resolvePortVars(mod, def, nameMap);
-		emitPortDeclarations(bodyLines, inPorts, outPorts, vars, lastOutput, getFragmentDefault);
-
-		// Emit modulation pre-computation (from modBlock, already range-scaled)
-		emitModulationPreCompute(bodyLines, modBlock, nameMap, mod.id);
-
-		// Block comment: [index+1] Label (STAGE)
-		const blockIdx = idx + 1;
-		bodyLines.push(`  // ─── [${blockIdx}] ${mod.label} (FRAG) ─────────────────`);
-
-		const snippetCode = def.glslSnippet(paramUniforms, vars);
-		bodyLines.push(snippetCode);
-		moduleSnippets.set(mod.id, snippetCode);
-
-		updateLastOutput(outPorts, vars, lastOutput);
-	}
-
-	const finalColor =
-		lastOutput.color ??
-		"vec4(0.5 + 0.5 * cos(uTime + vUv.xyx + vec3(0.0, 2.0, 4.0)), 1.0)";
-
-	// Add modulation depth uniforms
-	const modulationDecls = resolveModulationUniforms(fragRoutes, nameMap).declarations;
-
-	return buildFragmentSource(
-		uniformDecls,
-		controlUniforms.declarations,
-		sourceOutputUniforms.declarations,
-		modulationDecls,
-		requiredSnippets,
-		bodyLines,
-		finalColor,
-	);
-}
-
-function buildFragmentSource(
-	moduleUniforms: string[],
-	controlUniforms: string[],
-	sourceOutputUniforms: string[],
-	modulationUniforms: string[],
-	requiredSnippets: Set<string>,
-	bodyLines: string[],
-	finalColor: string,
-): string {
-	const parts: string[] = [];
-
-	parts.push("// ═══ System Uniforms ═══");
-	parts.push("uniform float uTime;");
-	parts.push("uniform vec2 uResolution;");
-	parts.push("uniform vec3 uLightDir;");
-	parts.push("uniform float uLightIntensity;");
-	parts.push("uniform float uAmbient;");
-	parts.push("");
-
-	parts.push("// ═══ Varyings ═══");
-	parts.push("varying vec2 vUv;");
-	parts.push("varying vec3 vNormal;");
-	parts.push("");
-
-	if (controlUniforms.length > 0) {
-		parts.push("// ═══ Control Uniforms ═══");
-		parts.push(...controlUniforms);
-		parts.push("");
-	}
-
-	if (sourceOutputUniforms.length > 0) {
-		parts.push("// ═══ Modulation Source Outputs ═══");
-		parts.push(...sourceOutputUniforms);
-		parts.push("");
-	}
-
-	if (moduleUniforms.length > 0) {
-		parts.push("// ═══ Module Uniforms ═══");
-		parts.push(...moduleUniforms);
-		parts.push("");
-	}
-
-	if (modulationUniforms.length > 0) {
-		parts.push("// ═══ Modulation Uniforms ═══");
-		parts.push(...modulationUniforms);
-		parts.push("");
-	}
-
-	if (requiredSnippets.size > 0) {
-		parts.push("// ═══ Helper Functions ═══");
-		for (const name of requiredSnippets) {
-			const code = SNIPPET_LIBRARY[name];
-			if (code) parts.push(code);
-		}
-		parts.push("");
-	}
-
-	parts.push("// ═══ Signal Chain ═══");
-	parts.push("void main() {");
-	parts.push(...bodyLines);
-	parts.push("");
-	parts.push("  // ═══ Lighting ═══");
-	parts.push("  float diffuse = max(dot(vNormal, uLightDir), 0.0);");
-	parts.push("  float light = uAmbient + diffuse * uLightIntensity;");
-	parts.push(
-		`  gl_FragColor = vec4(${finalColor}.rgb * light, ${finalColor}.a);`,
-	);
-	parts.push("}");
-
-	return parts.join("\n");
-}
-
-// ── Vertex Assembly ──
-
-function assembleVertexShader(
-	vertexModules: RackModuleInstance[],
-	controlUniforms: UniformBlock,
-	sourceOutputUniforms: UniformBlock,
-	nameMap: NameMap,
-	moduleSnippets: Map<string, string>,
-	modulationRoutes: ModulationRoute[],
-): string {
-	const uniformDecls: string[] = [];
-	const bodyLines: string[] = [];
-	const requiredSnippets = new Set<string>();
-
-	// Resolve modulation for vertex stage
-	const vertRoutes = modulationRoutes.filter((r) => {
-		const mod = vertexModules.find((m) => m.id === r.targetModuleId);
-		return mod !== undefined;
-	});
-	const modBlock = resolveModulationBlock(vertRoutes, vertexModules, nameMap);
-
-	for (let idx = 0; idx < vertexModules.length; idx++) {
-		const mod = vertexModules[idx];
-		const def = MODULE_REGISTRY.get(mod.type);
-		if (!def) continue;
-
-		if (def.requiredSnippets) {
-			for (const s of def.requiredSnippets) requiredSnippets.add(s);
-		}
-
-		const paramUniforms: Record<string, string> = {};
-		for (const [key] of Object.entries(mod.params)) {
-			const uName = uniformName(nameMap, mod.id, key);
-			uniformDecls.push(`uniform float ${uName};  // ${mod.label} → ${key}`);
-			const override = modBlock.paramOverrides.get(`${mod.id}:${key}`);
-			paramUniforms[key] = override ?? uName;
-		}
-
-		// Vertex modules get special vars: pos, norm, uvCoord
-		const vars: PortVarMap = { pos: "pos", norm: "norm", uvCoord: "uvCoord" };
+		// Resolve inputs from signal chain
+		const inputs: Record<string, Node> = {};
 		for (const port of def.ports) {
-			vars[port.name] = portVarName(nameMap, mod.id, port.name);
+			if (port.direction === "in") {
+				inputs[port.name] = lastOutput[port.type] ?? getFragmentDefault(port.type);
+			}
 		}
 
-		// Emit modulation pre-computation (from modBlock, already range-scaled)
-		emitModulationPreCompute(bodyLines, modBlock, nameMap, mod.id);
+		const result = def.tslNode({ params: getParams(mod), inputs });
 
-		const blockIdx = idx + 1;
-		bodyLines.push(`  // ─── [${blockIdx}] ${mod.label} (VERT) ─────────────────`);
-
-		const snippetCode = def.glslSnippet(paramUniforms, vars);
-		bodyLines.push(snippetCode);
-		moduleSnippets.set(mod.id, snippetCode);
-	}
-
-	// Add modulation depth uniforms
-	const modulationDecls = resolveModulationUniforms(vertRoutes, nameMap).declarations;
-
-	return buildVertexSource(
-		uniformDecls,
-		controlUniforms.declarations,
-		sourceOutputUniforms.declarations,
-		modulationDecls,
-		requiredSnippets,
-		bodyLines,
-	);
-}
-
-function buildVertexSource(
-	moduleUniforms: string[],
-	controlUniforms: string[],
-	sourceOutputUniforms: string[],
-	modulationUniforms: string[],
-	requiredSnippets: Set<string>,
-	bodyLines: string[],
-): string {
-	const parts: string[] = [];
-
-	parts.push("// ═══ Varyings ═══");
-	parts.push("varying vec2 vUv;");
-	parts.push("varying vec3 vNormal;");
-	parts.push("");
-
-	parts.push("// ═══ System Uniforms ═══");
-	parts.push("uniform float uTime;");
-	parts.push("");
-
-	if (controlUniforms.length > 0) {
-		parts.push("// ═══ Control Uniforms ═══");
-		parts.push(...controlUniforms);
-		parts.push("");
-	}
-
-	if (sourceOutputUniforms.length > 0) {
-		parts.push("// ═══ Modulation Source Outputs ═══");
-		parts.push(...sourceOutputUniforms);
-		parts.push("");
-	}
-
-	if (moduleUniforms.length > 0) {
-		parts.push("// ═══ Module Uniforms ═══");
-		parts.push(...moduleUniforms);
-		parts.push("");
-	}
-
-	if (modulationUniforms.length > 0) {
-		parts.push("// ═══ Modulation Uniforms ═══");
-		parts.push(...modulationUniforms);
-		parts.push("");
-	}
-
-	if (requiredSnippets.size > 0) {
-		parts.push("// ═══ Helper Functions ═══");
-		for (const name of requiredSnippets) {
-			const code = SNIPPET_LIBRARY[name];
-			if (code) parts.push(code);
+		// Update signal chain with outputs
+		for (const port of def.ports) {
+			if (port.direction === "out" && result.outputs[port.name]) {
+				lastOutput[port.type] = result.outputs[port.name];
+			}
 		}
-		parts.push("");
+
+		moduleDescriptions.set(mod.id, describeModule(mod, def.ports));
 	}
 
-	parts.push("// ═══ Signal Chain ═══");
-	parts.push("void main() {");
-	parts.push("  vec3 pos = position;");
-	parts.push("  vec3 norm = normal;");
-	parts.push("  vec2 uvCoord = uv;");
-	parts.push("");
-	parts.push(...bodyLines);
-	parts.push("");
-	parts.push("  vUv = uvCoord;");
-	parts.push("  vNormal = normalize(normalMatrix * norm);");
-	parts.push(
-		"  gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);",
-	);
-	parts.push("}");
+	const colorNode = lastOutput.color ?? getFragmentDefault("color");
 
-	return parts.join("\n");
+	// ── Compose vertex chain ──
+	let currentPos: Node = positionLocal;
+
+	for (const mod of vertexModules) {
+		const def = MODULE_REGISTRY.get(mod.type);
+		if (!def) continue;
+
+		const inputs: Record<string, Node> = {
+			position: currentPos,
+			normal: normalLocal,
+			uv: uv(),
+		};
+
+		const result = def.tslNode({ params: getParams(mod), inputs });
+
+		if (result.outputs.position) {
+			currentPos = result.outputs.position;
+		}
+
+		moduleDescriptions.set(mod.id, describeModule(mod, def.ports));
+	}
+
+	const positionNode = vertexModules.length > 0 ? currentPos : null;
+
+	return { colorNode, positionNode, uniformRefs, moduleDescriptions };
 }
 
-// ── Shared Helpers ──
+// ── Description Helper ──
 
-function resolvePortVars(
+function describeModule(
 	mod: RackModuleInstance,
-	def: ModuleDefinition,
-	nameMap: NameMap,
-): { vars: PortVarMap; inPorts: ModulePort[]; outPorts: ModulePort[] } {
-	const vars: PortVarMap = {};
-	const inPorts: ModulePort[] = [];
-	const outPorts: ModulePort[] = [];
+	ports: { name: string; type: SignalType; direction: "in" | "out" }[],
+): string {
+	const ins = ports.filter((p) => p.direction === "in").map((p) => `${p.name}:${p.type}`);
+	const outs = ports.filter((p) => p.direction === "out").map((p) => `${p.name}:${p.type}`);
+	const params = Object.entries(mod.params)
+		.map(([k, v]) => `${k}=${v.toFixed(2)}`)
+		.join(", ");
 
-	for (const port of def.ports) {
-		vars[port.name] = portVarName(nameMap, mod.id, port.name);
-		if (port.direction === "in") inPorts.push(port);
-		else outPorts.push(port);
-	}
-
-	return { vars, inPorts, outPorts };
-}
-
-function emitPortDeclarations(
-	bodyLines: string[],
-	inPorts: ModulePort[],
-	outPorts: ModulePort[],
-	vars: PortVarMap,
-	lastOutput: Partial<Record<SignalType, string>>,
-	getDefault: (type: SignalType) => string,
-): void {
-	for (const port of inPorts) {
-		const glslType = SIGNAL_GLSL_TYPE[port.type];
-		const prev = lastOutput[port.type];
-		const initVal = prev ?? getDefault(port.type);
-		bodyLines.push(`  ${glslType} ${vars[port.name]} = ${initVal};`);
-	}
-
-	for (const port of outPorts) {
-		const glslType = SIGNAL_GLSL_TYPE[port.type];
-		bodyLines.push(`  ${glslType} ${vars[port.name]};`);
-	}
-}
-
-function updateLastOutput(
-	outPorts: ModulePort[],
-	vars: PortVarMap,
-	lastOutput: Partial<Record<SignalType, string>>,
-): void {
-	for (const port of outPorts) {
-		lastOutput[port.type] = vars[port.name];
-	}
-}
-
-function getFragmentDefault(type: SignalType): string {
-	switch (type) {
-		case "color":
-			return "vec4(0.5 + 0.5 * cos(uTime + vUv.xyx + vec3(0.0, 2.0, 4.0)), 1.0)";
-		case "scalar":
-			return "0.5";
-		case "uv":
-			return "vUv";
-		case "normal":
-			return "vNormal";
-		case "sdf":
-			return "0.0";
-	}
+	let desc = `${mod.label}`;
+	if (ins.length > 0) desc += ` ← [${ins.join(", ")}]`;
+	if (outs.length > 0) desc += ` → [${outs.join(", ")}]`;
+	if (params) desc += `  (${params})`;
+	return desc;
 }

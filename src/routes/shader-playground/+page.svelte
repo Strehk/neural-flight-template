@@ -18,14 +18,14 @@ onDestroy(() => rackState.dispose());
 </script>
 
 <svelte:head>
-	<title>SHADERRACK v2 | ICAROS</title>
+	<title>SHADERRACK v3 | ICAROS</title>
 </svelte:head>
 
 <div class="sp-page" class:fullscreen={rackState.isFullscreen}>
 	<PageHeader icon={Zap} label="SHADERRACK" status={rackState.compileOk ? "connected" : "error"}>
 		{#snippet actions()}
 			<span class="sp-header-sub">
-				{activeTab === "rack" ? "RACK" : "GLSL"}
+				{activeTab === "rack" ? "RACK" : "TSL"}
 			</span>
 		{/snippet}
 	</PageHeader>
@@ -49,7 +49,7 @@ onDestroy(() => rackState.dispose());
 				{#if activeTab === "rack"}
 					<Rack rack={rackState} />
 				{:else}
-					<CodeView code={rackState.generatedGlsl} vertexCode={rackState.generatedVertexGlsl} />
+					<CodeView descriptions={rackState.moduleDescriptions} />
 				{/if}
 			</div>
 		{/if}

@@ -1,16 +1,8 @@
 /**
  * Shader Playground Engine — Barrel Export
  *
- * Headless 3D engine layer: renderer + compiler.
+ * Headless 3D engine layer: TSL-based renderer.
  * No UI dependencies.
  */
 
-export {
-	parseShaderErrors,
-	testCompileFragment,
-	testCompileVertex,
-} from "./compiler";
-export {
-	createPlaygroundRenderer,
-	DEFAULT_VERTEX,
-} from "./renderer";
+export { createPlaygroundRenderer } from "./renderer";

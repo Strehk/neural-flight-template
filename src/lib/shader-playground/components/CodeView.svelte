@@ -1,22 +1,20 @@
 <script lang="ts">
 /**
- * CodeView — Syntax-highlighted GLSL display with copy + stage tabs.
+ * CodeView — TSL node chain description display with copy.
  */
 
 import { Check, Copy } from "lucide-svelte";
-import GlslSnippetView from "./GlslSnippetView.svelte";
+import TslDescriptionView from "./TslDescriptionView.svelte";
 
 interface Props {
-	code: string;
-	vertexCode?: string | null;
+	descriptions: Map<string, string>;
 }
 
-let { code, vertexCode = null }: Props = $props();
+let { descriptions }: Props = $props();
 let copied = $state(false);
-let activeTab = $state<"fragment" | "vertex">("fragment");
 
 const displayCode = $derived(
-	activeTab === "vertex" && vertexCode ? vertexCode : code,
+	[...descriptions.values()].join("\n") || "// No modules active",
 );
 
 async function copyToClipboard(): Promise<void> {
@@ -29,28 +27,13 @@ async function copyToClipboard(): Promise<void> {
 <div class="code-view">
 	<div class="code-view-header">
 		<div class="code-view-tabs">
-			<button
-				class="code-view-tab"
-				class:active={activeTab === "fragment"}
-				onclick={() => (activeTab = "fragment")}
-			>
-				Fragment
-			</button>
-			{#if vertexCode}
-				<button
-					class="code-view-tab"
-					class:active={activeTab === "vertex"}
-					onclick={() => (activeTab = "vertex")}
-				>
-					Vertex
-				</button>
-			{/if}
+			<button class="code-view-tab active">TSL Chain</button>
 		</div>
 		<button class="code-view-copy" onclick={copyToClipboard} title="Copy to clipboard">
 			{#if copied}<Check size={12} />{:else}<Copy size={12} />{/if}
 		</button>
 	</div>
 	<div class="code-view-pre">
-		<GlslSnippetView code={displayCode} />
+		<TslDescriptionView code={displayCode} />
 	</div>
 </div>

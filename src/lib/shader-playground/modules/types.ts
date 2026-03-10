@@ -1,23 +1,16 @@
 /**
- * Signal-Based Module System — Type Definitions
+ * Signal-Based Module System — Type Definitions (TSL)
  *
  * 5 signal types flow through typed ports between modules.
  * 3 module stages: vertex (geometry), fragment (pixel), control (parameters).
- * Codegen resolves the signal chain and assembles GLSL per stage.
+ * Codegen composes TSL nodes per stage.
  */
+
+import type { Node, UniformNode } from "three/webgpu";
 
 // ── Signal Types ──
 
-/** GLSL type mapping: color=vec4, scalar=float, uv=vec2, normal=vec3, sdf=float */
 export type SignalType = "color" | "scalar" | "uv" | "normal" | "sdf";
-
-export const SIGNAL_GLSL_TYPE: Record<SignalType, string> = {
-	color: "vec4",
-	scalar: "float",
-	uv: "vec2",
-	normal: "vec3",
-	sdf: "float",
-};
 
 export const SIGNAL_COLORS: Record<SignalType, string> = {
 	color: "#a855f7",
@@ -122,10 +115,18 @@ export const MODULE_CATEGORIES: {
 	},
 ];
 
-// ── Module Definition (static blueprint) ──
+// ── TSL Node Context ──
 
-/** Codegen passes resolved GLSL variable names per port */
-export type PortVarMap = Record<string, string>;
+export interface TslNodeContext {
+	params: Record<string, UniformNode<number>>;
+	inputs: Record<string, Node>;
+}
+
+export interface TslNodeResult {
+	outputs: Record<string, Node>;
+}
+
+// ── Module Definition (static blueprint) ──
 
 export interface ParamRange {
 	min: number;
@@ -140,10 +141,8 @@ export interface ModuleDefinition {
 	defaultParams: Record<string, number>;
 	/** Slider min/max per param — used for normalized modulation scaling. */
 	paramRanges?: Record<string, ParamRange>;
-	/** Returns GLSL code fragment. Params are inlined as uniform references. */
-	glslSnippet: (params: Record<string, string>, vars: PortVarMap) => string;
-	/** GLSL helper functions required by this module (e.g. "snoise") */
-	requiredSnippets?: string[];
+	/** TSL node composition — receives uniform refs and input nodes, returns output nodes. */
+	tslNode: (ctx: TslNodeContext) => TslNodeResult;
 }
 
 // ── Module Instance (runtime state) ──
@@ -169,7 +168,7 @@ export interface ModulationRoute {
 	depth: number;
 }
 
-// ── Connections (v2 — prepared but unused in v1) ──
+// ── Connections (v2 — prepared but unused) ──
 
 export interface Connection {
 	fromModule: string;

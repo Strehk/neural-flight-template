@@ -1,34 +1,15 @@
 /**
- * Shader Playground Renderer — Three.js preview with hot-reloadable ShaderMaterial.
+ * Shader Playground Renderer v3 — TSL-based with WebGPURenderer.
  *
- * Factory pattern following metaballs.ts conventions:
- * createPlaygroundRenderer(canvas) → { updateShader, updateUniform, setGeometry, dispose }
+ * Factory pattern: createPlaygroundRenderer(canvas) → Promise<PlaygroundRenderer>
+ * Uses MeshStandardNodeMaterial with colorNode/positionNode for TSL composition.
+ * Scene lights replace manual GLSL lighting uniforms.
  */
 
-import * as THREE from "three";
+import * as THREE from "three/webgpu";
+import { vec4 } from "three/tsl";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import DEFAULT_VERTEX from "../shaders/default.vert?raw";
-import type { GeometryType, PlaygroundRenderer, ShaderError } from "../types";
-import { testCompileFragment, testCompileVertex } from "./compiler";
-
-export { DEFAULT_VERTEX };
-
-/** Minimal fallback fragment shader — cosine palette with lighting. */
-const DEFAULT_FRAGMENT = `
-uniform float uTime;
-uniform vec2 uResolution;
-uniform vec3 uLightDir;
-uniform float uLightIntensity;
-uniform float uAmbient;
-varying vec2 vUv;
-varying vec3 vNormal;
-void main() {
-  vec3 color = 0.5 + 0.5 * cos(uTime + vUv.xyx + vec3(0.0, 2.0, 4.0));
-  float diffuse = max(dot(vNormal, uLightDir), 0.0);
-  float light = uAmbient + diffuse * uLightIntensity;
-  gl_FragColor = vec4(color * light, 1.0);
-}
-`;
+import type { GeometryType, PlaygroundRenderer } from "../types";
 
 // ── Geometry Factory ──
 
@@ -49,11 +30,12 @@ function createGeometry(type: GeometryType): THREE.BufferGeometry {
 
 // ── Renderer Factory ──
 
-export function createPlaygroundRenderer(
+export async function createPlaygroundRenderer(
 	canvas: HTMLCanvasElement,
-): PlaygroundRenderer {
-	const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+): Promise<PlaygroundRenderer> {
+	const renderer = new THREE.WebGPURenderer({ canvas, antialias: true });
 	renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+	await renderer.init();
 
 	const scene = new THREE.Scene();
 	scene.background = new THREE.Color(0x111111);
@@ -62,7 +44,15 @@ export function createPlaygroundRenderer(
 	camera.position.set(0, 0, 3);
 	camera.lookAt(0, 0, 0);
 
-	// OrbitControls — user can rotate/zoom/pan
+	// Scene lighting (replaces manual GLSL uLightDir/uLightIntensity/uAmbient)
+	const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+	directionalLight.position.set(0.5, 0.8, 0.6).normalize();
+	scene.add(directionalLight);
+
+	const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+	scene.add(ambientLight);
+
+	// OrbitControls
 	const controls = new OrbitControls(camera, canvas);
 	controls.enableDamping = true;
 	controls.dampingFactor = 0.08;
@@ -71,42 +61,14 @@ export function createPlaygroundRenderer(
 
 	const clock = new THREE.Clock();
 
-	// Lighting system uniforms
-	const LIGHT_DIR = new THREE.Vector3(0.5, 0.8, 0.6).normalize();
-	let lightingEnabled = true;
-
-	// System uniforms (always available)
-	const systemUniforms: Record<string, THREE.IUniform> = {
-		uTime: { value: 0 },
-		uResolution: { value: new THREE.Vector2(1, 1) },
-		uMouse: { value: new THREE.Vector2(0, 0) },
-		uLightDir: { value: LIGHT_DIR.clone() },
-		uLightIntensity: { value: 0.8 },
-		uAmbient: { value: 0.3 },
-	};
-
-	// User uniforms (from shader code)
-	const userUniforms: Record<string, THREE.IUniform> = {};
-
-	let material = new THREE.ShaderMaterial({
-		vertexShader: DEFAULT_VERTEX,
-		fragmentShader: DEFAULT_FRAGMENT,
-		uniforms: { ...systemUniforms },
-	});
+	// Default TSL material — solid purple
+	let material = new THREE.MeshStandardNodeMaterial();
+	material.colorNode = vec4(0.5, 0.3, 0.8, 1.0);
 
 	let currentGeometryType: GeometryType = "sphere";
 	let geometry = createGeometry(currentGeometryType);
 	let mesh = new THREE.Mesh(geometry, material);
 	scene.add(mesh);
-
-	// Mouse tracking
-	canvas.addEventListener("mousemove", (e) => {
-		const rect = canvas.getBoundingClientRect();
-		systemUniforms.uMouse.value.set(
-			(e.clientX - rect.left) / rect.width,
-			1.0 - (e.clientY - rect.top) / rect.height,
-		);
-	});
 
 	// Per-frame callback (for modulation bridge)
 	let tickCallback: ((dt: number) => void) | null = null;
@@ -117,7 +79,6 @@ export function createPlaygroundRenderer(
 		const elapsed = clock.getElapsedTime();
 		const dt = elapsed - lastTime;
 		lastTime = elapsed;
-		systemUniforms.uTime.value = elapsed;
 		tickCallback?.(dt);
 
 		controls.update();
@@ -131,72 +92,34 @@ export function createPlaygroundRenderer(
 			renderer.setSize(w, h, false);
 			camera.aspect = w / h;
 			camera.updateProjectionMatrix();
-			systemUniforms.uResolution.value.set(w, h);
 		}
 	}
 
-	function updateShader(
-		fragment: string,
-		vertex: string | null,
-	): ShaderError[] {
-		const gl = renderer.getContext();
-		const errors: ShaderError[] = [];
-
-		// Test compile fragment (with precision prefix)
-		errors.push(...testCompileFragment(gl, fragment));
-
-		// Test compile vertex (with precision + Three.js built-in prefix)
-		if (vertex) {
-			errors.push(...testCompileVertex(gl, vertex));
+	function applyNodes(
+		colorNode: THREE.Node | null,
+		positionNode: THREE.Node | null,
+	): void {
+		const newMaterial = new THREE.MeshStandardNodeMaterial();
+		if (colorNode) {
+			newMaterial.colorNode = colorNode;
+		} else {
+			newMaterial.colorNode = vec4(0.5, 0.3, 0.8, 1.0);
 		}
-
-		if (errors.length > 0) return errors;
-
-		// Build merged uniforms
-		const mergedUniforms: Record<string, THREE.IUniform> = {
-			...systemUniforms,
-		};
-		for (const [key, val] of Object.entries(userUniforms)) {
-			mergedUniforms[key] = val;
+		if (positionNode) {
+			newMaterial.positionNode = positionNode;
 		}
-
-		// Replace material
-		const newMaterial = new THREE.ShaderMaterial({
-			vertexShader: vertex ?? DEFAULT_VERTEX,
-			fragmentShader: fragment,
-			uniforms: mergedUniforms,
-		});
 
 		mesh.material = newMaterial;
 		material.dispose();
 		material = newMaterial;
-
-		return [];
 	}
 
-	const SYSTEM_UNIFORM_NAMES = new Set([
-		"uTime",
-		"uResolution",
-		"uMouse",
-		"uLightDir",
-		"uLightIntensity",
-		"uAmbient",
-	]);
-
 	function updateUniform(
-		name: string,
-		value: number | number[] | boolean,
+		_name: string,
+		_value: number | number[] | boolean,
 	): void {
-		if (SYSTEM_UNIFORM_NAMES.has(name)) return;
-
-		if (!userUniforms[name]) {
-			// Create new uniform
-			userUniforms[name] = { value: uniformValue(value) };
-			// Also set on current material
-			material.uniforms[name] = userUniforms[name];
-		} else {
-			userUniforms[name].value = uniformValue(value);
-		}
+		// Legacy bridge — uniform updates now happen via direct ref.value in state
+		// Kept for transition compatibility
 	}
 
 	function setGeometry(type: GeometryType): void {
@@ -214,10 +137,10 @@ export function createPlaygroundRenderer(
 	}
 
 	function getTime(): number {
-		return systemUniforms.uTime.value as number;
+		return clock.getElapsedTime();
 	}
 
-	function getMaterial(): THREE.ShaderMaterial {
+	function getMaterial(): THREE.MeshStandardNodeMaterial {
 		return material;
 	}
 
@@ -230,9 +153,8 @@ export function createPlaygroundRenderer(
 	}
 
 	function setLighting(enabled: boolean): void {
-		lightingEnabled = enabled;
-		systemUniforms.uLightIntensity.value = enabled ? 0.8 : 0.0;
-		systemUniforms.uAmbient.value = enabled ? 0.3 : 1.0;
+		directionalLight.intensity = enabled ? 0.8 : 0.0;
+		ambientLight.intensity = enabled ? 0.3 : 1.0;
 	}
 
 	function dispose(): void {
@@ -248,7 +170,7 @@ export function createPlaygroundRenderer(
 
 	return {
 		canvas,
-		updateShader,
+		applyNodes,
 		updateUniform,
 		setGeometry,
 		setRotation,
@@ -259,18 +181,4 @@ export function createPlaygroundRenderer(
 		resize,
 		dispose,
 	};
-}
-
-// ── Helpers ──
-
-function uniformValue(
-	value: number | number[] | boolean,
-): number | THREE.Vector2 | THREE.Vector3 | THREE.Vector4 | boolean {
-	if (typeof value === "boolean" || typeof value === "number") return value;
-	if (value.length === 2) return new THREE.Vector2(value[0], value[1]);
-	if (value.length === 3)
-		return new THREE.Vector3(value[0], value[1], value[2]);
-	if (value.length === 4)
-		return new THREE.Vector4(value[0], value[1], value[2], value[3]);
-	return value[0];
 }

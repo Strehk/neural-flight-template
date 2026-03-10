@@ -1,8 +1,10 @@
 /**
- * Shader Playground v2 — Type Definitions
+ * Shader Playground v3 — Type Definitions (TSL)
  *
- * Trimmed types for the signal-based module system.
+ * Types for the TSL-based node material system.
  */
+
+import type { MeshStandardNodeMaterial, Node } from "three/webgpu";
 
 // ── Geometry ──
 
@@ -21,13 +23,16 @@ export interface ShaderError {
 
 export interface PlaygroundRenderer {
 	canvas: HTMLCanvasElement;
-	updateShader(fragment: string, vertex: string | null): ShaderError[];
+	applyNodes(
+		colorNode: Node | null,
+		positionNode: Node | null,
+	): void;
 	updateUniform(name: string, value: number | number[] | boolean): void;
 	setGeometry(type: GeometryType): void;
 	setRotation(enabled: boolean): void;
 	setLighting(enabled: boolean): void;
 	getTime(): number;
-	getMaterial(): import("three").ShaderMaterial;
+	getMaterial(): MeshStandardNodeMaterial;
 	onTick(callback: ((dt: number) => void) | null): void;
 	resize(): void;
 	dispose(): void;

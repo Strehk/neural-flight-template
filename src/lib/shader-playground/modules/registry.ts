@@ -1,13 +1,15 @@
 /**
- * Module Registry — Static definitions of all available rack modules.
+ * Module Registry — Static definitions of all available rack modules (TSL).
  *
- * Each module defines stage, typed ports, default params, and a GLSL snippet.
- * glslSnippet receives uniform references (strings like "u_mod_0_freq")
- * and port variable names (strings like "sig_color_0").
+ * Each module defines stage, typed ports, default params, and a tslNode function.
+ * tslNode receives uniform refs (live UniformNode<number>) and input signal nodes,
+ * returns output signal nodes for the codegen chain.
  *
  * paramRanges mirrors UI slider min/max — used by codegen for normalized modulation.
  */
 
+import { float, time, vec2, vec3, vec4 } from "three/tsl";
+import { cosinePalette, triNoise3D } from "../tsl/helpers";
 import type { ModuleDefinition, RackModuleType } from "./types";
 
 // ── Control Modules ──
@@ -19,7 +21,9 @@ const SLIDER_MODULE: ModuleDefinition = {
 	ports: [{ name: "scalar_out", type: "scalar", direction: "out" }],
 	defaultParams: { value: 0.5, min: 0.0, max: 1.0 },
 	paramRanges: { value: { min: 0, max: 1 } },
-	glslSnippet: (_params, vars) => `  ${vars.scalar_out} = ${_params.value};`,
+	tslNode: ({ params }) => ({
+		outputs: { scalar_out: params.value },
+	}),
 };
 
 const XY_MODULE: ModuleDefinition = {
@@ -29,8 +33,9 @@ const XY_MODULE: ModuleDefinition = {
 	ports: [{ name: "uv_out", type: "uv", direction: "out" }],
 	defaultParams: { x: 0.5, y: 0.5 },
 	paramRanges: { x: { min: 0, max: 1 }, y: { min: 0, max: 1 } },
-	glslSnippet: (params, vars) =>
-		`  ${vars.uv_out} = vec2(${params.x}, ${params.y});`,
+	tslNode: ({ params }) => ({
+		outputs: { uv_out: vec2(params.x, params.y) },
+	}),
 };
 
 const LFO_MODULE: ModuleDefinition = {
@@ -40,18 +45,18 @@ const LFO_MODULE: ModuleDefinition = {
 	ports: [{ name: "scalar_out", type: "scalar", direction: "out" }],
 	defaultParams: { rate: 1.0, shape: 0.0 },
 	paramRanges: { rate: { min: 0.1, max: 10 }, shape: { min: 0, max: 3 } },
-	glslSnippet: (params, vars) => `  {
-    float lfo_ph = fract(uTime * ${params.rate});
-    float lfo_sin = 0.5 + 0.5 * sin(uTime * ${params.rate} * 6.2831853);
-    float lfo_tri = 1.0 - abs(2.0 * lfo_ph - 1.0);
-    float lfo_sq = step(0.5, lfo_ph);
-    float lfo_rnd = fract(sin(floor(uTime * ${params.rate}) * 12.9898) * 43758.5453);
-    float lfo_s = ${params.shape};
-    float lfo_v = mix(lfo_sin, lfo_tri, clamp(lfo_s, 0.0, 1.0));
-    lfo_v = mix(lfo_v, lfo_sq, clamp(lfo_s - 1.0, 0.0, 1.0));
-    lfo_v = mix(lfo_v, lfo_rnd, clamp(lfo_s - 2.0, 0.0, 1.0));
-    ${vars.scalar_out} = lfo_v;
-  }`,
+	tslNode: ({ params }) => {
+		const phase = time.mul(params.rate).fract();
+		const sine = time.mul(params.rate).mul(Math.PI * 2).sin().mul(0.5).add(0.5);
+		const tri = phase.mul(2).sub(1).abs().oneMinus();
+		const sq = phase.step(0.5);
+		const rnd = time.mul(params.rate).floor().mul(12.9898).sin().mul(43758.5453).fract();
+		const s = params.shape;
+		let v = sine.mix(tri, s.clamp(0, 1));
+		v = v.mix(sq, s.sub(1).clamp(0, 1));
+		v = v.mix(rnd, s.sub(2).clamp(0, 1));
+		return { outputs: { scalar_out: v } };
+	},
 };
 
 const NOISE_CONTROL_MODULE: ModuleDefinition = {
@@ -63,11 +68,18 @@ const NOISE_CONTROL_MODULE: ModuleDefinition = {
 		{ name: "color_out", type: "color", direction: "out" },
 	],
 	defaultParams: { frequency: 4.0, amplitude: 0.3, speed: 1.0 },
-	paramRanges: { frequency: { min: 0.1, max: 20 }, amplitude: { min: 0, max: 1 }, speed: { min: 0, max: 5 } },
-	requiredSnippets: ["snoise"],
-	glslSnippet: (params, vars) => `
-    float n_${vars.color_out} = snoise(${vars.color_in}.xy * ${params.frequency} + uTime * ${params.speed});
-    ${vars.color_out} = ${vars.color_in} + vec4(vec3(n_${vars.color_out} * ${params.amplitude}), 0.0);`,
+	paramRanges: {
+		frequency: { min: 0.1, max: 20 },
+		amplitude: { min: 0, max: 1 },
+		speed: { min: 0, max: 5 },
+	},
+	tslNode: ({ params, inputs }) => {
+		const colorIn = inputs.color_in;
+		const noisePos = vec3(colorIn.xy.mul(params.frequency), time.mul(params.speed));
+		const n = triNoise3D(noisePos, float(1), float(0));
+		const colorOut = colorIn.add(vec4(vec3(n.mul(params.amplitude)), 0));
+		return { outputs: { color_out: colorOut } };
+	},
 };
 
 // ── Vertex Modules ──
@@ -78,7 +90,9 @@ const V_PASSTHROUGH: ModuleDefinition = {
 	label: "Passthrough",
 	ports: [],
 	defaultParams: {},
-	glslSnippet: () => "  // Identity — no modification",
+	tslNode: ({ inputs }) => ({
+		outputs: { position: inputs.position },
+	}),
 };
 
 const V_SINE_DISPLACE: ModuleDefinition = {
@@ -87,9 +101,16 @@ const V_SINE_DISPLACE: ModuleDefinition = {
 	label: "Sine Displace",
 	ports: [],
 	defaultParams: { amplitude: 0.1, frequency: 3.0 },
-	paramRanges: { amplitude: { min: 0, max: 1 }, frequency: { min: 0.1, max: 20 } },
-	glslSnippet: (params, vars) =>
-		`  pos += norm * sin(pos.x * ${params.frequency} + uTime) * ${params.amplitude};`,
+	paramRanges: {
+		amplitude: { min: 0, max: 1 },
+		frequency: { min: 0.1, max: 20 },
+	},
+	tslNode: ({ params, inputs }) => {
+		const pos = inputs.position;
+		const norm = inputs.normal;
+		const displacement = pos.x.mul(params.frequency).add(time).sin().mul(params.amplitude);
+		return { outputs: { position: pos.add(norm.mul(displacement)) } };
+	},
 };
 
 const V_WAVE: ModuleDefinition = {
@@ -98,9 +119,19 @@ const V_WAVE: ModuleDefinition = {
 	label: "Wave",
 	ports: [],
 	defaultParams: { height: 0.2, freq_x: 4.0, freq_y: 3.0 },
-	paramRanges: { height: { min: 0, max: 1 }, freq_x: { min: 0.1, max: 20 }, freq_y: { min: 0.1, max: 20 } },
-	glslSnippet: (params, vars) =>
-		`  pos.z += sin(uvCoord.x * ${params.freq_x} + uTime) * cos(uvCoord.y * ${params.freq_y}) * ${params.height};`,
+	paramRanges: {
+		height: { min: 0, max: 1 },
+		freq_x: { min: 0.1, max: 20 },
+		freq_y: { min: 0.1, max: 20 },
+	},
+	tslNode: ({ params, inputs }) => {
+		const pos = inputs.position;
+		const uvNode = inputs.uv;
+		const wave = uvNode.x.mul(params.freq_x).add(time).sin()
+			.mul(uvNode.y.mul(params.freq_y).cos())
+			.mul(params.height);
+		return { outputs: { position: vec3(pos.x, pos.y, pos.z.add(wave)) } };
+	},
 };
 
 const V_TWIST: ModuleDefinition = {
@@ -110,14 +141,15 @@ const V_TWIST: ModuleDefinition = {
 	ports: [],
 	defaultParams: { amount: 2.0 },
 	paramRanges: { amount: { min: 0, max: 10 } },
-	glslSnippet: (params) => `  {
-    float tw_angle = pos.y * ${params.amount};
-    float tw_c = cos(tw_angle);
-    float tw_s = sin(tw_angle);
-    vec3 tw_pos = pos;
-    pos.x = tw_pos.x * tw_c - tw_pos.z * tw_s;
-    pos.z = tw_pos.x * tw_s + tw_pos.z * tw_c;
-  }`,
+	tslNode: ({ params, inputs }) => {
+		const pos = inputs.position;
+		const angle = pos.y.mul(params.amount);
+		const c = angle.cos();
+		const s = angle.sin();
+		const newX = pos.x.mul(c).sub(pos.z.mul(s));
+		const newZ = pos.x.mul(s).add(pos.z.mul(c));
+		return { outputs: { position: vec3(newX, pos.y, newZ) } };
+	},
 };
 
 const V_NOISE_DISPLACE: ModuleDefinition = {
@@ -126,10 +158,16 @@ const V_NOISE_DISPLACE: ModuleDefinition = {
 	label: "Noise Displace",
 	ports: [],
 	defaultParams: { scale: 2.0, strength: 0.3 },
-	paramRanges: { scale: { min: 0.1, max: 10 }, strength: { min: 0, max: 1 } },
-	requiredSnippets: ["snoise"],
-	glslSnippet: (params) =>
-		`  pos += norm * snoise(pos * ${params.scale} + uTime) * ${params.strength};`,
+	paramRanges: {
+		scale: { min: 0.1, max: 10 },
+		strength: { min: 0, max: 1 },
+	},
+	tslNode: ({ params, inputs }) => {
+		const pos = inputs.position;
+		const norm = inputs.normal;
+		const n = triNoise3D(pos.mul(params.scale), float(1), time);
+		return { outputs: { position: pos.add(norm.mul(n.mul(params.strength))) } };
+	},
 };
 
 const V_EXPLODE: ModuleDefinition = {
@@ -139,8 +177,9 @@ const V_EXPLODE: ModuleDefinition = {
 	ports: [],
 	defaultParams: { amount: 0.0 },
 	paramRanges: { amount: { min: 0, max: 2 } },
-	glslSnippet: (params) =>
-		`  pos += norm * ${params.amount};`,
+	tslNode: ({ params, inputs }) => ({
+		outputs: { position: inputs.position.add(inputs.normal.mul(params.amount)) },
+	}),
 };
 
 const V_WOBBLE: ModuleDefinition = {
@@ -149,9 +188,16 @@ const V_WOBBLE: ModuleDefinition = {
 	label: "Wobble",
 	ports: [],
 	defaultParams: { speed: 2.0, amount: 0.1 },
-	paramRanges: { speed: { min: 0.1, max: 10 }, amount: { min: 0, max: 0.5 } },
-	glslSnippet: (params) =>
-		`  pos += norm * sin(uTime * ${params.speed} + dot(pos, pos)) * ${params.amount};`,
+	paramRanges: {
+		speed: { min: 0.1, max: 10 },
+		amount: { min: 0, max: 0.5 },
+	},
+	tslNode: ({ params, inputs }) => {
+		const pos = inputs.position;
+		const norm = inputs.normal;
+		const wobble = time.mul(params.speed).add(pos.dot(pos)).sin().mul(params.amount);
+		return { outputs: { position: pos.add(norm.mul(wobble)) } };
+	},
 };
 
 const V_FLATTEN: ModuleDefinition = {
@@ -161,8 +207,14 @@ const V_FLATTEN: ModuleDefinition = {
 	ports: [],
 	defaultParams: { amount: 0.0 },
 	paramRanges: { amount: { min: 0, max: 1 } },
-	glslSnippet: (params) =>
-		`  pos.y *= (1.0 - ${params.amount});`,
+	tslNode: ({ params, inputs }) => {
+		const pos = inputs.position;
+		return {
+			outputs: {
+				position: vec3(pos.x, pos.y.mul(float(1).sub(params.amount)), pos.z),
+			},
+		};
+	},
 };
 
 const V_SPHERIZE: ModuleDefinition = {
@@ -172,8 +224,11 @@ const V_SPHERIZE: ModuleDefinition = {
 	ports: [],
 	defaultParams: { amount: 0.0 },
 	paramRanges: { amount: { min: 0, max: 1 } },
-	glslSnippet: (params) =>
-		`  pos = mix(pos, normalize(pos) * length(pos), ${params.amount});`,
+	tslNode: ({ params, inputs }) => {
+		const pos = inputs.position;
+		const spherePos = pos.normalize().mul(pos.length());
+		return { outputs: { position: pos.mix(spherePos, params.amount) } };
+	},
 };
 
 const V_TAPER: ModuleDefinition = {
@@ -183,8 +238,11 @@ const V_TAPER: ModuleDefinition = {
 	ports: [],
 	defaultParams: { amount: 0.5 },
 	paramRanges: { amount: { min: -1, max: 2 } },
-	glslSnippet: (params) =>
-		`  pos.xz *= 1.0 + pos.y * ${params.amount};`,
+	tslNode: ({ params, inputs }) => {
+		const pos = inputs.position;
+		const scale = float(1).add(pos.y.mul(params.amount));
+		return { outputs: { position: vec3(pos.x.mul(scale), pos.y, pos.z.mul(scale)) } };
+	},
 };
 
 // ── Fragment Modules ──
@@ -195,9 +253,14 @@ const F_SOLID_COLOR: ModuleDefinition = {
 	label: "Solid Color",
 	ports: [{ name: "color_out", type: "color", direction: "out" }],
 	defaultParams: { r: 0.5, g: 0.3, b: 0.8 },
-	paramRanges: { r: { min: 0, max: 1 }, g: { min: 0, max: 1 }, b: { min: 0, max: 1 } },
-	glslSnippet: (params, vars) =>
-		`  ${vars.color_out} = vec4(${params.r}, ${params.g}, ${params.b}, 1.0);`,
+	paramRanges: {
+		r: { min: 0, max: 1 },
+		g: { min: 0, max: 1 },
+		b: { min: 0, max: 1 },
+	},
+	tslNode: ({ params }) => ({
+		outputs: { color_out: vec4(params.r, params.g, params.b, 1.0) },
+	}),
 };
 
 const F_UV_GRADIENT: ModuleDefinition = {
@@ -210,8 +273,11 @@ const F_UV_GRADIENT: ModuleDefinition = {
 	],
 	defaultParams: { intensity: 1.0 },
 	paramRanges: { intensity: { min: 0, max: 3 } },
-	glslSnippet: (params, vars) =>
-		`  ${vars.color_out} = vec4(${vars.uv_in} * ${params.intensity}, 0.5, 1.0);`,
+	tslNode: ({ params, inputs }) => ({
+		outputs: {
+			color_out: vec4(inputs.uv_in.mul(params.intensity), 0.5, 1.0),
+		},
+	}),
 };
 
 const F_COSINE_PALETTE: ModuleDefinition = {
@@ -234,14 +300,14 @@ const F_COSINE_PALETTE: ModuleDefinition = {
 		c_r: { min: 0, max: 3 }, c_g: { min: 0, max: 3 }, c_b: { min: 0, max: 3 },
 		d_r: { min: 0, max: 1 }, d_g: { min: 0, max: 1 }, d_b: { min: 0, max: 1 },
 	},
-	requiredSnippets: ["cosinePalette"],
-	glslSnippet: (params, vars) => `  {
-    vec3 cp_a = vec3(${params.a_r}, ${params.a_g}, ${params.a_b});
-    vec3 cp_b = vec3(${params.b_r}, ${params.b_g}, ${params.b_b});
-    vec3 cp_c = vec3(${params.c_r}, ${params.c_g}, ${params.c_b});
-    vec3 cp_d = vec3(${params.d_r}, ${params.d_g}, ${params.d_b});
-    ${vars.color_out} = vec4(cosinePalette(${vars.scalar_in}, cp_a, cp_b, cp_c, cp_d), 1.0);
-  }`,
+	tslNode: ({ params, inputs }) => {
+		const a = vec3(params.a_r, params.a_g, params.a_b);
+		const b = vec3(params.b_r, params.b_g, params.b_b);
+		const c = vec3(params.c_r, params.c_g, params.c_b);
+		const d = vec3(params.d_r, params.d_g, params.d_b);
+		const rgb = cosinePalette(inputs.scalar_in, a, b, c, d);
+		return { outputs: { color_out: vec4(rgb, 1.0) } };
+	},
 };
 
 const F_PATTERN: ModuleDefinition = {
@@ -255,13 +321,18 @@ const F_PATTERN: ModuleDefinition = {
 	],
 	defaultParams: { frequency: 8.0, mode: 0.0 },
 	paramRanges: { frequency: { min: 1, max: 32 }, mode: { min: 0, max: 1 } },
-	glslSnippet: (params, vars) => `  {
-    vec2 fp = ${vars.uv_in} * ${params.frequency};
-    float pat = step(0.5, fract(fp.x)) * step(0.5, fract(fp.y));
-    pat = mix(pat, step(0.5, fract(fp.x + fp.y)), clamp(${params.mode}, 0.0, 1.0));
-    ${vars.scalar_out} = pat;
-    ${vars.color_out} = vec4(vec3(pat), 1.0);
-  }`,
+	tslNode: ({ params, inputs }) => {
+		const fp = inputs.uv_in.mul(params.frequency);
+		const checker = fp.x.fract().step(0.5).mul(fp.y.fract().step(0.5));
+		const diagonal = fp.x.add(fp.y).fract().step(0.5);
+		const pat = checker.mix(diagonal, params.mode.clamp(0, 1));
+		return {
+			outputs: {
+				scalar_out: pat,
+				color_out: vec4(vec3(pat), 1.0),
+			},
+		};
+	},
 };
 
 const F_NOISE: ModuleDefinition = {
@@ -273,12 +344,18 @@ const F_NOISE: ModuleDefinition = {
 		{ name: "color_out", type: "color", direction: "out" },
 	],
 	defaultParams: { frequency: 4.0, amplitude: 0.3, speed: 1.0 },
-	paramRanges: { frequency: { min: 0.1, max: 20 }, amplitude: { min: 0, max: 1 }, speed: { min: 0, max: 5 } },
-	requiredSnippets: ["snoise"],
-	glslSnippet: (params, vars) => `  {
-    float fn = snoise(vec3(${vars.color_in}.xy * ${params.frequency}, uTime * ${params.speed}));
-    ${vars.color_out} = ${vars.color_in} + vec4(vec3(fn * ${params.amplitude}), 0.0);
-  }`,
+	paramRanges: {
+		frequency: { min: 0.1, max: 20 },
+		amplitude: { min: 0, max: 1 },
+		speed: { min: 0, max: 5 },
+	},
+	tslNode: ({ params, inputs }) => {
+		const colorIn = inputs.color_in;
+		const noisePos = vec3(colorIn.xy.mul(params.frequency), time.mul(params.speed));
+		const n = triNoise3D(noisePos, float(1), float(0));
+		const colorOut = colorIn.add(vec4(vec3(n.mul(params.amplitude)), 0));
+		return { outputs: { color_out: colorOut } };
+	},
 };
 
 const F_MIX: ModuleDefinition = {
@@ -291,9 +368,19 @@ const F_MIX: ModuleDefinition = {
 		{ name: "color_out", type: "color", direction: "out" },
 	],
 	defaultParams: { r2: 1.0, g2: 0.0, b2: 0.5 },
-	paramRanges: { r2: { min: 0, max: 1 }, g2: { min: 0, max: 1 }, b2: { min: 0, max: 1 } },
-	glslSnippet: (params, vars) =>
-		`  ${vars.color_out} = mix(${vars.color_in}, vec4(${params.r2}, ${params.g2}, ${params.b2}, 1.0), ${vars.scalar_in});`,
+	paramRanges: {
+		r2: { min: 0, max: 1 },
+		g2: { min: 0, max: 1 },
+		b2: { min: 0, max: 1 },
+	},
+	tslNode: ({ params, inputs }) => ({
+		outputs: {
+			color_out: inputs.color_in.mix(
+				vec4(params.r2, params.g2, params.b2, 1.0),
+				inputs.scalar_in,
+			),
+		},
+	}),
 };
 
 const F_UV_DISTORT: ModuleDefinition = {
@@ -305,11 +392,20 @@ const F_UV_DISTORT: ModuleDefinition = {
 		{ name: "uv_out", type: "uv", direction: "out" },
 	],
 	defaultParams: { strength: 0.1, frequency: 4.0, speed: 1.0 },
-	paramRanges: { strength: { min: 0, max: 0.5 }, frequency: { min: 0.1, max: 20 }, speed: { min: 0, max: 5 } },
-	glslSnippet: (params, vars) => `  ${vars.uv_out} = ${vars.uv_in} + vec2(
-    sin(${vars.uv_in}.y * ${params.frequency} + uTime * ${params.speed}) * ${params.strength},
-    cos(${vars.uv_in}.x * ${params.frequency} + uTime * ${params.speed}) * ${params.strength}
-  );`,
+	paramRanges: {
+		strength: { min: 0, max: 0.5 },
+		frequency: { min: 0.1, max: 20 },
+		speed: { min: 0, max: 5 },
+	},
+	tslNode: ({ params, inputs }) => {
+		const uvIn = inputs.uv_in;
+		const t = time.mul(params.speed);
+		const offset = vec2(
+			uvIn.y.mul(params.frequency).add(t).sin().mul(params.strength),
+			uvIn.x.mul(params.frequency).add(t).cos().mul(params.strength),
+		);
+		return { outputs: { uv_out: uvIn.add(offset) } };
+	},
 };
 
 const F_SDF_CIRCLE: ModuleDefinition = {
@@ -322,13 +418,16 @@ const F_SDF_CIRCLE: ModuleDefinition = {
 		{ name: "scalar_out", type: "scalar", direction: "out" },
 	],
 	defaultParams: { radius: 0.3, smoothness: 0.02 },
-	paramRanges: { radius: { min: 0.01, max: 0.8 }, smoothness: { min: 0.001, max: 0.2 } },
-	glslSnippet: (params, vars) => `  {
-    vec2 sdf_p = ${vars.uv_in} - 0.5;
-    float sdf_d = length(sdf_p) - ${params.radius};
-    ${vars.sdf_out} = sdf_d;
-    ${vars.scalar_out} = 1.0 - smoothstep(0.0, ${params.smoothness}, sdf_d);
-  }`,
+	paramRanges: {
+		radius: { min: 0.01, max: 0.8 },
+		smoothness: { min: 0.001, max: 0.2 },
+	},
+	tslNode: ({ params, inputs }) => {
+		const p = inputs.uv_in.sub(0.5);
+		const d = p.length().sub(params.radius);
+		const mask = float(1).sub(d.smoothstep(0, params.smoothness));
+		return { outputs: { sdf_out: d, scalar_out: mask } };
+	},
 };
 
 const F_FRESNEL: ModuleDefinition = {
@@ -341,11 +440,19 @@ const F_FRESNEL: ModuleDefinition = {
 		{ name: "color_out", type: "color", direction: "out" },
 	],
 	defaultParams: { power: 2.0, intensity: 1.0 },
-	paramRanges: { power: { min: 0.1, max: 8 }, intensity: { min: 0, max: 3 } },
-	glslSnippet: (params, vars) => `  {
-    float fr = pow(1.0 - abs(dot(${vars.normal_in}, vec3(0.0, 0.0, 1.0))), ${params.power}) * ${params.intensity};
-    ${vars.color_out} = ${vars.color_in} + vec4(vec3(fr), 0.0);
-  }`,
+	paramRanges: {
+		power: { min: 0.1, max: 8 },
+		intensity: { min: 0, max: 3 },
+	},
+	tslNode: ({ params, inputs }) => {
+		const viewDir = vec3(0, 0, 1);
+		const fr = float(1).sub(inputs.normal_in.dot(viewDir).abs()).pow(params.power).mul(params.intensity);
+		return {
+			outputs: {
+				color_out: inputs.color_in.add(vec4(vec3(fr), 0)),
+			},
+		};
+	},
 };
 
 const F_POST_PROCESS: ModuleDefinition = {
@@ -359,13 +466,18 @@ const F_POST_PROCESS: ModuleDefinition = {
 	],
 	defaultParams: { vignette: 0.5, gamma: 1.0 },
 	paramRanges: { vignette: { min: 0, max: 2 }, gamma: { min: 0.1, max: 3 } },
-	glslSnippet: (params, vars) => `  {
-    vec2 pp_uv = ${vars.uv_in} - 0.5;
-    float vig = 1.0 - dot(pp_uv, pp_uv) * ${params.vignette} * 2.0;
-    vec3 pp_col = ${vars.color_in}.rgb * vig;
-    pp_col = pow(pp_col, vec3(1.0 / max(${params.gamma}, 0.01)));
-    ${vars.color_out} = vec4(pp_col, ${vars.color_in}.a);
-  }`,
+	tslNode: ({ params, inputs }) => {
+		const uvCentered = inputs.uv_in.sub(0.5);
+		const vig = float(1).sub(uvCentered.dot(uvCentered).mul(params.vignette).mul(2));
+		const col = inputs.color_in.xyz.mul(vig);
+		const gammaInv = float(1).div(params.gamma.max(0.01));
+		const corrected = col.pow(vec3(gammaInv));
+		return {
+			outputs: {
+				color_out: vec4(corrected, inputs.color_in.w),
+			},
+		};
+	},
 };
 
 // ── Registry ──

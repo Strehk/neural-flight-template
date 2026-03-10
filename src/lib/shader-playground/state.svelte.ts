@@ -1,14 +1,14 @@
 /**
- * Shader Rack State v3 — Reactive store with modulation routing.
+ * Shader Rack State v4 — TSL-based reactive store with modulation routing.
  *
  * Modules + modulation routes are the single source of truth.
- * Dual-stage codegen produces vertex + fragment GLSL.
- * UniformMap from codegen enables real-time param updates with human-readable names.
+ * composeTslNodes() produces colorNode + positionNode.
+ * UniformRefs from codegen enable direct param updates (ref.value = x).
  *
- * v3.1: CPU-side control engine + onTick for live modulation uniforms.
+ * v4: TSL node composition, direct uniform refs, scene lights for lighting.
  */
 
-import { assembleShaders, type CodegenResult } from "./codegen";
+import { composeTslNodes, type TslCodegenResult } from "./codegen";
 import { computeControlOutput } from "./control-engine";
 import { MODULE_REGISTRY } from "./modules/registry";
 import type {
@@ -31,15 +31,13 @@ export interface ShaderRackState {
 	// Reactive state (read)
 	readonly modules: RackModuleInstance[];
 	readonly modulationRoutes: ModulationRoute[];
-	readonly generatedGlsl: string;
-	readonly generatedVertexGlsl: string | null;
 	readonly errors: ShaderError[];
 	readonly currentGeometry: GeometryType;
 	readonly rotationEnabled: boolean;
 	readonly lightingEnabled: boolean;
 	readonly isFullscreen: boolean;
 	readonly compileOk: boolean;
-	readonly moduleSnippets: Map<string, string>;
+	readonly moduleDescriptions: Map<string, string>;
 	/** Live modulated values: key = "targetModuleId:targetParam", value = modulated number */
 	readonly liveModValues: Map<string, number>;
 
@@ -78,26 +76,18 @@ export function createShaderRackState(): ShaderRackState {
 	let liveModValues = $state<Map<string, number>>(new Map());
 	let renderer: PlaygroundRenderer | null = null;
 
-	// Derived: codegen result from current modules + routes
-	const codegenResult: CodegenResult = $derived(
-		assembleShaders(modules, modulationRoutes),
-	);
-	const generatedGlsl: string = $derived(codegenResult.fragmentGlsl);
-	const generatedVertexGlsl: string | null = $derived(
-		codegenResult.vertexGlsl,
-	);
-	const compileOk: boolean = $derived(errors.length === 0);
-	const moduleSnippets: Map<string, string> = $derived(
-		codegenResult.moduleSnippets,
-	);
+	// Current codegen result (holds live uniform refs)
+	let currentResult = $state<TslCodegenResult | null>(null);
 
-	// Uniform map for real-time updates (maps "moduleId:param" → GLSL name)
-	const uniformMap: Map<string, string> = $derived(codegenResult.uniformMap);
+	const compileOk: boolean = $derived(errors.length === 0);
+	const moduleDescriptions: Map<string, string> = $derived(
+		currentResult?.moduleDescriptions ?? new Map(),
+	);
 
 	// ── onTick: CPU-side control engine ──
 
 	function onTick(): void {
-		if (!renderer || modulationRoutes.length === 0) return;
+		if (!renderer || !currentResult || modulationRoutes.length === 0) return;
 
 		const time = renderer.getTime();
 		const nextLive = new Map<string, number>();
@@ -110,10 +100,10 @@ export function createShaderRackState(): ShaderRackState {
 			// Compute CPU-side control output
 			const controlOutput = computeControlOutput(sourceMod, time);
 
-			// Set source output uniform on renderer
-			const sourceOutputName = uniformMap.get(`${sourceMod.id}:__output`);
-			if (sourceOutputName) {
-				renderer.updateUniform(sourceOutputName, controlOutput);
+			// Set source output uniform directly
+			const sourceRef = currentResult.uniformRefs.get(`${sourceMod.id}:__output`);
+			if (sourceRef) {
+				sourceRef.value = controlOutput;
 			}
 
 			// Compute modulated value for UI overlay (range-scaled)
@@ -153,7 +143,6 @@ export function createShaderRackState(): ShaderRackState {
 		modules = modules
 			.filter((m) => m.id !== id)
 			.map((m, i) => ({ ...m, order: i }));
-		// Clean up modulation routes referencing removed module
 		modulationRoutes = modulationRoutes.filter(
 			(r) => r.sourceModuleId !== id && r.targetModuleId !== id,
 		);
@@ -202,10 +191,10 @@ export function createShaderRackState(): ShaderRackState {
 		paramName: string,
 		value: number,
 	): void {
-		// Use uniformMap for human-readable name resolution
-		const uName = uniformMap.get(`${moduleId}:${paramName}`);
-		if (uName) {
-			renderer?.updateUniform(uName, value);
+		// Direct uniform update via TSL ref (no name mapping needed)
+		const ref = currentResult?.uniformRefs.get(`${moduleId}:${paramName}`);
+		if (ref) {
+			ref.value = value;
 		}
 
 		modules = modules.map((m) =>
@@ -231,7 +220,6 @@ export function createShaderRackState(): ShaderRackState {
 		targetModuleId: string,
 		targetParam: string,
 	): void {
-		// Remove existing route for this target param (one modulator per param)
 		modulationRoutes = modulationRoutes.filter(
 			(r) => !(r.targetModuleId === targetModuleId && r.targetParam === targetParam),
 		);
@@ -254,10 +242,15 @@ export function createShaderRackState(): ShaderRackState {
 	}
 
 	function updateModulationDepth(routeId: string, depth: number): void {
+		// Direct depth uniform update
+		const depthRef = currentResult?.uniformRefs.get(`__mod_depth:${routeId}`);
+		if (depthRef) {
+			depthRef.value = depth;
+		}
+
 		modulationRoutes = modulationRoutes.map((r) =>
 			r.id === routeId ? { ...r, depth } : r,
 		);
-		syncToRenderer();
 	}
 
 	// ── Scene Controls ──
@@ -292,17 +285,14 @@ export function createShaderRackState(): ShaderRackState {
 	function syncToRenderer(): void {
 		if (!renderer) return;
 
-		const result = assembleShaders(modules, modulationRoutes);
-		const compileErrors = renderer.updateShader(
-			result.fragmentGlsl,
-			result.vertexGlsl,
-		);
-		errors = compileErrors;
-
-		if (compileErrors.length === 0) {
-			for (const u of result.uniforms) {
-				renderer.updateUniform(u.name, u.value);
-			}
+		try {
+			const result = composeTslNodes(modules, modulationRoutes);
+			currentResult = result;
+			renderer.applyNodes(result.colorNode, result.positionNode);
+			errors = [];
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			errors = [{ line: 0, message, raw: message, source: "fragment" }];
 		}
 	}
 
@@ -310,6 +300,7 @@ export function createShaderRackState(): ShaderRackState {
 		renderer?.onTick(null);
 		renderer?.dispose();
 		renderer = null;
+		currentResult = null;
 	}
 
 	return {
@@ -318,12 +309,6 @@ export function createShaderRackState(): ShaderRackState {
 		},
 		get modulationRoutes() {
 			return modulationRoutes;
-		},
-		get generatedGlsl() {
-			return generatedGlsl;
-		},
-		get generatedVertexGlsl() {
-			return generatedVertexGlsl;
 		},
 		get errors() {
 			return errors;
@@ -343,8 +328,8 @@ export function createShaderRackState(): ShaderRackState {
 		get compileOk() {
 			return compileOk;
 		},
-		get moduleSnippets() {
-			return moduleSnippets;
+		get moduleDescriptions() {
+			return moduleDescriptions;
 		},
 		get liveModValues() {
 			return liveModValues;

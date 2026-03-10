@@ -4,7 +4,7 @@
  *
  * Uses CONTROL_COMPONENTS map instead of if/else chains.
  * Dropdown groups modules by stage (Vertex / Fragment / Controls).
- * Passes moduleSnippets + modulation state to child components.
+ * Passes moduleDescriptions + modulation state to child components.
  */
 
 import { DropdownMenu, Separator } from "bits-ui";
@@ -58,7 +58,7 @@ function handleDragEnd(): void {
 	<div class="rack-modules">
 		{#each rack.modules as mod, i (mod.id)}
 			{@const ControlComponent = CONTROL_COMPONENTS[mod.type]}
-			{@const snippet = rack.moduleSnippets.get(mod.id) ?? ""}
+			{@const snippet = rack.moduleDescriptions.get(mod.id) ?? ""}
 			<div
 				class="rack-module-slot"
 				class:drag-over={dragOverIndex === i}

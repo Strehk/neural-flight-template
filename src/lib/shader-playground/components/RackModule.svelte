@@ -4,7 +4,7 @@
  *
  * Header: Chevron + Title + Stage badge + Port dots + Code toggle + Bypass switch + Context menu.
  * Body Level 1: Slot for module-specific controls.
- * Body Level 2: GLSL snippet with syntax highlighting (toggled by </> button).
+ * Body Level 2: TSL description (toggled by </> button).
  * data-stage attribute drives stage-colored left border.
  */
 
@@ -14,11 +14,11 @@ import { MODULE_REGISTRY } from "../modules/registry";
 import type { RackModuleInstance } from "../modules/types";
 import { SIGNAL_COLORS, getStage } from "../modules/types";
 import type { Snippet } from "svelte";
-import GlslSnippetView from "./GlslSnippetView.svelte";
+import TslDescriptionView from "./TslDescriptionView.svelte";
 
 interface Props {
 	module: RackModuleInstance;
-	/** GLSL snippet for this module (from codegen moduleSnippets map) */
+	/** TSL description for this module (from codegen moduleDescriptions map) */
 	snippet?: string;
 	ontoggleEnabled: () => void;
 	ontoggleCollapsed: () => void;
@@ -84,7 +84,7 @@ const hasCode = $derived(stage !== "control" && snippet.length > 0);
 						class="rack-module-code-btn"
 						class:active={mod.codeExpanded}
 						onclick={ontoggleCodeExpanded}
-						title="Toggle GLSL snippet"
+						title="Toggle TSL description"
 					>
 						<Code size={12} />
 					</button>
@@ -120,7 +120,7 @@ const hasCode = $derived(stage !== "control" && snippet.length > 0);
 
 			{#if mod.codeExpanded && hasCode}
 				<div class="rack-module-code">
-					<GlslSnippetView code={snippet} compact />
+					<TslDescriptionView code={snippet} compact />
 				</div>
 			{/if}
 		</Collapsible.Content>
