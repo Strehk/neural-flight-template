@@ -12,7 +12,7 @@ A **teaching project** that demonstrates:
 - **WebXR** — Immersive VR in the browser (no app store)
 - **WebSocket communication** — Real-time data between devices
 - **Three.js** — 3D graphics in JavaScript
-- **GLSL Shaders** — GPU programming with instant visual feedback
+- **GPU Shaders** — GPU programming with instant visual feedback
 - **Device sensors** — Gyroscope, accelerometer via browser APIs
 
 The ICAROS fitness device provides body-based flight control:
@@ -32,7 +32,7 @@ Three layers, strict separation:
 ├─────────────────────────────────────────────────┤
 │  Prototyping Tools                              │  ← Visual controls
 │  Node Editor (Eurorack metaphor)                │
-│  Shader Playground (signal-based GLSL editor)   │
+│  Shader Playground (signal-based TSL editor)   │
 ├─────────────────────────────────────────────────┤
 │  Infrastructure                                 │  ← Platform internals
 │  WebXR, WebSocket, Controllers, SvelteKit       │
@@ -113,7 +113,7 @@ adb reverse tcp:5173 tcp:5173
 | `/gyro` | Phone | 📱 Gyroscope controller (ICAROS) |
 | `/controller` | Laptop | 🎮 D-Pad controller + Settings sidebar |
 | `/node-editor` | Laptop | 🔧 Visual node editor for VR parameters |
-| `/shader-playground` | Laptop | 🎨 Live GLSL shader editor with 3D preview |
+| `/shader-playground` | Laptop | 🎨 Live TSL shader editor with 3D preview |
 | `/lab` | Laptop | 🧪 Experimental shader visualizations |
 | `/spectator` | Any | 👁️ Spectator view *(planned)* |
 | `/dmx` | Laptop | 💡 DMX lighting control *(planned)* |
@@ -168,11 +168,11 @@ src/
 │   │   ├── loader.ts            # Shader discovery + loading
 │   │   └── validation.ts        # Shader validation utilities
 │   │
-│   ├── shader-playground/       # 🎨 Signal-based GLSL editor
+│   ├── shader-playground/       # 🎨 Signal-based TSL editor
 │   │   ├── modules/             # 24 shader modules (control, vertex, fragment)
 │   │   ├── components/          # Rack UI, Preview, CodeView
 │   │   ├── engine/              # Compiler + Three.js renderer
-│   │   └── codegen.ts           # Module chain → GLSL assembly
+│   │   └── codegen.ts           # Module chain → TSL node composition
 │   │
 │   ├── node-editor/             # 🔧 Visual node editor (Eurorack architecture)
 │   │   ├── components/          # Atomic signal processors
@@ -268,7 +268,7 @@ The fastest way to create your own VR world:
 
 ### Shader Playground
 
-Learn GLSL shaders interactively at `/shader-playground`:
+Learn TSL shaders interactively at `/shader-playground`:
 - Drag modules into a rack, connect signals, see 3D results instantly
 - 24 modules: color, noise, displacement, SDF, post-processing
 - Modulation engine with LFO waveforms for animated effects
@@ -304,12 +304,12 @@ bun run hotspot:stop    # Stop macOS Wi-Fi hotspot
 - [x] WebSocket pipeline (Controller → Server → Quest)
 - [x] Node Editor — visual parameter control (Eurorack metaphor)
 - [x] Experience System — modular VR worlds (manifest, catalog, loader)
-- [x] Shader Playground — signal-based GLSL editor with 3D preview
+- [x] Shader Playground — signal-based TSL editor with 3D preview
 - [x] Network Panel — QR code device setup + hotspot scripts
 - [x] Shared Shader Library — 70+ curated GLSL shaders with frontmatter metadata
 - [ ] More Experiences — students build diverse VR worlds
 - [ ] Shader ↔ Experience integration — use playground shaders in VR scenes
-- [ ] Tutorial system — guided GLSL learning paths (3 tracks, 14 lessons)
+- [ ] Tutorial system — guided TSL learning paths (3 tracks, 14 lessons)
 - [ ] Audio system — spatial 3D sound for immersive experiences
 - [ ] Advanced experiences — Neural Noise, Breathe, Sound Body, Swarm Mind
 
