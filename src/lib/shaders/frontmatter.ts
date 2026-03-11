@@ -57,7 +57,11 @@ export function parseFrontmatter(glslSource: string): ShaderFrontmatter {
 		const trimmed = line.trim();
 
 		// Stop scanning at first non-comment, non-empty line
-		if (trimmed !== "" && !trimmed.startsWith("//") && !trimmed.startsWith("#pragma")) {
+		if (
+			trimmed !== "" &&
+			!trimmed.startsWith("//") &&
+			!trimmed.startsWith("#pragma")
+		) {
 			break;
 		}
 
@@ -81,7 +85,10 @@ export function parseFrontmatter(glslSource: string): ShaderFrontmatter {
 				result.credits = cleanValue;
 				break;
 			case "tags":
-				result.tags = cleanValue.split(",").map((t) => t.trim()).filter(Boolean);
+				result.tags = cleanValue
+					.split(",")
+					.map((t) => t.trim())
+					.filter(Boolean);
 				break;
 			case "cost":
 				result.cost = cleanValue;
@@ -98,7 +105,11 @@ export function parseFrontmatter(glslSource: string): ShaderFrontmatter {
  * "abstract/70s-melt.frag" → "70s Melt"
  */
 export function fileNameToDisplayName(fileName: string): string {
-	const base = fileName.replace(/\.frag$/, "").split("/").pop() ?? "";
+	const base =
+		fileName
+			.replace(/\.frag$/, "")
+			.split("/")
+			.pop() ?? "";
 	return base
 		.split("-")
 		.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -113,7 +124,9 @@ export function fileNameToDisplayName(fileName: string): string {
 export function pathToCategory(relativePath: string): ShaderCategory {
 	const parts = relativePath.replace(/^\.\//, "").split("/");
 	// Expected: fragment/{category}/{name}.frag
-	return (parts.length >= 2 ? parts[parts.length - 2] : "unknown") as ShaderCategory;
+	return (
+		parts.length >= 2 ? parts[parts.length - 2] : "unknown"
+	) as ShaderCategory;
 }
 
 /**

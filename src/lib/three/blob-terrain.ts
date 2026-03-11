@@ -90,14 +90,18 @@ function displaceTerrain(
 	for (let i = 0; i < pos.count; i++) {
 		const x = pos.getX(i);
 		const z = pos.getZ(i); // Plane rotated to XZ
-		const height = fbm(x * scale + timeOffset, z * scale + timeOffset * 0.7, octaves) * amplitude;
+		const height =
+			fbm(x * scale + timeOffset, z * scale + timeOffset * 0.7, octaves) *
+			amplitude;
 		pos.setY(i, height);
 	}
 	pos.needsUpdate = true;
 	geo.computeVertexNormals();
 }
 
-export function createBlobTerrain(config?: BlobTerrainConfig): BlobTerrainHandle {
+export function createBlobTerrain(
+	config?: BlobTerrainConfig,
+): BlobTerrainHandle {
 	const c = { ...DEFAULTS, ...config };
 
 	const geo = new THREE.PlaneGeometry(c.size, c.size, c.segments, c.segments);
@@ -120,7 +124,13 @@ export function createBlobTerrain(config?: BlobTerrainConfig): BlobTerrainHandle
 		mesh,
 		update(elapsed: number) {
 			if (!c.animated) return;
-			displaceTerrain(geo, c.noiseScale, c.amplitude, c.octaves, elapsed * c.animSpeed);
+			displaceTerrain(
+				geo,
+				c.noiseScale,
+				c.amplitude,
+				c.octaves,
+				elapsed * c.animSpeed,
+			);
 		},
 		dispose() {
 			geo.dispose();

@@ -16,7 +16,7 @@ function lerp(a: number, b: number, t: number): number {
 }
 
 function hashRandom(seed: number): number {
-	return ((Math.sin(seed * 12.9898) * 43758.5453) % 1 + 1) % 1;
+	return (((Math.sin(seed * 12.9898) * 43758.5453) % 1) + 1) % 1;
 }
 
 /** Compute the normalized (0–1) scalar output of a control module. */

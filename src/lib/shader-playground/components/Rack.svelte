@@ -9,11 +9,11 @@
 
 import { DropdownMenu, Separator } from "bits-ui";
 import { Plus } from "lucide-svelte";
-import { MODULE_REGISTRY } from "../modules/registry";
-import { MODULE_CATEGORIES, getStage } from "../modules/types";
-import type { RackModuleType } from "../modules/types";
-import type { ShaderRackState } from "../state.svelte";
 import { CONTROL_COMPONENTS } from "../modules/controls/index";
+import { MODULE_REGISTRY } from "../modules/registry";
+import type { RackModuleType } from "../modules/types";
+import { getStage, MODULE_CATEGORIES } from "../modules/types";
+import type { ShaderRackState } from "../state.svelte";
 import RackModule from "./RackModule.svelte";
 
 interface Props {

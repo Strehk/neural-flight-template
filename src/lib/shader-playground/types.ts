@@ -23,10 +23,7 @@ export interface ShaderError {
 
 export interface PlaygroundRenderer {
 	canvas: HTMLCanvasElement;
-	applyNodes(
-		colorNode: Node | null,
-		positionNode: Node | null,
-	): void;
+	applyNodes(colorNode: Node | null, positionNode: Node | null): void;
 	updateUniform(name: string, value: number | number[] | boolean): void;
 	setGeometry(type: GeometryType): void;
 	setRotation(enabled: boolean): void;

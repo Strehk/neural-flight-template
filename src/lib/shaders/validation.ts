@@ -38,13 +38,17 @@ export function validateUniforms(
 
 	for (const name of declared) {
 		if (!provided.has(name)) {
-			console.warn(`[shader] Missing uniform "${name}" — declared in GLSL but not provided`);
+			console.warn(
+				`[shader] Missing uniform "${name}" — declared in GLSL but not provided`,
+			);
 		}
 	}
 
 	for (const name of provided) {
 		if (!declared.has(name)) {
-			console.warn(`[shader] Extra uniform "${name}" — provided but not declared in GLSL`);
+			console.warn(
+				`[shader] Extra uniform "${name}" — provided but not declared in GLSL`,
+			);
 		}
 	}
 }

@@ -8,9 +8,9 @@
  */
 
 import { Slider } from "bits-ui";
-import type { ShaderRackState } from "../../state.svelte";
-import ModulationPill from "../../components/ModulationPill.svelte";
 import ModulationOverlay from "../../components/ModulationOverlay.svelte";
+import ModulationPill from "../../components/ModulationPill.svelte";
+import type { ShaderRackState } from "../../state.svelte";
 
 export interface SliderConfig {
 	key: string;

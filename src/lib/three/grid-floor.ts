@@ -66,6 +66,8 @@ void main() {
 }
 `;
 
+// ── GLSL version (WebGLRenderer) ──
+
 export function createGridFloor(config?: GridFloorConfig): THREE.Mesh {
 	const c = { ...DEFAULTS, ...config };
 	const color = new THREE.Color(c.color);
@@ -86,6 +88,70 @@ export function createGridFloor(config?: GridFloorConfig): THREE.Mesh {
 		side: THREE.DoubleSide,
 		depthWrite: false,
 	});
+
+	const mesh = new THREE.Mesh(geo, mat);
+	mesh.position.y = c.yPosition;
+	return mesh;
+}
+
+// ── TSL Variant (WebGPURenderer) ─────────────────────────────────────
+
+/**
+ * TSL version — MeshBasicNodeMaterial with procedural grid + distance fade.
+ * Uses fwidth() for anti-aliased lines, same visual as GLSL version.
+ */
+export async function createGridFloorTSL(
+	config?: GridFloorConfig,
+): Promise<THREE.Mesh> {
+	const {
+		abs,
+		float,
+		fract,
+		fwidth,
+		length,
+		max,
+		mul,
+		positionWorld,
+		smoothstep,
+		sub,
+		uniform,
+		vec3,
+		vec4,
+	} = await import("three/tsl");
+	const { MeshBasicNodeMaterial } = await import("three/webgpu");
+
+	const c = { ...DEFAULTS, ...config };
+	const uColor = uniform(new THREE.Color(c.color));
+	const uLineWidth = uniform(c.lineWidth);
+	const uFadeDistance = uniform(c.fadeDistance);
+	const uGridScale = uniform(c.gridScale);
+
+	// Grid computation in world space
+	const worldXZ = positionWorld.xz.mul(uGridScale);
+	const fw = fwidth(worldXZ);
+	const gridFract = abs(fract(sub(worldXZ, 0.5)).sub(0.5));
+	const lines = smoothstep(
+		mul(fw, float(1.0).add(uLineWidth)),
+		mul(fw, 0.5),
+		gridFract,
+	);
+	const gridLine = max(lines.x, lines.y);
+
+	const dist = length(positionWorld.xz);
+	const fade = float(1.0).sub(smoothstep(float(0.0), uFadeDistance, dist));
+
+	const intersection = lines.x.mul(lines.y);
+	const col = uColor.mul(gridLine.add(intersection.mul(0.5)));
+	const alpha = gridLine.mul(fade);
+
+	const geo = new THREE.PlaneGeometry(c.size, c.size, c.segments, c.segments);
+	geo.rotateX(-Math.PI / 2);
+
+	const mat = new MeshBasicNodeMaterial();
+	mat.colorNode = vec4(col, alpha);
+	mat.transparent = true;
+	mat.side = THREE.DoubleSide;
+	mat.depthWrite = false;
 
 	const mesh = new THREE.Mesh(geo, mat);
 	mesh.position.y = c.yPosition;

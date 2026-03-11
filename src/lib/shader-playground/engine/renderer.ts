@@ -6,9 +6,9 @@
  * Scene lights replace manual GLSL lighting uniforms.
  */
 
-import * as THREE from "three/webgpu";
-import { vec4 } from "three/tsl";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { vec4 } from "three/tsl";
+import * as THREE from "three/webgpu";
 import type { GeometryType, PlaygroundRenderer } from "../types";
 
 // ── Geometry Factory ──

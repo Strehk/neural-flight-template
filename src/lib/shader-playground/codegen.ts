@@ -6,16 +6,16 @@
  * Control modules inject uniforms. Modulation routes modulate param uniforms.
  */
 
-import type { Node, UniformNode } from "three/webgpu";
 import {
 	float,
 	normalLocal,
 	positionLocal,
+	time,
 	uniform,
 	uv,
 	vec4,
-	time,
 } from "three/tsl";
+import type { Node, UniformNode } from "three/webgpu";
 import { MODULE_REGISTRY } from "./modules/registry";
 import type {
 	ModulationRoute,
@@ -95,15 +95,22 @@ export function composeTslNodes(
 		uniformRefs.set(`__mod_depth:${route.id}`, depthRef);
 
 		// Modulated = base + source * depth * range
-		const baseRef = moduleUniforms.get(route.targetModuleId)?.[route.targetParam];
+		const baseRef = moduleUniforms.get(route.targetModuleId)?.[
+			route.targetParam
+		];
 		if (baseRef) {
 			const modulated = baseRef.add(sourceRef.mul(depthRef).mul(rangeSize));
-			modulatedParams.set(`${route.targetModuleId}:${route.targetParam}`, modulated);
+			modulatedParams.set(
+				`${route.targetModuleId}:${route.targetParam}`,
+				modulated,
+			);
 		}
 	}
 
 	// ── Helper: get param node (modulated or base) ──
-	function getParams(mod: RackModuleInstance): Record<string, UniformNode<number>> {
+	function getParams(
+		mod: RackModuleInstance,
+	): Record<string, UniformNode<number>> {
 		const base = moduleUniforms.get(mod.id) ?? {};
 		const result: Record<string, UniformNode<number>> = {};
 		for (const [key, u] of Object.entries(base)) {
@@ -146,7 +153,8 @@ export function composeTslNodes(
 		const inputs: Record<string, Node> = {};
 		for (const port of def.ports) {
 			if (port.direction === "in") {
-				inputs[port.name] = lastOutput[port.type] ?? getFragmentDefault(port.type);
+				inputs[port.name] =
+					lastOutput[port.type] ?? getFragmentDefault(port.type);
 			}
 		}
 
@@ -197,8 +205,12 @@ function describeModule(
 	mod: RackModuleInstance,
 	ports: { name: string; type: SignalType; direction: "in" | "out" }[],
 ): string {
-	const ins = ports.filter((p) => p.direction === "in").map((p) => `${p.name}:${p.type}`);
-	const outs = ports.filter((p) => p.direction === "out").map((p) => `${p.name}:${p.type}`);
+	const ins = ports
+		.filter((p) => p.direction === "in")
+		.map((p) => `${p.name}:${p.type}`);
+	const outs = ports
+		.filter((p) => p.direction === "out")
+		.map((p) => `${p.name}:${p.type}`);
 	const params = Object.entries(mod.params)
 		.map(([k, v]) => `${k}=${v.toFixed(2)}`)
 		.join(", ");

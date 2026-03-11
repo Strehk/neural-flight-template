@@ -23,7 +23,7 @@ The Experience System is the primary way to create new VR worlds. Each experienc
 
 ### 2. Shader Playground
 
-Learn and prototype GLSL shaders interactively at `/shader-playground`:
+Learn and prototype TSL shaders interactively at `/shader-playground`:
 - 24 signal-based modules (control, vertex, fragment)
 - Instant 3D preview with multiple geometries
 - Modulation engine with LFO waveforms

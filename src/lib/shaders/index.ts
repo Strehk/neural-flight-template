@@ -11,21 +11,18 @@
  * const material = createShaderMaterial({ fragmentShader: myFrag });
  */
 
-export {
-	createShaderMaterial,
-	registerSnippet,
-	resolveIncludes,
-	updateTime,
-} from "./loader.js";
-
-export type { PerfTier, ShaderCategory } from "./types.js";
-
+export type { ShaderFrontmatter } from "./frontmatter.js";
 export {
 	fileNameToDisplayName,
 	parseFrontmatter,
 	pathToCategory,
 	pathToId,
 } from "./frontmatter.js";
-export type { ShaderFrontmatter } from "./frontmatter.js";
-
+export {
+	createShaderMaterial,
+	registerSnippet,
+	resolveIncludes,
+	updateTime,
+} from "./loader.js";
 export { registerAllSnippets } from "./snippets.js";
+export type { PerfTier, ShaderCategory } from "./types.js";

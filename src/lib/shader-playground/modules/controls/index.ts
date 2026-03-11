@@ -7,35 +7,32 @@
 
 import type { Component } from "svelte";
 import type { RackModuleType } from "../types";
-
-// Controls
-import LFOModule from "./LFOModule.svelte";
-import NoiseModule from "./NoiseModule.svelte";
-import SliderModule from "./SliderModule.svelte";
-import XYSliderModule from "./XYSliderModule.svelte";
-
+// Fragment
+import CosinePaletteModule from "./CosinePaletteModule.svelte";
 // Vertex
 import ExplodeModule from "./ExplodeModule.svelte";
 import FlattenModule from "./FlattenModule.svelte";
-import NoiseDisplaceModule from "./NoiseDisplaceModule.svelte";
-import SineDisplaceModule from "./SineDisplaceModule.svelte";
-import SpherizeModule from "./SpherizeModule.svelte";
-import TaperModule from "./TaperModule.svelte";
-import TwistModule from "./TwistModule.svelte";
-import WaveModule from "./WaveModule.svelte";
-import WobbleModule from "./WobbleModule.svelte";
-
-// Fragment
-import CosinePaletteModule from "./CosinePaletteModule.svelte";
 import FragNoiseModule from "./FragNoiseModule.svelte";
 import FresnelModule from "./FresnelModule.svelte";
+// Controls
+import LFOModule from "./LFOModule.svelte";
 import MixModule from "./MixModule.svelte";
+import NoiseDisplaceModule from "./NoiseDisplaceModule.svelte";
+import NoiseModule from "./NoiseModule.svelte";
 import PatternModule from "./PatternModule.svelte";
 import PostProcessModule from "./PostProcessModule.svelte";
 import SDFCircleModule from "./SDFCircleModule.svelte";
+import SineDisplaceModule from "./SineDisplaceModule.svelte";
+import SliderModule from "./SliderModule.svelte";
 import SolidColorModule from "./SolidColorModule.svelte";
+import SpherizeModule from "./SpherizeModule.svelte";
+import TaperModule from "./TaperModule.svelte";
+import TwistModule from "./TwistModule.svelte";
 import UVDistortModule from "./UVDistortModule.svelte";
 import UVGradientModule from "./UVGradientModule.svelte";
+import WaveModule from "./WaveModule.svelte";
+import WobbleModule from "./WobbleModule.svelte";
+import XYSliderModule from "./XYSliderModule.svelte";
 
 /** Props interface shared by all control components */
 export interface ControlComponentProps {

@@ -1,7 +1,6 @@
 <script lang="ts">
-import ControlSliders from "./ControlSliders.svelte";
-
 import type { ShaderRackState } from "../../state.svelte";
+import ControlSliders from "./ControlSliders.svelte";
 
 interface Props {
 	params: Record<string, number>;

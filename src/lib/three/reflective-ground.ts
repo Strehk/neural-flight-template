@@ -28,7 +28,9 @@ const DEFAULTS: Required<ReflectiveGroundConfig> = {
 	yPosition: 0,
 };
 
-export function createReflectiveGround(config?: ReflectiveGroundConfig): THREE.Mesh {
+export function createReflectiveGround(
+	config?: ReflectiveGroundConfig,
+): THREE.Mesh {
 	const c = { ...DEFAULTS, ...config };
 
 	const geo = new THREE.PlaneGeometry(c.size, c.size);

@@ -29,10 +29,10 @@
 // ============================================================================
 
 import * as THREE from "three";
+import { registerAllSnippets, updateTime } from "$lib/shaders";
 import { FlightPlayer } from "$lib/three/player";
 import { createSky } from "$lib/three/sky";
 import type { ExperienceState, SetupContext, TickContext } from "../types";
-import { registerAllSnippets, updateTime } from "$lib/shaders";
 import {
 	createBubbleMaterial,
 	createParticleMaterial,
@@ -355,8 +355,7 @@ export function tick(
 	}
 
 	// ── Animate active bubbles: rise, wobble, grow, deactivate ──
-	const { positions, phases, speeds, scales, targetScales, active } =
-		s.bubbles;
+	const { positions, phases, speeds, scales, targetScales, active } = s.bubbles;
 	for (let i = 0; i < BUBBLE_COUNT; i++) {
 		if (active[i] === 0) {
 			_pos.set(0, -100, 0);

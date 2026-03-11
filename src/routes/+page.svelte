@@ -350,7 +350,7 @@ const techStack = [
 			<h2 class="section-title"><Palette size={14} /> Shader Playground</h2>
 			<p class="section-intro">
 				Modulares Shader-Rack mit Live 3D Preview. Vertex- und Fragment-Module per Drag & Drop
-				stapeln, Parameter über Slider und LFO modulieren — wie ein Eurorack für GLSL. 24 Module
+				stapeln, Parameter über Slider und LFO modulieren — wie ein Eurorack für Shader. 24 Module
 				von Sine Displace bis Cosine Palette.
 			</p>
 			<div class="feature-list">
@@ -359,7 +359,7 @@ const techStack = [
 				<span class="feature-item">Drag & Drop</span>
 				<span class="feature-item">LFO + Noise Modulation</span>
 				<span class="feature-item">Signal Routing</span>
-				<span class="feature-item">Live GLSL Preview</span>
+				<span class="feature-item">Live TSL Preview</span>
 			</div>
 		</section>
 

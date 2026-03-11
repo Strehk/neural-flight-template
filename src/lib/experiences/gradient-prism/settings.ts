@@ -74,8 +74,7 @@ export function applySettings(
 
 		case "sunElevation": {
 			const sun = scene.children.find(
-				(c): c is THREE.DirectionalLight =>
-					c instanceof THREE.DirectionalLight,
+				(c): c is THREE.DirectionalLight => c instanceof THREE.DirectionalLight,
 			);
 			if (sun) {
 				const elevRad = ((value as number) * Math.PI) / 180;

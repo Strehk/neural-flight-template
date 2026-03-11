@@ -105,3 +105,75 @@ export function updateStarfield(stars: THREE.Points, elapsed: number): void {
 		mat.uniforms.uTime.value = elapsed;
 	}
 }
+
+// ── TSL Variant (WebGPURenderer) ─────────────────────────────────────
+
+/**
+ * TSL version — PointsNodeMaterial with sizeNode (twinkle) + colorNode (soft circle).
+ * TSL `time` auto-updates, no manual updateStarfield() needed.
+ */
+export async function createStarfieldTSL(
+	config?: StarfieldConfig,
+): Promise<THREE.Points> {
+	const {
+		attribute,
+		buffer,
+		float,
+		instanceIndex,
+		sin,
+		time,
+		uniform,
+		vec3,
+		vec4,
+		smoothstep,
+		length,
+		pointUV,
+	} = await import("three/tsl");
+	const { PointsNodeMaterial } = await import("three/webgpu");
+
+	const c = { ...DEFAULTS, ...config };
+
+	const positions = new Float32Array(c.count * 3);
+	const sizes = new Float32Array(c.count);
+	const phases = new Float32Array(c.count);
+
+	for (let i = 0; i < c.count; i++) {
+		const theta = Math.random() * Math.PI * 2;
+		const phi = Math.acos(2 * Math.random() - 1);
+		const r = c.radius * (0.8 + Math.random() * 0.2);
+
+		positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+		positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+		positions[i * 3 + 2] = r * Math.cos(phi);
+
+		sizes[i] = c.minSize + Math.random() * (c.maxSize - c.minSize);
+		phases[i] = Math.random() * Math.PI * 2;
+	}
+
+	const geo = new THREE.BufferGeometry();
+	geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+	geo.setAttribute("aSize", new THREE.BufferAttribute(sizes, 1));
+	geo.setAttribute("aPhase", new THREE.BufferAttribute(phases, 1));
+
+	const aSize = attribute("aSize", "float");
+	const aPhase = attribute("aPhase", "float");
+	const uColor = uniform(new THREE.Color(c.color));
+	const uTwinkle = uniform(c.twinkleSpeed);
+
+	const brightness = sin(time.mul(uTwinkle).add(aPhase)).mul(0.5).add(0.5);
+
+	const mat = new PointsNodeMaterial();
+	mat.sizeNode = aSize;
+	mat.sizeAttenuation = true;
+	mat.transparent = true;
+	mat.depthWrite = false;
+
+	// Soft circular point + twinkle brightness
+	const dist = length(pointUV.sub(0.5));
+	const alpha = float(1.0).sub(smoothstep(float(0.3), float(0.5), dist));
+	mat.colorNode = vec4(uColor.mul(brightness), alpha);
+
+	const points = new THREE.Points(geo, mat);
+	points.frustumCulled = false;
+	return points;
+}

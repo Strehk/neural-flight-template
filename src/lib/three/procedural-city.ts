@@ -48,12 +48,15 @@ function seededRandom(seed: number): () => number {
 	};
 }
 
-export function createProceduralCity(config?: ProceduralCityConfig): ProceduralCityHandle {
+export function createProceduralCity(
+	config?: ProceduralCityConfig,
+): ProceduralCityHandle {
 	const c = { ...DEFAULTS, ...config };
 	const rng = seededRandom(c.seed);
 
 	// Pre-calculate building positions
-	const buildings: { x: number; z: number; w: number; d: number; h: number }[] = [];
+	const buildings: { x: number; z: number; w: number; d: number; h: number }[] =
+		[];
 	const halfGrid = (c.gridSize * c.cellSize) / 2;
 
 	for (let gx = 0; gx < c.gridSize; gx++) {

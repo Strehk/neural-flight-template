@@ -33,22 +33,25 @@ export interface FloatingObjectsHandle {
 	dispose: () => void;
 }
 
-const DEFAULTS: Required<Omit<FloatingObjectsConfig, "geometry" | "material">> = {
-	count: 15,
-	spread: 40,
-	heightRange: [2, 15],
-	scaleRange: [0.3, 1.5],
-	bobAmplitude: 0.8,
-	bobFrequency: 0.5,
-	color: 0xcccccc,
-};
+const DEFAULTS: Required<Omit<FloatingObjectsConfig, "geometry" | "material">> =
+	{
+		count: 15,
+		spread: 40,
+		heightRange: [2, 15],
+		scaleRange: [0.3, 1.5],
+		bobAmplitude: 0.8,
+		bobFrequency: 0.5,
+		color: 0xcccccc,
+	};
 
 interface InstanceData {
 	baseY: number;
 	phase: number;
 }
 
-export function createFloatingObjects(config?: FloatingObjectsConfig): FloatingObjectsHandle {
+export function createFloatingObjects(
+	config?: FloatingObjectsConfig,
+): FloatingObjectsHandle {
 	const c = { ...DEFAULTS, ...config };
 	const geo = config?.geometry ?? new THREE.IcosahedronGeometry(1, 1);
 	const mat =
@@ -67,8 +70,10 @@ export function createFloatingObjects(config?: FloatingObjectsConfig): FloatingO
 	for (let i = 0; i < c.count; i++) {
 		const x = (Math.random() - 0.5) * c.spread * 2;
 		const z = (Math.random() - 0.5) * c.spread * 2;
-		const y = c.heightRange[0] + Math.random() * (c.heightRange[1] - c.heightRange[0]);
-		const scale = c.scaleRange[0] + Math.random() * (c.scaleRange[1] - c.scaleRange[0]);
+		const y =
+			c.heightRange[0] + Math.random() * (c.heightRange[1] - c.heightRange[0]);
+		const scale =
+			c.scaleRange[0] + Math.random() * (c.scaleRange[1] - c.scaleRange[0]);
 		const phase = Math.random() * Math.PI * 2;
 
 		dummy.position.set(x, y, z);
@@ -92,7 +97,8 @@ export function createFloatingObjects(config?: FloatingObjectsConfig): FloatingO
 				dummy.matrix.decompose(dummy.position, dummy.quaternion, dummy.scale);
 
 				dummy.position.y =
-					inst.baseY + Math.sin(elapsed * c.bobFrequency + inst.phase) * c.bobAmplitude;
+					inst.baseY +
+					Math.sin(elapsed * c.bobFrequency + inst.phase) * c.bobAmplitude;
 				dummy.rotation.y += 0.002;
 				dummy.updateMatrix();
 				mesh.setMatrixAt(i, dummy.matrix);

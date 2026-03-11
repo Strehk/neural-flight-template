@@ -1,25 +1,31 @@
 <script lang="ts">
-	import { Accordion } from "bits-ui";
-	import { ChevronDown, Glasses, Smartphone, Terminal, Wifi } from "lucide-svelte";
-	import QRCode from "qrcode";
-	import type { NetworkInfo, QrData } from "$lib/network/types.js";
+import { Accordion } from "bits-ui";
+import {
+	ChevronDown,
+	Glasses,
+	Smartphone,
+	Terminal,
+	Wifi,
+} from "lucide-svelte";
+import QRCode from "qrcode";
+import type { NetworkInfo, QrData } from "$lib/network/types.js";
 
-	interface Props {
-		network: NetworkInfo;
-		qr: QrData;
-	}
+interface Props {
+	network: NetworkInfo;
+	qr: QrData;
+}
 
-	let { network, qr }: Props = $props();
+let { network, qr }: Props = $props();
 
-	const qrOptions: QRCode.QRCodeToDataURLOptions = {
-		width: 120,
-		margin: 1,
-		color: { dark: "#ffffff", light: "#18181b" },
-	};
+const qrOptions: QRCode.QRCodeToDataURLOptions = {
+	width: 120,
+	margin: 1,
+	color: { dark: "#ffffff", light: "#18181b" },
+};
 
-	async function toDataUrl(value: string): Promise<string> {
-		return QRCode.toDataURL(value, qrOptions) as Promise<string>;
-	}
+async function toDataUrl(value: string): Promise<string> {
+	return QRCode.toDataURL(value, qrOptions) as Promise<string>;
+}
 </script>
 
 <Accordion.Root type="multiple">

@@ -1,7 +1,7 @@
 <script lang="ts">
 import { onDestroy, onMount } from "svelte";
-import * as THREE from "three";
-import { createGradientSky } from "$lib/three/lab/gradient_sky";
+import * as THREE from "three/webgpu";
+import { createGradientSky } from "$lib/three/gradient-sky";
 import {
 	createMetaballs,
 	type MetaballsResult,
@@ -14,24 +14,22 @@ import {
 	createReflectiveWater,
 	type ReflectiveWaterResult,
 } from "$lib/three/lab/reflective_water";
-import { createStarfield } from "$lib/three/lab/starfield";
+import { createStarfield } from "$lib/three/starfield";
 
 let canvas: HTMLCanvasElement;
-let renderer: THREE.WebGLRenderer;
+let renderer: THREE.WebGPURenderer;
 let pp: PostProcessingResult;
 let metaballs: MetaballsResult;
 let water: ReflectiveWaterResult;
 
-onMount(() => {
+onMount(async () => {
 	// ── Renderer ──
-	renderer = new THREE.WebGLRenderer({
-		canvas,
-		antialias: true,
-	});
+	renderer = new THREE.WebGPURenderer({ canvas, antialias: true });
 	renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 	renderer.setSize(window.innerWidth, window.innerHeight);
 	renderer.toneMapping = THREE.ACESFilmicToneMapping;
 	renderer.toneMappingExposure = 0.9;
+	await renderer.init();
 
 	const scene = new THREE.Scene();
 	const camera = new THREE.PerspectiveCamera(
@@ -46,16 +44,15 @@ onMount(() => {
 	// ── Sky — near-black dome ──
 	scene.add(
 		createGradientSky({
-			colorTop: new THREE.Color(0x010108),
-			colorMiddle: new THREE.Color(0x050518),
-			colorBottom: new THREE.Color(0x080820),
+			colors: [0x080820, 0x050518, 0x010108],
 			radius: 80,
-			horizonHeight: 0.35,
 		}),
 	);
 
 	// ── Stars — subtle backdrop ──
-	scene.add(createStarfield({ count: 3000, radius: 70, size: 0.06 }));
+	scene.add(
+		createStarfield({ count: 3000, radius: 70, minSize: 0.1, maxSize: 0.5 }),
+	);
 
 	// ── Lights — reduced ambient for PBR (env-map provides fill) ──
 	scene.add(new THREE.AmbientLight(0xffffff, 0.6));
@@ -64,7 +61,6 @@ onMount(() => {
 	dirLight.position.set(5, 10, 5);
 	scene.add(dirLight);
 
-	// Colored points for specular highlights and water illumination
 	const neonPoint = new THREE.PointLight(0x00ffff, 1.2, 30);
 	neonPoint.position.set(0, 5, 0);
 	scene.add(neonPoint);
@@ -79,7 +75,6 @@ onMount(() => {
 
 	// ── Environment map — capture sky + neon lights for PBR reflections ──
 	const pmremGenerator = new THREE.PMREMGenerator(renderer);
-	pmremGenerator.compileEquirectangularShader();
 	const envMap = pmremGenerator.fromScene(scene).texture;
 	scene.environment = envMap;
 	pmremGenerator.dispose();
@@ -95,8 +90,6 @@ onMount(() => {
 		waveSpeed: 0.3,
 		waveScale: 8.0,
 		tintColor: new THREE.Color(0x030315),
-		tintStrength: 0.5,
-		fresnelPower: 2.0,
 	});
 	water.mesh.position.y = 0;
 	scene.add(water.mesh);
@@ -116,19 +109,15 @@ onMount(() => {
 	renderer.setAnimationLoop(() => {
 		const delta = clock.getDelta();
 		const t = clock.elapsedTime;
-
-		// Slow lava lamp time — everything at ~0.25x speed
 		const slow = t * 0.25;
 
 		metaballs.update(slow);
 		water.update(slow);
 
-		// Gentle camera breathing
 		camera.position.x = Math.sin(slow * 0.4) * 1.0;
 		camera.position.y = 5 + Math.sin(slow * 0.5) * 0.3;
 		camera.lookAt(0, 3, 0);
 
-		// Slowly drifting neon point lights
 		neonPoint.position.set(
 			Math.sin(slow * 0.6) * 3,
 			5 + Math.sin(slow * 0.8) * 1,
@@ -153,7 +142,6 @@ onMount(() => {
 		camera.aspect = window.innerWidth / window.innerHeight;
 		camera.updateProjectionMatrix();
 		renderer.setSize(window.innerWidth, window.innerHeight);
-		pp.composer.setSize(window.innerWidth, window.innerHeight);
 	};
 	window.addEventListener("resize", onResize);
 });

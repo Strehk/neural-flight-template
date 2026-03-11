@@ -18,7 +18,9 @@ interface Props {
 let { params, onparamchange, moduleId, rack }: Props = $props();
 
 const SHAPE_LABELS = ["Sin", "Tri", "Sqr", "Rnd"] as const;
-const shapeLabel = $derived(SHAPE_LABELS[Math.round(params.shape ?? 0)] ?? "Sin");
+const shapeLabel = $derived(
+	SHAPE_LABELS[Math.round(params.shape ?? 0)] ?? "Sin",
+);
 
 const sliders: SliderConfig[] = [
 	{ key: "rate", label: "Rate (Hz)", min: 0.1, max: 10.0, step: 0.1 },

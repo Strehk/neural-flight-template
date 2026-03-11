@@ -4,10 +4,10 @@ import "$lib/shader-playground/shader-playground.css";
 import { Code, Rows3, Zap } from "lucide-svelte";
 import { onDestroy } from "svelte";
 import PageHeader from "$lib/components/PageHeader.svelte";
-import Rack from "$lib/shader-playground/components/Rack.svelte";
 import CodeView from "$lib/shader-playground/components/CodeView.svelte";
 import Preview from "$lib/shader-playground/components/Preview.svelte";
 import PreviewToolbar from "$lib/shader-playground/components/PreviewToolbar.svelte";
+import Rack from "$lib/shader-playground/components/Rack.svelte";
 import { createShaderRackState } from "$lib/shader-playground/state.svelte";
 
 const rackState = createShaderRackState();

@@ -92,19 +92,32 @@ function generateCurvePoints(
 	return points;
 }
 
-export function createParametricLines(config?: ParametricLinesConfig): THREE.Group {
+export function createParametricLines(
+	config?: ParametricLinesConfig,
+): THREE.Group {
 	const c = { ...DEFAULTS, ...config };
 	const group = new THREE.Group();
 
 	for (let i = 0; i < c.count; i++) {
 		const variation = i / c.count;
-		const points = generateCurvePoints(c.curveType, c.segments, c.scale, variation);
+		const points = generateCurvePoints(
+			c.curveType,
+			c.segments,
+			c.scale,
+			variation,
+		);
 		const curve = new THREE.CatmullRomCurve3(points);
 
 		let lineObj: THREE.Object3D;
 
 		if (c.useTubes) {
-			const tubeGeo = new THREE.TubeGeometry(curve, c.segments, c.tubeRadius, 4, false);
+			const tubeGeo = new THREE.TubeGeometry(
+				curve,
+				c.segments,
+				c.tubeRadius,
+				4,
+				false,
+			);
 			const tubeMat = new THREE.MeshBasicMaterial({
 				color: c.color,
 				transparent: true,

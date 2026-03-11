@@ -8,8 +8,8 @@
  */
 
 import { DropdownMenu } from "bits-ui";
-import type { ShaderRackState } from "../state.svelte";
 import { getStage } from "../modules/types";
+import type { ShaderRackState } from "../state.svelte";
 
 interface Props {
 	rack: ShaderRackState;
@@ -28,13 +28,15 @@ const route = $derived(
 
 // Available control modules (sources) — exclude self to prevent feedback loops
 const controlModules = $derived(
-	rack.modules.filter((m) => getStage(m.type) === "control" && m.enabled && m.id !== moduleId),
+	rack.modules.filter(
+		(m) => getStage(m.type) === "control" && m.enabled && m.id !== moduleId,
+	),
 );
 
 // Source module label (if assigned)
 const sourceLabel = $derived(
 	route
-		? rack.modules.find((m) => m.id === route.sourceModuleId)?.label ?? "?"
+		? (rack.modules.find((m) => m.id === route.sourceModuleId)?.label ?? "?")
 		: null,
 );
 

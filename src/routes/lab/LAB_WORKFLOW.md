@@ -154,12 +154,12 @@ Minimal +page.svelte skeleton:
 
 | Component | File | Factory | Output |
 |-----------|------|---------|--------|
-| Gradient Material | `$lib/three/lab/gradient_material.ts` | `createGradientMaterial(config)` | `ShaderMaterial` |
-| Gradient Sky | `$lib/three/lab/gradient_sky.ts` | `createGradientSky(config)` | `Mesh` |
-| Checkerboard | `$lib/three/lab/checkerboard.ts` | `createCheckerboard(config)` | `Mesh` |
+| Gradient Material | `$lib/three/lab/gradient_material.ts` | `createGradientMaterial(config)` | `MeshBasicNodeMaterial` |
+| Gradient Sky | `$lib/three/gradient-sky.ts` | `createGradientSky(config)` | `Mesh` |
 | Architecture | `$lib/three/lab/architecture.ts` | `createArchitecture(config)` | `Group` |
-| Starfield | `$lib/three/lab/starfield.ts` | `createStarfield(config)` | `Points` |
-| Post-Processing | `$lib/three/lab/post_processing.ts` | `createPostProcessing(...)` | `{ composer, update }` |
+| Reflective Water | `$lib/three/lab/reflective_water.ts` | `createReflectiveWater(config)` | `{ mesh, update, dispose }` |
+| Starfield | `$lib/three/starfield.ts` | `createStarfield(config)` | `Points` |
+| Post-Processing | `$lib/three/lab/post_processing.ts` | `createPostProcessing(...)` | `{ postProcessing, update }` |
 
 ---
 

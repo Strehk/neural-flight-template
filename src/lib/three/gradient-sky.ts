@@ -4,6 +4,9 @@
  * Unlike sky.ts (low-poly vertex colors for nature), this uses a smooth
  * shader-based gradient with N configurable color stops and animation.
  *
+ * GLSL version for WebGLRenderer (Experiences/VR).
+ * TSL version (createGradientSkyTSL) for WebGPURenderer (Lab routes).
+ *
  * @example
  * const sky = createGradientSky({
  *   colors: [0x0a0020, 0x3d1a6e, 0xff6b9d, 0xffa07a],
@@ -91,4 +94,40 @@ export function updateGradientSky(mesh: THREE.Mesh, elapsed: number): void {
 	if (mat.uniforms.uTime) {
 		mat.uniforms.uTime.value = elapsed;
 	}
+}
+
+// ── TSL Variant (WebGPURenderer) ─────────────────────────────────────
+
+/**
+ * TSL version — uses MeshBasicNodeMaterial with nStopGradient.
+ * TSL `time` auto-updates, no manual updateGradientSky() needed.
+ * Dynamic imports keep TSL deps lazy for WebGLRenderer consumers.
+ */
+export async function createGradientSkyTSL(
+	config?: GradientSkyConfig,
+): Promise<THREE.Mesh> {
+	const { vec3, positionWorld } = await import("three/tsl");
+	const { MeshBasicNodeMaterial } = await import("three/webgpu");
+	const { nStopGradient } = await import("$lib/tsl");
+
+	const c = { ...DEFAULTS, ...config };
+	const colorNodes = c.colors.map((hex) => {
+		const col = new THREE.Color(hex);
+		return vec3(col.r, col.g, col.b);
+	});
+
+	const t = positionWorld.normalize().y.mul(0.5).add(0.5);
+
+	const geo = new THREE.IcosahedronGeometry(c.radius, 4);
+	geo.scale(-1, 1, 1);
+
+	const mat = new MeshBasicNodeMaterial();
+	mat.colorNode = nStopGradient(colorNodes, t);
+	mat.side = THREE.BackSide;
+	mat.depthWrite = false;
+
+	const mesh = new THREE.Mesh(geo, mat);
+	mesh.renderOrder = -1;
+	mesh.frustumCulled = false;
+	return mesh;
 }

@@ -115,4 +115,3 @@ function setupCamera(
 	camera.far = config.far;
 	camera.updateProjectionMatrix();
 }
-

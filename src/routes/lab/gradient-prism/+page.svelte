@@ -1,7 +1,7 @@
 <script lang="ts">
 import { onDestroy, onMount } from "svelte";
-import * as THREE from "three";
-import { createGradientSky } from "$lib/three/lab/gradient_sky";
+import * as THREE from "three/webgpu";
+import { createGradientSky } from "$lib/three/gradient-sky";
 import {
 	disposeLabyrinthChunk,
 	generateLabyrinthChunk,
@@ -11,23 +11,20 @@ import {
 	createPostProcessing,
 	type PostProcessingResult,
 } from "$lib/three/lab/post_processing";
-import { createStarfield } from "$lib/three/lab/starfield";
+import { createStarfield } from "$lib/three/starfield";
 
 let canvas: HTMLCanvasElement;
-let renderer: THREE.WebGLRenderer;
+let renderer: THREE.WebGPURenderer;
 let pp: PostProcessingResult;
 
-onMount(() => {
+onMount(async () => {
 	// ── Renderer ──
-	renderer = new THREE.WebGLRenderer({
-		canvas,
-		antialias: true,
-		logarithmicDepthBuffer: true,
-	});
+	renderer = new THREE.WebGPURenderer({ canvas, antialias: true });
 	renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 	renderer.setSize(window.innerWidth, window.innerHeight);
 	renderer.toneMapping = THREE.ACESFilmicToneMapping;
 	renderer.toneMappingExposure = 0.7;
+	await renderer.init();
 
 	const scene = new THREE.Scene();
 	const camera = new THREE.PerspectiveCamera(
@@ -43,11 +40,8 @@ onMount(() => {
 	// ── Sky + Stars ──
 	scene.add(
 		createGradientSky({
-			colorTop: new THREE.Color(0x020206),
-			colorMiddle: new THREE.Color(0x6b1d4a),
-			colorBottom: new THREE.Color(0x3a1a0e),
+			colors: [0x3a1a0e, 0x6b1d4a, 0x020206],
 			radius: 80,
-			horizonHeight: 0.38,
 		}),
 	);
 	scene.add(createStarfield({ count: 3000, radius: 70 }));
@@ -81,7 +75,6 @@ onMount(() => {
 		for (let dx = -RADIUS; dx <= RADIUS; dx++) {
 			for (let dy = -RADIUS; dy <= RADIUS; dy++) {
 				for (let dz = -RADIUS; dz <= RADIUS; dz++) {
-					// Sphere culling — skip far corners
 					if (dx * dx + dy * dy + dz * dz > MAX_DIST_SQ) continue;
 
 					const ci = ix + dx;
@@ -109,7 +102,6 @@ onMount(() => {
 			}
 		}
 
-		// Remove chunks outside sphere
 		for (const [k, group] of chunks3D) {
 			if (!needed.has(k)) {
 				scene.remove(group);
@@ -208,7 +200,6 @@ onMount(() => {
 	const speed = 1.0;
 	const clock = new THREE.Clock();
 
-	// Smooth collision avoidance via raycasting
 	const raycaster = new THREE.Raycaster();
 	const avoidDistance = 5.0;
 	const avoidStrength = 1.5;
@@ -229,18 +220,13 @@ onMount(() => {
 		const delta = clock.getDelta();
 		const t = clock.elapsedTime;
 
-		// Forward movement
 		const zPos = -(t * speed);
-
-		// Gentle lateral + vertical drift
 		const xDrift = Math.sin(t * 0.12) * 2.5;
 		const yBase = 5.0;
 		const yDrift = Math.sin(t * 0.08) * 1.5;
-
 		const desiredX = xDrift;
 		const desiredY = yBase + yDrift;
 
-		// Raycast collision avoidance — quadratic falloff
 		const repulsion = new THREE.Vector3();
 		const camPos = camera.position;
 
@@ -263,12 +249,10 @@ onMount(() => {
 			zPos + avoidOffset.z,
 		);
 
-		// Look ahead with subtle drift
 		const lookX = desiredX * 0.3 + Math.sin(t * 0.1) * 0.5;
 		const lookY = yBase + Math.sin(t * 0.17) * 0.4;
 		camera.lookAt(lookX, lookY, zPos - 25);
 
-		// Animate glow spheres — each orbits independently around camera
 		for (let i = 0; i < glowMeshes.length; i++) {
 			const gc = glowConfigs[i];
 			const angle = t * gc.speed + gc.phase;
@@ -279,11 +263,8 @@ onMount(() => {
 			);
 		}
 
-		// Track corridor focal light ahead of camera
 		corridorLight.position.set(desiredX * 0.5, yBase, zPos - 20);
 		focalMesh.position.copy(corridorLight.position);
-
-		// 3D chunk management — generate/dispose based on camera position
 		update3DChunks(camPos.x, camPos.y, camPos.z);
 
 		pp.update(delta);
@@ -294,7 +275,6 @@ onMount(() => {
 		camera.aspect = window.innerWidth / window.innerHeight;
 		camera.updateProjectionMatrix();
 		renderer.setSize(window.innerWidth, window.innerHeight);
-		pp.composer.setSize(window.innerWidth, window.innerHeight);
 	};
 	window.addEventListener("resize", onResize);
 });

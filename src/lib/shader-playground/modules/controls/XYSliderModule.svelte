@@ -3,8 +3,8 @@
  * XYSliderModule — 2D canvas pad with crosshair + modulation pills for X/Y.
  */
 
-import type { ShaderRackState } from "../../state.svelte";
 import ModulationPill from "../../components/ModulationPill.svelte";
+import type { ShaderRackState } from "../../state.svelte";
 
 interface Props {
 	params: Record<string, number>;

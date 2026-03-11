@@ -9,11 +9,17 @@
  */
 
 import { Collapsible, DropdownMenu, Switch } from "bits-ui";
-import { ChevronRight, Code, Copy, EllipsisVertical, Trash2 } from "lucide-svelte";
+import {
+	ChevronRight,
+	Code,
+	Copy,
+	EllipsisVertical,
+	Trash2,
+} from "lucide-svelte";
+import type { Snippet } from "svelte";
 import { MODULE_REGISTRY } from "../modules/registry";
 import type { RackModuleInstance } from "../modules/types";
-import { SIGNAL_COLORS, getStage } from "../modules/types";
-import type { Snippet } from "svelte";
+import { getStage, SIGNAL_COLORS } from "../modules/types";
 import TslDescriptionView from "./TslDescriptionView.svelte";
 
 interface Props {
@@ -45,7 +51,9 @@ const stageBadge = $derived(
 	stage === "vertex" ? "VERT" : stage === "fragment" ? "FRAG" : "CTRL",
 );
 const inPorts = $derived(def?.ports.filter((p) => p.direction === "in") ?? []);
-const outPorts = $derived(def?.ports.filter((p) => p.direction === "out") ?? []);
+const outPorts = $derived(
+	def?.ports.filter((p) => p.direction === "out") ?? [],
+);
 const hasCode = $derived(stage !== "control" && snippet.length > 0);
 </script>
 

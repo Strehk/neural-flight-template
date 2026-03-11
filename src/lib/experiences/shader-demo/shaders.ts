@@ -10,18 +10,16 @@
 
 import * as THREE from "three";
 import { createShaderMaterial } from "$lib/shaders";
-
-// ── Vertex shaders ──
-import lavaBumpVert from "$lib/shaders/vertex/lava-bump.vert?raw";
-import oceanVert from "$lib/shaders/vertex/ocean.vert?raw";
-import blobWobbleVert from "$lib/shaders/vertex/blob-wobble.vert?raw";
-import particlePulseVert from "$lib/shaders/vertex/particle-pulse.vert?raw";
-
 // ── Fragment shaders ──
 import psychedelicTerrainFrag from "$lib/shaders/fragment/landscape/psychedelic-terrain.frag?raw";
 import psychedelicWaterFrag from "$lib/shaders/fragment/landscape/psychedelic-water.frag?raw";
 import subsurfaceGlowFrag from "$lib/shaders/fragment/lighting/subsurface-glow.frag?raw";
 import gaussianGlowFrag from "$lib/shaders/fragment/particle/gaussian-glow.frag?raw";
+import blobWobbleVert from "$lib/shaders/vertex/blob-wobble.vert?raw";
+// ── Vertex shaders ──
+import lavaBumpVert from "$lib/shaders/vertex/lava-bump.vert?raw";
+import oceanVert from "$lib/shaders/vertex/ocean.vert?raw";
+import particlePulseVert from "$lib/shaders/vertex/particle-pulse.vert?raw";
 
 // ── Fog Color (shared between terrain + water) ──
 const FOG_COLOR = new THREE.Color(0x330066);
@@ -41,10 +39,7 @@ export function createTerrainMaterial(): THREE.ShaderMaterial {
 			uFogNear: { value: 40.0 },
 			uFogFar: { value: 200.0 },
 			uBumpData: {
-				value: Array.from(
-					{ length: 8 },
-					() => new THREE.Vector4(0, 0, 0, 10),
-				),
+				value: Array.from({ length: 8 }, () => new THREE.Vector4(0, 0, 0, 10)),
 			},
 		},
 	});
@@ -92,4 +87,3 @@ export function createParticleMaterial(): THREE.ShaderMaterial {
 		depthWrite: false,
 	});
 }
-

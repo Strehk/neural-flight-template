@@ -20,7 +20,9 @@ const displayCode = $derived(
 async function copyToClipboard(): Promise<void> {
 	await navigator.clipboard.writeText(displayCode);
 	copied = true;
-	setTimeout(() => { copied = false; }, 2000);
+	setTimeout(() => {
+		copied = false;
+	}, 2000);
 }
 </script>
 

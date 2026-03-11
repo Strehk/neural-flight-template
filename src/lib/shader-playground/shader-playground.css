@@ -1,7 +1,7 @@
 /**
  * Shader Playground v3 — Stylesheet
  *
- * Layout + Rack + Module + Control + GLSL Syntax + Modulation styles.
+ * Layout + Rack + Module + Control + Modulation styles.
  * All colors use design tokens from app.css.
  */
 
@@ -259,9 +259,15 @@
 }
 
 /* ── Stage Colors ── */
-.rack-module[data-stage="vertex"]   { border-left-color: #3b82f6; }
-.rack-module[data-stage="fragment"] { border-left-color: #f97316; }
-.rack-module[data-stage="control"]  { border-left-color: #22c55e; }
+.rack-module[data-stage="vertex"] {
+	border-left-color: #3b82f6;
+}
+.rack-module[data-stage="fragment"] {
+	border-left-color: #f97316;
+}
+.rack-module[data-stage="control"] {
+	border-left-color: #22c55e;
+}
 
 .rack-module.disabled {
 	opacity: 0.4;
@@ -326,9 +332,18 @@
 	flex-shrink: 0;
 }
 
-.rack-module-stage-badge[data-stage="vertex"]   { background: color-mix(in srgb, #3b82f6 25%, transparent); color: #93c5fd; }
-.rack-module-stage-badge[data-stage="fragment"] { background: color-mix(in srgb, #f97316 25%, transparent); color: #fdba74; }
-.rack-module-stage-badge[data-stage="control"]  { background: color-mix(in srgb, #22c55e 25%, transparent); color: #86efac; }
+.rack-module-stage-badge[data-stage="vertex"] {
+	background: color-mix(in srgb, #3b82f6 25%, transparent);
+	color: #93c5fd;
+}
+.rack-module-stage-badge[data-stage="fragment"] {
+	background: color-mix(in srgb, #f97316 25%, transparent);
+	color: #fdba74;
+}
+.rack-module-stage-badge[data-stage="control"] {
+	background: color-mix(in srgb, #22c55e 25%, transparent);
+	color: #86efac;
+}
 
 /* ═══ Port Indicators ═══ */
 
@@ -370,7 +385,9 @@
 	cursor: pointer;
 	padding: 2px;
 	opacity: 0.5;
-	transition: opacity 0.15s, color 0.15s;
+	transition:
+		opacity 0.15s,
+		color 0.15s;
 }
 
 .rack-module-code-btn:hover {
@@ -656,42 +673,6 @@
 	tab-size: 2;
 }
 
-/* ═══ GLSL Syntax Highlighting ═══ */
-
-.glsl-snippet {
-	margin: 0;
-	padding: var(--space-sm);
-	background: var(--bg);
-	overflow-x: auto;
-}
-
-.glsl-snippet code {
-	font-family: var(--font-mono);
-	font-size: 0.6875rem;
-	line-height: 1.5;
-	white-space: pre;
-	tab-size: 2;
-}
-
-.glsl-snippet-compact {
-	padding: var(--space-xs);
-}
-
-.glsl-snippet-compact code {
-	font-size: 0.625rem;
-	line-height: 1.4;
-}
-
-/* Token colors — dark theme optimized for GLSL readability */
-.glsl-keyword  { color: #c084fc; }              /* Purple — language keywords */
-.glsl-type     { color: #fbbf24; }              /* Yellow — types (float, vec3) */
-.glsl-builtin  { color: #60a5fa; }              /* Blue — built-in functions */
-.glsl-uniform  { color: #f59e0b; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; } /* Gold + underline — uniforms */
-.glsl-number   { color: #fb923c; }              /* Orange — numeric literals */
-.glsl-comment  { color: #6b7280; font-style: italic; } /* Gray italic — comments */
-.glsl-punct    { color: #67e8f9; }              /* Cyan — punctuation */
-.glsl-text     { color: var(--text-muted); }    /* Default text */
-
 /* ═══ Modulation Pill ═══ */
 
 .mod-pill {
@@ -845,9 +826,15 @@
 	color: var(--text-subtle);
 }
 
-.sp-dropdown-heading[data-stage="vertex"]   { color: #93c5fd; }
-.sp-dropdown-heading[data-stage="fragment"] { color: #fdba74; }
-.sp-dropdown-heading[data-stage="control"]  { color: #86efac; }
+.sp-dropdown-heading[data-stage="vertex"] {
+	color: #93c5fd;
+}
+.sp-dropdown-heading[data-stage="fragment"] {
+	color: #fdba74;
+}
+.sp-dropdown-heading[data-stage="control"] {
+	color: #86efac;
+}
 
 /* ═══ Tooltip ═══ */
 

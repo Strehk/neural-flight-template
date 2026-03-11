@@ -12,8 +12,9 @@
  * // In animation loop: pipeline.render() instead of renderer.render()
  * // Cleanup: pipeline.dispose()
  */
-import * as THREE from "three";
+
 import {
+	BlendFunction,
 	BloomEffect,
 	BokehEffect,
 	ChromaticAberrationEffect,
@@ -22,8 +23,8 @@ import {
 	NoiseEffect,
 	RenderPass,
 	VignetteEffect,
-	BlendFunction,
 } from "postprocessing";
+import * as THREE from "three";
 
 export interface BloomConfig {
 	intensity?: number;
@@ -107,7 +108,10 @@ export function createPostFXPipeline(
 
 	// Bloom
 	if (config?.bloom !== false) {
-		const bc = { ...BLOOM_DEFAULTS, ...(typeof config?.bloom === "object" ? config.bloom : {}) };
+		const bc = {
+			...BLOOM_DEFAULTS,
+			...(typeof config?.bloom === "object" ? config.bloom : {}),
+		};
 		bloomEffect = new BloomEffect({
 			intensity: bc.intensity,
 			luminanceThreshold: bc.luminanceThreshold,
@@ -119,7 +123,10 @@ export function createPostFXPipeline(
 
 	// Film Grain (via NoiseEffect)
 	if (config?.filmGrain !== false) {
-		const gc = { ...GRAIN_DEFAULTS, ...(typeof config?.filmGrain === "object" ? config.filmGrain : {}) };
+		const gc = {
+			...GRAIN_DEFAULTS,
+			...(typeof config?.filmGrain === "object" ? config.filmGrain : {}),
+		};
 		grainEffect = new NoiseEffect({
 			blendFunction: BlendFunction.OVERLAY,
 		});
@@ -129,7 +136,10 @@ export function createPostFXPipeline(
 
 	// Vignette
 	if (config?.vignette !== false) {
-		const vc = { ...VIGNETTE_DEFAULTS, ...(typeof config?.vignette === "object" ? config.vignette : {}) };
+		const vc = {
+			...VIGNETTE_DEFAULTS,
+			...(typeof config?.vignette === "object" ? config.vignette : {}),
+		};
 		const vignetteEffect = new VignetteEffect({
 			offset: vc.offset,
 			darkness: vc.darkness,

@@ -1,17 +1,14 @@
 import * as THREE from "three";
-import { seededRandom } from "$lib/three/random";
+import { createGradientSky, updateGradientSky } from "$lib/three/gradient-sky";
 import { FlightPlayer } from "$lib/three/player";
-import {
-	createGradientSky,
-	updateGradientSky,
-} from "$lib/three/gradient-sky";
-import { createReflectiveGround } from "$lib/three/reflective-ground";
 import {
 	createPostFXPipeline,
 	type PostFXPipeline,
 } from "$lib/three/postfx-pipeline";
+import { seededRandom } from "$lib/three/random";
+import { createReflectiveGround } from "$lib/three/reflective-ground";
 import type { ExperienceState, SetupContext, TickContext } from "../types";
-import { createGradientCubeMaterial, createDarkCubeMaterial } from "./shaders";
+import { createDarkCubeMaterial, createGradientCubeMaterial } from "./shaders";
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -139,7 +136,7 @@ function chunkKey(cx: number, cz: number): string {
 
 // ── Wall Axes ──────────────────────────────────────────────────────────
 
-const enum WallAxis {
+enum WallAxis {
 	POS_X = 0,
 	NEG_X = 1,
 	POS_Y = 2,
@@ -652,7 +649,8 @@ export function tick(
 		const angle = ctx.elapsed * orb.orbitSpeed + orb.phaseOffset;
 		orb.light.position.set(
 			pos.x + Math.cos(angle) * orb.orbitRadius,
-			pos.y + Math.sin(ctx.elapsed * orb.ySpeed + orb.phaseOffset) * orb.yAmplitude,
+			pos.y +
+				Math.sin(ctx.elapsed * orb.ySpeed + orb.phaseOffset) * orb.yAmplitude,
 			pos.z + Math.sin(angle) * orb.orbitRadius,
 		);
 	}

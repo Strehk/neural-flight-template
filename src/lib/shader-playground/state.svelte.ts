@@ -52,7 +52,11 @@ export interface ShaderRackState {
 	reorder(fromIndex: number, toIndex: number): void;
 
 	// Modulation actions
-	addModulationRoute(sourceModuleId: string, targetModuleId: string, targetParam: string): void;
+	addModulationRoute(
+		sourceModuleId: string,
+		targetModuleId: string,
+		targetParam: string,
+	): void;
 	removeModulationRoute(routeId: string): void;
 	updateModulationDepth(routeId: string, depth: number): void;
 
@@ -95,13 +99,16 @@ export function createShaderRackState(): ShaderRackState {
 		for (const route of modulationRoutes) {
 			const sourceMod = modules.find((m) => m.id === route.sourceModuleId);
 			const targetMod = modules.find((m) => m.id === route.targetModuleId);
-			if (!sourceMod || !targetMod || !sourceMod.enabled || !targetMod.enabled) continue;
+			if (!sourceMod || !targetMod || !sourceMod.enabled || !targetMod.enabled)
+				continue;
 
 			// Compute CPU-side control output
 			const controlOutput = computeControlOutput(sourceMod, time);
 
 			// Set source output uniform directly
-			const sourceRef = currentResult.uniformRefs.get(`${sourceMod.id}:__output`);
+			const sourceRef = currentResult.uniformRefs.get(
+				`${sourceMod.id}:__output`,
+			);
 			if (sourceRef) {
 				sourceRef.value = controlOutput;
 			}
@@ -111,8 +118,12 @@ export function createShaderRackState(): ShaderRackState {
 			const targetDef = MODULE_REGISTRY.get(targetMod.type);
 			const range = targetDef?.paramRanges?.[route.targetParam];
 			const rangeSize = range ? range.max - range.min : 1;
-			const modulatedValue = baseValue + controlOutput * route.depth * rangeSize;
-			nextLive.set(`${route.targetModuleId}:${route.targetParam}`, modulatedValue);
+			const modulatedValue =
+				baseValue + controlOutput * route.depth * rangeSize;
+			nextLive.set(
+				`${route.targetModuleId}:${route.targetParam}`,
+				modulatedValue,
+			);
 		}
 
 		liveModValues = nextLive;
@@ -221,7 +232,8 @@ export function createShaderRackState(): ShaderRackState {
 		targetParam: string,
 	): void {
 		modulationRoutes = modulationRoutes.filter(
-			(r) => !(r.targetModuleId === targetModuleId && r.targetParam === targetParam),
+			(r) =>
+				!(r.targetModuleId === targetModuleId && r.targetParam === targetParam),
 		);
 
 		const route: ModulationRoute = {

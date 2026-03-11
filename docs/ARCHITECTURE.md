@@ -72,7 +72,7 @@ Three.js Render Loop @ 72fps
 | `/vr` | WebXR canvas, loads active experience, animation loop |
 | `/controller` | D-Pad input, speed buttons, 3D preview, settings sidebar |
 | `/node-editor` | Visual node editor — modular signal pipeline for VR parameter control |
-| `/shader-playground` | Live GLSL shader editor with signal-based modules and 3D preview |
+| `/shader-playground` | Live TSL shader editor with signal-based modules and 3D preview |
 
 ### `lib/experiences/` — Experience System
 
@@ -139,17 +139,17 @@ bridge.ts     WebSocket → Three.js (numbers only)
 
 ### `lib/shader-playground/` — Shader Playground
 
-Signal-based GLSL editor with 3D preview. See [`src/lib/shader-playground/README.md`](../src/lib/shader-playground/README.md) for full details.
+Signal-based TSL shader editor with 3D preview. See [`src/lib/shader-playground/README.md`](../src/lib/shader-playground/README.md) for full details.
 
 ```
 modules/      24 shader modules (4 control + 10 vertex + 10 fragment)
 components/   Rack UI, Preview, CodeView
-engine/       GLSL compiler + Three.js renderer
-codegen.ts    Module chain → GLSL assembly
+engine/       TSL renderer + Three.js integration
+codegen.ts    Module chain → TSL node composition
 state.svelte.ts  Reactive state (Svelte 5 Runes)
 ```
 
-Pipeline: `Module[] → codegen → GLSL → compiler → renderer → 3D Preview`
+Pipeline: `Module[] → codegen → TSL nodes → renderer → 3D Preview`
 
 ### `lib/components/` — Svelte UI
 

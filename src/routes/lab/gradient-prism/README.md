@@ -15,10 +15,10 @@ Generative infinite-dolly through recursive 3D subdivision panels with gradient 
 ## Module Dependencies
 
 - `$lib/three/lab/labyrinth.ts` — Recursive subdivision generator (axisWeights, depth-scaled overlays)
-- `$lib/three/lab/gradient_material.ts` — Custom gradient ShaderMaterial
-- `$lib/three/lab/gradient_sky.ts` — Procedural sky sphere
-- `$lib/three/lab/starfield.ts` — Background star particles
-- `$lib/three/lab/post_processing.ts` — Bloom + Afterimage + Grain + Vignette pipeline
+- `$lib/three/lab/gradient_material.ts` — TSL gradient NodeMaterial (MeshBasicNodeMaterial)
+- `$lib/three/gradient-sky.ts` — Shared N-stop gradient sky (GLSL)
+- `$lib/three/starfield.ts` — Shared starfield with twinkle animation (GLSL)
+- `$lib/three/lab/post_processing.ts` — TSL PostProcessing (bloom + afterimage + grain + vignette)
 
 ## Current Parameters
 

@@ -1,5 +1,5 @@
-import { networkInterfaces } from "node:os";
 import { readFileSync } from "node:fs";
+import { networkInterfaces } from "node:os";
 import { resolve } from "node:path";
 import type { HotspotConfig, NetworkInfo } from "./types.js";
 
@@ -28,7 +28,10 @@ export function readHotspotConfig(): HotspotConfig | null {
 			const eq = trimmed.indexOf("=");
 			if (eq === -1) continue;
 			const key = trimmed.slice(0, eq).trim();
-			const val = trimmed.slice(eq + 1).trim().replace(/^["']|["']$/g, "");
+			const val = trimmed
+				.slice(eq + 1)
+				.trim()
+				.replace(/^["']|["']$/g, "");
 			vars[key] = val;
 		}
 		const ssid = vars.HOTSPOT_SSID;

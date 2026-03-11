@@ -18,7 +18,13 @@ interface Props {
 let { params, onparamchange, moduleId, rack }: Props = $props();
 
 const sliders: SliderConfig[] = $derived([
-	{ key: "value", label: "Value", min: params.min ?? 0, max: params.max ?? 1, step: 0.01 },
+	{
+		key: "value",
+		label: "Value",
+		min: params.min ?? 0,
+		max: params.max ?? 1,
+		step: 0.01,
+	},
 ]);
 </script>
 
