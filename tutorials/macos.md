@@ -2,17 +2,16 @@
 
 > From zero to a running development environment on macOS.
 
-```mermaid
-flowchart TD
-    A["📦 1. Homebrew"] --> B["🖥️ 2. Ghostty"]
-    B --> C["✏️ 3. Zed"]
-    C --> D["🔧 4. Git + GitHub"]
-    D --> E["⚡ 5. Bun"]
-    E --> F["🔒 6. mkcert"]
-    F --> G["📱 7. ADB *(optional)*"]
-    G --> H["🤖 8. OpenCode"]
-    H --> I(["🚀 Ready!"])
-```
+| Step | Tool | What you'll install |
+|------|------|-------------------|
+| 1 | 📦 **Homebrew** | Package manager |
+| 2 | 🖥️ **Ghostty** | Terminal |
+| 3 | ✏️ **Zed** | Code editor |
+| 4 | 🔧 **Git + GitHub** | Version control + collaboration |
+| 5 | ⚡ **Bun** | JavaScript runtime |
+| 6 | 🔒 **mkcert** | HTTPS certificates |
+| 7 | 📱 **ADB** | Quest USB bridge *(optional)* |
+| 8 | 🤖 **OpenCode** | AI coding assistant |
 
 ⏱️ **Estimated time:** ~30 minutes
 📋 **Prerequisites:** macOS 13+ (Ventura or newer), nothing else

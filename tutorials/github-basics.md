@@ -14,26 +14,19 @@ Think of it like this:
 - **Git** = save system on your computer (local)
 - **GitHub** = cloud storage where the team shares saves (remote)
 
-```mermaid
-flowchart TD
-    You["💻 Your Computer"] -->|"git push"| GH["🐙 GitHub"]
-    GH -->|"git pull"| You
-    GH -->|"git pull"| Team["💻 Teammate's Computer"]
-    Team -->|"git push"| GH
+```
+💻 Your Computer ── git push ──► 🐙 GitHub ◄── git push ── 💻 Teammate
+                 ◄── git pull ──           ── git pull ──►
 ```
 
 ### Branches — Parallel Universes
 
 A **branch** is like a parallel universe of the code. You work on your own branch without affecting others, then merge your changes when you're done.
 
-```mermaid
-gitGraph
-    commit id: "main"
-    branch my-feature
-    commit id: "add terrain"
-    commit id: "add clouds"
-    checkout main
-    merge my-feature id: "merge!"
+```
+main:        ●───────────────────●  (merge!)
+              \                 /
+my-feature:    ●── add terrain ──● add clouds
 ```
 
 | Term | Analogy | Meaning |
@@ -52,15 +45,8 @@ gitGraph
 
 This is the exact workflow you'll follow in class. You clone the project, make changes, and send a Pull Request to David for review.
 
-```mermaid
-flowchart TD
-    A["📂 Clone"] --> B["🌿 Branch"]
-    B --> C["✏️ Edit code"]
-    C --> D["💾 Commit"]
-    D --> E["🚀 Push"]
-    E --> F["📝 Pull Request"]
-    F --> G["👀 David reviews"]
-    G --> H(["✅ Merged!"])
+```
+📂 Clone → 🌿 Branch → ✏️ Edit → 💾 Commit → 🚀 Push → 📝 PR → 👀 Review → ✅ Merged!
 ```
 
 ### 1. 📂 Clone the project (one time only)
@@ -206,15 +192,8 @@ Now start again from **Step 2** for your next task!
 
 Here's what a typical work session looks like:
 
-```mermaid
-flowchart TD
-    A[1. 🔄 Pull latest changes] --> B[2. 🌿 Create a branch]
-    B --> C[3. ✏️ Write code]
-    C --> D[4. 💾 Commit your changes]
-    D --> E[5. 🚀 Push to GitHub]
-    E --> F[6. 📝 Create Pull Request]
-    F --> G[7. 👀 Get review]
-    G --> H[8. ✅ Merge to main]
+```
+🔄 Pull → 🌿 Branch → ✏️ Code → 💾 Commit → 🚀 Push → 📝 PR → 👀 Review → ✅ Merge
 ```
 
 ### 1. 🔄 Pull the latest changes

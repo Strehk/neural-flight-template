@@ -8,11 +8,12 @@
 
 ## How it all connects
 
-```mermaid
-flowchart TD
-    Phone["📱 Phone / ICAROS"] -->|"Gyroscope"| WS["📡 WebSocket Server"]
-    Laptop["💻 Laptop Controller"] -->|"D-Pad"| WS
-    WS -->|"Broadcast"| Quest["🥽 Meta Quest VR"]
+```
+📱 Phone / ICAROS  ──► ┌──────────────────┐ ──► 🥽 Meta Quest VR
+   (Gyroscope)         │ 📡 WebSocket      │     (VR Scene)
+                       │    Server         │
+💻 Laptop Controller ──► │ (your computer)  │
+   (D-Pad)             └──────────────────┘
 ```
 
 Your laptop runs the **server**. Phones, controllers, and VR headsets all connect to it through the browser.

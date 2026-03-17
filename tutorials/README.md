@@ -10,28 +10,16 @@ The **ICAROS VR Teaching Platform** lets you build immersive VR worlds for the *
 
 ## 🧰 What you'll install
 
-```mermaid
-flowchart TD
-    A["📦 1. Package Manager"] --> B["🖥️ 2. Terminal"]
-    B --> C["✏️ 3. Zed Editor"]
-    C --> D["🔧 4. Git + GitHub"]
-    D --> E["⚡ 5. Bun"]
-    E --> F["🔒 6. mkcert"]
-    F --> G["📱 7. ADB *(optional)*"]
-    G --> H["🤖 8. OpenCode"]
-    H --> I(["🚀 Ready!"])
-```
-
-| Tool | What it does |
-|------|-------------|
-| 📦 **Package Manager** | Installs developer tools (like an app store for your terminal) |
-| 🖥️ **Terminal** | Your command center — where you type commands |
-| ✏️ **Zed** | Code editor — where you write and read code |
-| 🔧 **Git + GitHub** | Version control + online collaboration platform |
-| ⚡ **Bun** | JavaScript runtime — the engine that runs your code |
-| 🔒 **mkcert** | HTTPS certificates — required for VR in the browser |
-| 📱 **ADB** | USB bridge to Meta Quest (optional, only if you have a Quest) |
-| 🤖 **OpenCode** | AI coding assistant in your terminal |
+| Step | Tool | What it does |
+|------|------|-------------|
+| 1 | 📦 **Package Manager** | Installs developer tools (like an app store for your terminal) |
+| 2 | 🖥️ **Terminal** | Your command center — where you type commands |
+| 3 | ✏️ **Zed** | Code editor — where you write and read code |
+| 4 | 🔧 **Git + GitHub** | Version control + online collaboration platform |
+| 5 | ⚡ **Bun** | JavaScript runtime — the engine that runs your code |
+| 6 | 🔒 **mkcert** | HTTPS certificates — required for VR in the browser |
+| 7 | 📱 **ADB** | USB bridge to Meta Quest *(optional)* |
+| 8 | 🤖 **OpenCode** | AI coding assistant in your terminal |
 
 ---
 
