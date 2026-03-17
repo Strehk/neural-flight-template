@@ -204,6 +204,15 @@ src/
 scripts/
 └── hotspot/                     # 📶 macOS Wi-Fi hotspot management
     └── hotspot.sh               # start / stop / setup commands
+
+.agents/
+└── skills/
+    └── new-level/               # 🤖 Cross-agent skill for VR experience creation
+        ├── SKILL.md             # Guided workflow (Phase A-E)
+        ├── TEMPLATE.md          # 5-file template as code blocks
+        ├── SHARED_LIBRARY.md    # Building blocks catalog with API
+        ├── RULES.md             # Rules E1-E12 + performance budget
+        └── EXAMPLES.md          # Real experience diff examples
 ```
 
 ---
@@ -258,7 +267,17 @@ Parameters can also be changed live via the Settings Sidebar or controlled throu
 
 ### Build a New Experience
 
-The fastest way to create your own VR world:
+**With AI agent (recommended):** Use the `new-level` skill for guided scaffolding:
+
+| Agent | How to invoke |
+|-------|--------------|
+| OpenCode | Ask "create a new level" or reference `.agents/skills/new-level/SKILL.md` |
+| Claude Code | `/new_level my-level-name` |
+| Cursor / Copilot / Codex | Auto-discovers `.agents/skills/new-level/` |
+
+The skill asks about movement type, visual elements, and parameters — then generates all 5 files.
+
+**Manual:** Copy the template and adapt:
 
 1. **Copy template**: `src/lib/experiences/template/` → `src/lib/experiences/my-world/`
 2. **Edit manifest**: Name, parameters, scene defaults

@@ -90,3 +90,26 @@ import { createClouds } from "$lib/three/clouds";
 const clouds = createClouds({ count: 20, spread: 100, heightMin: 30, heightMax: 50 });
 ctx.scene.add(clouds);
 ```
+
+## AI-Assisted Level Creation
+
+Use any AI coding agent (Claude Code, Codex, Cursor, Gemini, OpenCode, etc.) to scaffold a new experience with guided prompts.
+
+**Agent Skills** (cross-agent standard in `.agents/skills/new-level/`):
+- The `new-level` skill walks you through the 5-file pattern step by step
+- It knows the template, shared library, architecture rules, and performance budget
+- It asks the right questions and generates all files for you
+
+**How to use:**
+- **Claude Code:** Type `/new_level my-experience-name`
+- **Other agents:** Point them to `.agents/skills/new-level/SKILL.md`
+
+**What's in the skill directory:**
+
+| File | Content |
+|------|---------|
+| `SKILL.md` | Guided workflow (Phase A-E) |
+| `TEMPLATE.md` | All 5 template files as code blocks |
+| `SHARED_LIBRARY.md` | Available building blocks with API signatures |
+| `RULES.md` | Rules E1-E12, performance budget, dispose patterns |
+| `EXAMPLES.md` | How Mountain Flight and Gradient Prism adapted the template |

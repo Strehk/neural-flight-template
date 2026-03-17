@@ -238,7 +238,10 @@ Now that everything is running, try making a small change and submitting it as a
 
 ### 🏗️ Build something
 
-- **Build your own VR experience** → see `src/lib/experiences/README.md`
+- **Build your own VR experience** — use the `new-level` agent skill for guided scaffolding:
+  - **OpenCode:** Ask "create a new level" or point to `.agents/skills/new-level/SKILL.md`
+  - **Claude Code:** Type `/new_level my-level-name`
+  - **Manual:** Copy the template folder — see [`src/lib/experiences/README.md`](../src/lib/experiences/README.md)
 - **Learn about shaders** → explore the Shader Playground at `/shader-playground`
 - **Wire up parameters** → try the Node Editor at `/node-editor`
 

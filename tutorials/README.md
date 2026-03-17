@@ -80,6 +80,30 @@ Learn visually! These videos cover the same tools you'll install:
 
 ---
 
+## 🤖 AI-Assisted Level Creation
+
+Once your environment is set up, you can use any AI coding agent to **build a new VR experience** step by step.
+
+The project includes a cross-agent **`new-level` skill** (in `.agents/skills/new-level/`) that works with:
+
+| Agent | How to invoke |
+|-------|--------------|
+| **OpenCode** | Point it to `.agents/skills/new-level/SKILL.md` or just ask "create a new level" |
+| **Claude Code** | Type `/new_level my-level-name` |
+| **Cursor / Copilot / Codex** | The agent auto-discovers `.agents/skills/new-level/` |
+
+The skill guides you through:
+1. **Naming** your experience and choosing movement type + visual elements
+2. **Scaffolding** 5 files from the template with your choices applied
+3. **Registering** in the catalog so it appears in the VR experience selector
+4. **Verifying** everything compiles and runs
+
+No copy-paste needed — the agent handles the boilerplate, you focus on the creative decisions.
+
+> 📖 Skill files: [`.agents/skills/new-level/`](../.agents/skills/new-level/)
+
+---
+
 ## 📖 Already set up?
 
 If you already have a development environment and just need the project dependencies (Bun, mkcert, ADB), see [docs/SETUP.md](../docs/SETUP.md).
