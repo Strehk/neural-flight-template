@@ -1,5 +1,7 @@
 # 🔧 Setup Guide
 
+> 🆕 **Complete beginner?** Looking for a full guide including editor, terminal, and AI tools? → [tutorials/](../tutorials/README.md)
+
 Complete setup instructions for Mac, Windows, and Linux.
 
 ---

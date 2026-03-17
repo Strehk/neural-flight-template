@@ -58,6 +58,8 @@ All data flows through the server. No direct client-to-client communication.
 
 ## 🚀 Quick Start
 
+> 🆕 **First time coding?** Start with our [Step-by-Step Setup Tutorials](tutorials/README.md) — covers everything from installing an editor to running VR.
+
 ### Prerequisites
 
 ```bash
