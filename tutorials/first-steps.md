@@ -8,12 +8,11 @@
 
 ## How it all connects
 
-```
-📱 Phone / ICAROS  ──► ┌──────────────────┐ ──► 🥽 Meta Quest VR
-   (Gyroscope)         │ 📡 WebSocket      │     (VR Scene)
-                       │    Server         │
-💻 Laptop Controller ──► │ (your computer)  │
-   (D-Pad)             └──────────────────┘
+```mermaid
+flowchart LR
+    Phone["📱 Phone / ICAROS"] -->|Gyroscope| Server["📡 WebSocket Server"]
+    Laptop["💻 Laptop Controller"] -->|D-Pad| Server
+    Server -->|Broadcast| Quest["🥽 Meta Quest VR"]
 ```
 
 Your laptop runs the **server**. Phones, controllers, and VR headsets all connect to it through the browser.
