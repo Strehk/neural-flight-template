@@ -3,15 +3,15 @@
 > From zero to a running development environment on Windows.
 
 ```mermaid
-flowchart LR
-    A[📦 winget] --> B[🖥️ Windows Terminal]
-    B --> C[✏️ Zed]
-    C --> D[🔧 Git + GitHub]
-    D --> E[⚡ Bun]
-    E --> F[🔒 mkcert]
-    F --> G[📱 ADB]
-    G --> H[🤖 OpenCode]
-    H --> I[🚀 Ready!]
+flowchart TD
+    A["📦 1. winget"] --> B["🖥️ 2. Windows Terminal"]
+    B --> C["✏️ 3. Zed"]
+    C --> D["🔧 4. Git + GitHub"]
+    D --> E["⚡ 5. Bun"]
+    E --> F["🔒 6. mkcert"]
+    F --> G["📱 7. ADB *(optional)*"]
+    G --> H["🤖 8. OpenCode"]
+    H --> I(["🚀 Ready!"])
 ```
 
 ⏱️ **Estimated time:** ~30 minutes

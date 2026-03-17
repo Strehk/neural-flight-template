@@ -11,15 +11,15 @@ The **ICAROS VR Teaching Platform** lets you build immersive VR worlds for the *
 ## 🧰 What you'll install
 
 ```mermaid
-flowchart LR
-    A[📦 Package Manager] --> B[🖥️ Terminal]
-    B --> C[✏️ Zed Editor]
-    C --> D[🔧 Git + GitHub]
-    D --> E[⚡ Bun]
-    E --> F[🔒 mkcert]
-    F --> G[📱 ADB]
-    G --> H[🤖 OpenCode]
-    H --> I[🚀 Ready!]
+flowchart TD
+    A["📦 1. Package Manager"] --> B["🖥️ 2. Terminal"]
+    B --> C["✏️ 3. Zed Editor"]
+    C --> D["🔧 4. Git + GitHub"]
+    D --> E["⚡ 5. Bun"]
+    E --> F["🔒 6. mkcert"]
+    F --> G["📱 7. ADB *(optional)*"]
+    G --> H["🤖 8. OpenCode"]
+    H --> I(["🚀 Ready!"])
 ```
 
 | Tool | What it does |

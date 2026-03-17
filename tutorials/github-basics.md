@@ -15,11 +15,11 @@ Think of it like this:
 - **GitHub** = cloud storage where the team shares saves (remote)
 
 ```mermaid
-flowchart LR
-    You[💻 Your Computer] -->|git push| GH[🐙 GitHub]
-    GH -->|git pull| You
-    GH -->|git pull| Team[💻 Teammate's Computer]
-    Team -->|git push| GH
+flowchart TD
+    You["💻 Your Computer"] -->|"git push"| GH["🐙 GitHub"]
+    GH -->|"git pull"| You
+    GH -->|"git pull"| Team["💻 Teammate's Computer"]
+    Team -->|"git push"| GH
 ```
 
 ### Branches — Parallel Universes
@@ -53,14 +53,14 @@ gitGraph
 This is the exact workflow you'll follow in class. You clone the project, make changes, and send a Pull Request to David for review.
 
 ```mermaid
-flowchart LR
-    A[📂 Clone] --> B[🌿 Branch]
-    B --> C[✏️ Edit]
-    C --> D[💾 Commit]
-    D --> E[🚀 Push]
-    E --> F[📝 Pull Request]
-    F --> G[👀 David reviews]
-    G --> H[✅ Merged!]
+flowchart TD
+    A["📂 Clone"] --> B["🌿 Branch"]
+    B --> C["✏️ Edit code"]
+    C --> D["💾 Commit"]
+    D --> E["🚀 Push"]
+    E --> F["📝 Pull Request"]
+    F --> G["👀 David reviews"]
+    G --> H(["✅ Merged!"])
 ```
 
 ### 1. 📂 Clone the project (one time only)
