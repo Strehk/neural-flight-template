@@ -40,6 +40,7 @@ After finishing your OS guide, continue with:
 | 🚀 | [**First Steps**](first-steps.md) | Clone the project, start the server, explore |
 | ⌨️ | [**Terminal Basics**](terminal-basics.md) | Essential commands cheat sheet (navigation, git, files) |
 | 🐙 | [**GitHub Basics**](github-basics.md) | Branches, pull requests, and the team workflow |
+| 📚 | [**Glossary**](glossary.md) | Quick definitions for beginner terminology used across the tutorials |
 
 ---
 
