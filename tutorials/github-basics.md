@@ -53,8 +53,8 @@ This is the exact workflow you'll follow in class. You clone the project, make c
 
 ```bash
 # Download the project from GitHub
-git clone https://github.com/dweigend/simple_flight.git
-cd simple_flight
+git clone https://github.com/dweigend/neural-flight-template.git
+cd neural-flight-template
 
 # Install dependencies
 bun install
@@ -77,7 +77,7 @@ add-my-experience
 git checkout -b add-my-experience
 ```
 
-**✅ Verify:** The bottom-left of Zed's Git Panel now shows `simple_flight / add-my-experience` instead of `main`.
+**✅ Verify:** The bottom-left of Zed's Git Panel now shows `neural-flight-template / add-my-experience` instead of `main`.
 
 ### 3. ✏️ Make your changes
 
@@ -139,7 +139,7 @@ gh pr create --title "feat: ✨ add underwater experience" --body "My first VR e
 ```
 
 **Or on GitHub:**
-1. Go to [github.com/dweigend/simple_flight](https://github.com/dweigend/simple_flight)
+1. Go to [github.com/dweigend/neural-flight-template](https://github.com/dweigend/neural-flight-template)
 2. You'll see a yellow banner: _"add-my-experience had recent pushes"_
 3. Click **"Compare & pull request"**
 4. Write a title and description → Click **"Create pull request"**
