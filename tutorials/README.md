@@ -16,10 +16,11 @@ The **ICAROS VR Teaching Platform** lets you build immersive VR worlds for the *
 | 2 | 🖥️ **Terminal** | Your command center — where you type commands |
 | 3 | ✏️ **Zed** | Code editor — where you write and read code |
 | 4 | 🔧 **Git + GitHub** | Version control + online collaboration platform |
-| 5 | ⚡ **Bun** | JavaScript runtime — the engine that runs your code |
-| 6 | 🔒 **mkcert** | HTTPS certificates — required for VR in the browser |
-| 7 | 📱 **ADB** | USB bridge to Meta Quest *(optional)* |
-| 8 | 🤖 **OpenCode** | AI coding assistant in your terminal |
+| 5 | 🟢 **Node.js** | JavaScript runtime — needed for WebSocket-related tooling |
+| 6 | ⚡ **Bun** | JavaScript runtime — the engine that runs your code |
+| 7 | 🔒 **mkcert** | HTTPS certificates — required for VR in the browser |
+| 8 | 📱 **ADB** | USB bridge to Meta Quest *(optional)* |
+| 9 | 🤖 **OpenCode** | AI coding assistant in your terminal |
 
 ---
 

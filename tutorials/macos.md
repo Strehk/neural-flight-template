@@ -8,10 +8,11 @@
 | 2 | 🖥️ **Ghostty** | Terminal |
 | 3 | ✏️ **Zed** | Code editor |
 | 4 | 🔧 **Git + GitHub** | Version control + collaboration |
-| 5 | ⚡ **Bun** | JavaScript runtime |
-| 6 | 🔒 **mkcert** | HTTPS certificates |
-| 7 | 📱 **ADB** | Quest USB bridge *(optional)* |
-| 8 | 🤖 **OpenCode** | AI coding assistant |
+| 5 | 🟢 **Node.js** | JavaScript runtime for WebSocket tooling |
+| 6 | ⚡ **Bun** | JavaScript runtime |
+| 7 | 🔒 **mkcert** | HTTPS certificates |
+| 8 | 📱 **ADB** | Quest USB bridge *(optional)* |
+| 9 | 🤖 **OpenCode** | AI coding assistant |
 
 ⏱️ **Estimated time:** ~30 minutes
 📋 **Prerequisites:** macOS 13+ (Ventura or newer), nothing else
@@ -187,7 +188,32 @@ You should see something like:
 
 ---
 
-## Step 5 — ⚡ Bun (JavaScript Runtime)
+## Step 5 — 🟢 Node.js (WebSocket Runtime)
+
+Node.js is another **JavaScript runtime**. In this project, you need it so the WebSocket-related tooling works reliably on your machine. Think of it as the platform many JavaScript tools expect to find.
+
+```bash
+# Install Node.js
+brew install node
+```
+
+**✅ Verify:**
+```bash
+node --version
+npm --version
+```
+
+You should see something like:
+```
+v22.x.x
+10.x.x
+```
+
+> 💡 **Which version should I use?** Use the current LTS version if possible. The Homebrew package gives you a standard, up-to-date installation.
+
+---
+
+## Step 6 — ⚡ Bun (JavaScript Runtime)
 
 Bun is the **engine that runs your code**. Think of it like a car engine — your code is the steering wheel, but Bun is what actually makes things move.
 
@@ -210,7 +236,7 @@ You should see something like:
 
 ---
 
-## Step 6 — 🔒 mkcert (HTTPS Certificates)
+## Step 7 — 🔒 mkcert (HTTPS Certificates)
 
 VR in the browser (WebXR) only works over **HTTPS** — a secure connection. mkcert creates certificates that make your local computer trusted for HTTPS.
 
@@ -236,7 +262,7 @@ v1.x.x
 
 ---
 
-## Step 7 — 📱 ADB (USB Bridge to Quest)
+## Step 8 — 📱 ADB (USB Bridge to Quest)
 
 ADB (Android Debug Bridge) connects your computer to the **Meta Quest** headset via USB cable. This lets you test your VR worlds directly on the Quest.
 
@@ -259,7 +285,7 @@ Android Debug Bridge version 1.0.x
 
 ---
 
-## Step 8 — 🤖 OpenCode (AI Coding Assistant)
+## Step 9 — 🤖 OpenCode (AI Coding Assistant)
 
 OpenCode is an **AI assistant that runs in your terminal**. You can ask it questions about the codebase, have it explain code, or even write code for you.
 
@@ -285,6 +311,8 @@ Run all of these to confirm everything is installed:
 brew --version       # ✅ Homebrew
 git --version        # ✅ Git
 gh auth status       # ✅ GitHub CLI (logged in)
+node --version       # ✅ Node.js
+npm --version        # ✅ npm
 bun --version        # ✅ Bun (1.0+)
 mkcert --version     # ✅ mkcert
 adb version          # ✅ ADB (optional)
