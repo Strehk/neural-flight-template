@@ -1,4 +1,5 @@
 import type * as THREE from "three";
+import type { TriggerCommand } from "$lib/types/orientation";
 
 // ── Signal Types ──
 
@@ -201,6 +202,13 @@ export interface ExperienceManifest {
 		speed: { accelerate: boolean; brake: boolean },
 		state: ExperienceState,
 		delta: number,
+	) => void;
+
+	/** Called when a trigger event arrives (if declared in interfaces.triggers). Optional. */
+	handleTrigger?: (
+		trigger: TriggerCommand,
+		state: ExperienceState,
+		scene: THREE.Scene,
 	) => void;
 
 	/** Called when experience unloads. Dispose geometries, materials, textures. */

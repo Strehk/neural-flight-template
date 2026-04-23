@@ -23,5 +23,17 @@ export interface SettingsUpdate {
 	timestamp: number;
 }
 
+/** Generic trigger event (e.g. VR grip, Pulse button) — id is experience-defined */
+export interface TriggerCommand {
+	type: "trigger";
+	id: string;
+	active: boolean;
+	timestamp: number;
+}
+
 /** All possible controller → VR scene messages */
-export type ControllerMessage = OrientationData | SpeedCommand | SettingsUpdate;
+export type ControllerMessage =
+	| OrientationData
+	| SpeedCommand
+	| SettingsUpdate
+	| TriggerCommand;
