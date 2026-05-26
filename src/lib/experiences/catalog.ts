@@ -3,6 +3,7 @@ import { manifest as cloudTowers } from "./cloud-towers";
 import { manifest as gradientPrism } from "./gradient-prism";
 import { manifest as mountainFlight } from "./mountain-flight";
 import { manifest as shaderDemo } from "./shader-demo";
+import { manifest as sinneswandlerTest1 } from "./sinneswandler_test1";
 import type { ExperienceManifest } from "./types";
 
 // ── Registry ──
@@ -19,6 +20,7 @@ const CATALOG: Record<string, ExperienceManifest> = {
 	"gradient-prism": gradientPrism,
 	"mountain-flight": mountainFlight,
 	"shader-demo": shaderDemo,
+	"sinneswandler_test1": sinneswandlerTest1,
 };
 
 export const DEFAULT_EXPERIENCE_ID = "mountain-flight";
