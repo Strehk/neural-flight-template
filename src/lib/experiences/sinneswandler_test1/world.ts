@@ -7,20 +7,17 @@ import {
 } from "./config";
 import { BAT_ECHO_PROBE_DEFAULTS, BAT_STREAMING_DEFAULTS, BAT_WORLD_CONFIG_DEFAULTS } from "./world-config";
 import { ChunkScheduler } from "$lib/three/world/ChunkScheduler";
+import type { AcousticField } from "$lib/three/world/AcousticFieldBaker";
 import {
-  bakeAcousticField,
-  type AcousticField,
-} from "$lib/three/world/AcousticFieldBaker";
-import {
-  applyTerrainDayColor,
-  applyTerrainEchoColor,
   type TerrainDayPalette,
   type TerrainEchoPalette,
 } from "./derived-field-sampler";
-import { TerrainSampler } from "./terrain-sampler";
+import { TerrainSampler, type TerrainSample } from "./terrain-sampler";
 import { addBarycentricAttribute } from "$lib/three/world/geometry-helpers";
-import { buildTerrainGeometry } from "$lib/three/world/TerrainMeshBuilder";
+import { assembleTerrainGeometry } from "$lib/three/world/TerrainMeshBuilder";
 import { DecorationPlacer } from "./decoration-placer";
+import { WorldgenWorkerPool } from "$lib/three/world/worker/WorldgenWorkerPool";
+import type { WorkerBuiltMessage } from "$lib/three/world/worker/protocol";
 import { MothSwarm } from "./moth-swarm";
 import { Renderers } from "./renderers";
 import {
@@ -162,6 +159,14 @@ export class BatWorld {
    */
   private readonly decorationPlacer: DecorationPlacer;
   /**
+   * Off-main-thread worldgen. Each `createChunk` request is dispatched to
+   * a worker; on resolve the typed-array payload is wrapped into THREE
+   * objects via `assembleChunkFromWorker`. Config changes (settings /
+   * biomeOverride / rebuild) forward through `pool.updateConfig`, which
+   * bumps a generation counter so in-flight stale results are dropped.
+   */
+  private readonly workerPool: WorldgenWorkerPool;
+  /**
    * Cached terrain sampler — the canonical entry point for height /
    * biome / acoustic queries (refactor step 4). Owns the NoiseStack
    * and the LRU SampleCache. The individual `noiseXxx` fields below
@@ -251,8 +256,9 @@ export class BatWorld {
         buildRadius: settings.viewRadius,
         keepRadius: settings.viewRadius + 1,
       },
-      buildChunk: (gridX, gridZ) => {
-        const chunk = this.createChunk(gridX, gridZ);
+      buildChunk: async (gridX, gridZ) => {
+        const payload = await this.workerPool.build(gridX, gridZ);
+        const chunk = this.assembleChunkFromWorker(payload);
         this.group.add(chunk.terrain);
         this.group.add(chunk.decorations);
         return chunk;
@@ -398,6 +404,41 @@ export class BatWorld {
     });
 
     this.renderers.applyEnvironment(this.settings);
+
+    // Spin up the worldgen worker pool. Workers own their own
+    // TerrainSampler so the noise stack runs off-main; each chunk's
+    // typed-array payload is wrapped into BufferGeometry +
+    // InstancedMesh by `assembleChunkFromWorker`.
+    this.workerPool = new WorldgenWorkerPool({
+      worldConfig: this.buildWorldConfigSnapshot(),
+      biomeOverride: this.terrainSampler.getBiomeOverride(),
+      chunkSize: this.settings.chunkSize,
+      segments: this.settings.terrainSegments,
+      acousticFieldEnabled: BAT_STREAMING_DEFAULTS.acousticFieldEnabled,
+      acousticFieldGridStep: BAT_STREAMING_DEFAULTS.acousticFieldGridStep,
+      decorationSettings: {
+        chunkSize: this.settings.chunkSize,
+        treeDensity: this.settings.treeDensity,
+        grassDensity: this.settings.grassDensity,
+        mountainHeight: this.settings.mountainHeight,
+      },
+      echoPalette: TERRAIN_ECHO_PALETTE,
+      dayPalette:  TERRAIN_DAY_PALETTE,
+    });
+  }
+
+  private buildWorldConfigSnapshot() {
+    return {
+      ...BAT_WORLD_CONFIG_DEFAULTS,
+      biomeScale: this.settings.biomeScale,
+      mountainHeight: this.settings.mountainHeight,
+      treeDensity: this.settings.treeDensity,
+      grassDensity: this.settings.grassDensity,
+      baseVisibility: this.settings.baseVisibility,
+      fogIntensity: this.settings.fogIntensity,
+      revealIntensity: this.settings.revealIntensity,
+      wireThickness: this.settings.wireThickness,
+    };
   }
 
   prepare(playerPosition: THREE.Vector3): BatWorldFrameEvents {
@@ -440,7 +481,7 @@ export class BatWorld {
     // Push the noise-relevant slice into the sampler; updateConfig
     // also clears the LRU cache so stale samples don't survive a
     // biomeScale / mountainHeight change.
-    this.terrainSampler.updateConfig({
+    const samplerPatch = {
       biomeScale: this.settings.biomeScale,
       mountainHeight: this.settings.mountainHeight,
       treeDensity: this.settings.treeDensity,
@@ -449,6 +490,16 @@ export class BatWorld {
       fogIntensity: this.settings.fogIntensity,
       revealIntensity: this.settings.revealIntensity,
       wireThickness: this.settings.wireThickness,
+    };
+    this.terrainSampler.updateConfig(samplerPatch);
+    this.workerPool.updateConfig({
+      worldConfigPatch: samplerPatch,
+      decorationSettings: {
+        chunkSize: this.settings.chunkSize,
+        treeDensity: this.settings.treeDensity,
+        grassDensity: this.settings.grassDensity,
+        mountainHeight: this.settings.mountainHeight,
+      },
     });
     this.renderers.applyEnvironment(this.settings);
   }
@@ -464,6 +515,7 @@ export class BatWorld {
 
   dispose(): void {
     this.rebuild();
+    this.workerPool.dispose();
     this.renderers.dispose();
     this.pineTreeGeometry.dispose();
     this.commonTreeGeometry.dispose();
@@ -497,6 +549,7 @@ export class BatWorld {
     if (biome !== null && !BAT_BIOME_ORDER.includes(biome)) return;
     if (this.terrainSampler.getBiomeOverride() === biome) return;
     this.terrainSampler.setBiomeOverride(biome);
+    this.workerPool.updateConfig({ biomeOverride: biome });
     this.rebuild();
   }
 
@@ -517,8 +570,20 @@ export class BatWorld {
   // The scheduler owns the active map, anchor, build/keep set logic, and
   // the per-frame build budget. `prepare()` calls it directly.
 
-  private createChunk(gridX: number, gridZ: number): WorldChunk {
-    const terrainGeometry = this.createTerrainGeometry(gridX, gridZ);
+  /**
+   * Wrap a worker's typed-array payload into a `WorldChunk`. All THREE
+   * object allocation happens here: BufferGeometry from the terrain
+   * heights/colours, 17 InstancedMeshes from the decoration data, and a
+   * reconstructed `AcousticField` whose `samples` are plain objects
+   * (the worker drops its own cache between builds).
+   */
+  private assembleChunkFromWorker(payload: WorkerBuiltMessage): WorldChunk {
+    const { gridX, gridZ } = payload;
+    const terrainGeometry = assembleTerrainGeometry(
+      this.settings.chunkSize,
+      this.settings.terrainSegments,
+      payload.terrain,
+    );
     const terrain = new THREE.Mesh(terrainGeometry, this.renderers.terrainMaterial);
     terrain.userData.echoSurface = "terrain";
     terrain.position.set(
@@ -527,20 +592,18 @@ export class BatWorld {
       gridZ * this.settings.chunkSize,
     );
 
-    const decorations = this.decorationPlacer.place(gridX, gridZ);
+    const decorations = this.decorationPlacer.applyData(payload.decorations);
     decorations.position.copy(terrain.position);
 
-    // Bake the AcousticField when enabled (step 11). EchoProbe will
-    // look it up per hit and skip the noise stack for cells that fall
-    // inside an active chunk.
-    const acousticField = BAT_STREAMING_DEFAULTS.acousticFieldEnabled
-      ? bakeAcousticField({
-          gridX,
-          gridZ,
-          chunkSize: this.settings.chunkSize,
-          gridStep: BAT_STREAMING_DEFAULTS.acousticFieldGridStep,
-          sample: (x, z) => this.terrainSampler.sample(x, z),
-        })
+    const acousticField = payload.acoustic
+      ? {
+          chunkSize: payload.acoustic.chunkSize,
+          gridStep: payload.acoustic.gridStep,
+          cellsPerSide: payload.acoustic.cellsPerSide,
+          originX: payload.acoustic.originX,
+          originZ: payload.acoustic.originZ,
+          samples: payload.acoustic.samples as readonly TerrainSample[],
+        }
       : null;
 
     return {
@@ -559,26 +622,6 @@ export class BatWorld {
         }
       },
     };
-  }
-
-  /**
-   * Build a chunk's terrain BufferGeometry. Delegates to the shared
-   * `buildTerrainGeometry()` (refactor step 8a). The TerrainSampler
-   * supplies cached samples, and the two colour blends come from
-   * `derived-field-sampler.ts` so other experiences can plug in
-   * different biome palettes without touching this file.
-   */
-  private createTerrainGeometry(
-    gridX: number,
-    gridZ: number,
-  ): THREE.BufferGeometry {
-    return buildTerrainGeometry(gridX, gridZ, {
-      chunkSize: this.settings.chunkSize,
-      segments: this.settings.terrainSegments,
-      sample: (x, z) => this.terrainSampler.sample(x, z),
-      echo: { apply: applyTerrainEchoColor, palette: TERRAIN_ECHO_PALETTE },
-      day:  { apply: applyTerrainDayColor,  palette: TERRAIN_DAY_PALETTE  },
-    });
   }
 
 

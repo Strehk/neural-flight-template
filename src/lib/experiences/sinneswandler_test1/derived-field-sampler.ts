@@ -18,7 +18,6 @@
  * of step 8 when TerrainMeshBuilder gets extracted.
  */
 
-import * as THREE from "three";
 import { fbm, type NoiseStack } from "$lib/three/world/NoiseStack";
 import { remapNoise, saturate, smoothRange } from "$lib/three/world/math";
 import type { HeightContext } from "./height-sampler";
@@ -97,22 +96,30 @@ export function sampleDerivedFields(
   };
 }
 
+/** Minimal mutable RGB. Both THREE.Color and a plain object satisfy this. */
+export interface RGBLike {
+  r: number;
+  g: number;
+  b: number;
+}
+
 /**
  * Palette injected by `world.ts` to keep the colour-blending helper
- * decoupled from sinneswandler's specific THREE.Color instances. Same
- * names as the legacy module-level constants in world.ts:104–144.
+ * decoupled from sinneswandler's specific colour instances. Structural
+ * type — THREE.Color satisfies it, and so does a plain `{r,g,b}` object
+ * used in the worldgen worker.
  */
 export interface TerrainEchoPalette {
-  base: THREE.Color;
-  forest: THREE.Color;
-  grassland: THREE.Color;
-  mountain: THREE.Color;
-  snow: THREE.Color;
-  desert: THREE.Color;
-  barrens: THREE.Color;
-  midMountainGray: THREE.Color;
-  highMountainGray: THREE.Color;
-  water: THREE.Color;
+  base: RGBLike;
+  forest: RGBLike;
+  grassland: RGBLike;
+  mountain: RGBLike;
+  snow: RGBLike;
+  desert: RGBLike;
+  barrens: RGBLike;
+  midMountainGray: RGBLike;
+  highMountainGray: RGBLike;
+  water: RGBLike;
 }
 
 /**
@@ -122,16 +129,23 @@ export interface TerrainEchoPalette {
  * between `color` and `dayColor` vertex attributes via `uDaylightFactor`.
  */
 export interface TerrainDayPalette {
-  base: THREE.Color;
-  forest: THREE.Color;
-  grassland: THREE.Color;
-  mountain: THREE.Color;
-  snow: THREE.Color;
-  desert: THREE.Color;
-  barrens: THREE.Color;
-  midMountainGray: THREE.Color;
-  highMountainGray: THREE.Color;
-  water: THREE.Color;
+  base: RGBLike;
+  forest: RGBLike;
+  grassland: RGBLike;
+  mountain: RGBLike;
+  snow: RGBLike;
+  desert: RGBLike;
+  barrens: RGBLike;
+  midMountainGray: RGBLike;
+  highMountainGray: RGBLike;
+  water: RGBLike;
+}
+
+/** In-place RGB lerp toward `target` by `t`. Equivalent to THREE.Color.lerp. */
+function lerpRGB(out: RGBLike, target: RGBLike, t: number): void {
+  out.r += (target.r - out.r) * t;
+  out.g += (target.g - out.g) * t;
+  out.b += (target.b - out.b) * t;
 }
 
 /**
@@ -144,7 +158,7 @@ export interface TerrainDayPalette {
  * matching the legacy formulas verbatim.
  */
 export function applyTerrainDayColor(
-  outColor: THREE.Color,
+  outColor: RGBLike,
   ctx: DerivedContext,
   palette: TerrainDayPalette,
 ): void {
@@ -161,46 +175,49 @@ export function applyTerrainDayColor(
     pondWeight,
   } = ctx;
 
-  outColor.setRGB(
+  outColor.r =
     palette.forest.r * forestWeight +
-      palette.grassland.r * grasslandWeight +
-      palette.mountain.r * mountainWeight +
-      palette.snow.r * snowWeight +
-      palette.desert.r * desertWeight +
-      palette.barrens.r * barrensWeight,
+    palette.grassland.r * grasslandWeight +
+    palette.mountain.r * mountainWeight +
+    palette.snow.r * snowWeight +
+    palette.desert.r * desertWeight +
+    palette.barrens.r * barrensWeight;
+  outColor.g =
     palette.forest.g * forestWeight +
-      palette.grassland.g * grasslandWeight +
-      palette.mountain.g * mountainWeight +
-      palette.snow.g * snowWeight +
-      palette.desert.g * desertWeight +
-      palette.barrens.g * barrensWeight,
+    palette.grassland.g * grasslandWeight +
+    palette.mountain.g * mountainWeight +
+    palette.snow.g * snowWeight +
+    palette.desert.g * desertWeight +
+    palette.barrens.g * barrensWeight;
+  outColor.b =
     palette.forest.b * forestWeight +
-      palette.grassland.b * grasslandWeight +
-      palette.mountain.b * mountainWeight +
-      palette.snow.b * snowWeight +
-      palette.desert.b * desertWeight +
-      palette.barrens.b * barrensWeight,
-  );
-  outColor.lerp(palette.base, 0.06 + cliffiness * 0.06);
+    palette.grassland.b * grasslandWeight +
+    palette.mountain.b * mountainWeight +
+    palette.snow.b * snowWeight +
+    palette.desert.b * desertWeight +
+    palette.barrens.b * barrensWeight;
+  lerpRGB(outColor, palette.base, 0.06 + cliffiness * 0.06);
   if (cliffiness > 0.45) {
-    outColor.lerp(palette.mountain, cliffiness * 0.22);
+    lerpRGB(outColor, palette.mountain, cliffiness * 0.22);
   }
-  outColor.lerp(
+  lerpRGB(
+    outColor,
     palette.midMountainGray,
     midAltitudeFactor * (0.18 + mountainWeight * 0.2),
   );
-  outColor.lerp(
+  lerpRGB(
+    outColor,
     palette.highMountainGray,
     altitudeFactor * (0.3 + mountainWeight * 0.46),
   );
   if (snowWeight > 0.34) {
-    outColor.lerp(palette.snow, snowWeight * 0.82);
+    lerpRGB(outColor, palette.snow, snowWeight * 0.82);
   }
   if (desertWeight > 0.42) {
-    outColor.lerp(palette.desert, desertWeight * 0.12);
+    lerpRGB(outColor, palette.desert, desertWeight * 0.12);
   }
   if (pondWeight > 0.08) {
-    outColor.lerp(palette.water, pondWeight * 0.42);
+    lerpRGB(outColor, palette.water, pondWeight * 0.42);
   }
 }
 
@@ -210,7 +227,7 @@ export function applyTerrainDayColor(
  * inner loop allocation-free.
  */
 export function applyTerrainEchoColor(
-  outColor: THREE.Color,
+  outColor: RGBLike,
   ctx: DerivedContext,
   palette: TerrainEchoPalette,
 ): void {
@@ -227,45 +244,48 @@ export function applyTerrainEchoColor(
     pondWeight,
   } = ctx;
 
-  outColor.setRGB(
+  outColor.r =
     palette.forest.r * forestWeight +
-      palette.grassland.r * grasslandWeight +
-      palette.mountain.r * mountainWeight +
-      palette.snow.r * snowWeight +
-      palette.desert.r * desertWeight +
-      palette.barrens.r * barrensWeight,
+    palette.grassland.r * grasslandWeight +
+    palette.mountain.r * mountainWeight +
+    palette.snow.r * snowWeight +
+    palette.desert.r * desertWeight +
+    palette.barrens.r * barrensWeight;
+  outColor.g =
     palette.forest.g * forestWeight +
-      palette.grassland.g * grasslandWeight +
-      palette.mountain.g * mountainWeight +
-      palette.snow.g * snowWeight +
-      palette.desert.g * desertWeight +
-      palette.barrens.g * barrensWeight,
+    palette.grassland.g * grasslandWeight +
+    palette.mountain.g * mountainWeight +
+    palette.snow.g * snowWeight +
+    palette.desert.g * desertWeight +
+    palette.barrens.g * barrensWeight;
+  outColor.b =
     palette.forest.b * forestWeight +
-      palette.grassland.b * grasslandWeight +
-      palette.mountain.b * mountainWeight +
-      palette.snow.b * snowWeight +
-      palette.desert.b * desertWeight +
-      palette.barrens.b * barrensWeight,
-  );
-  outColor.lerp(palette.base, 0.08 + cliffiness * 0.06);
+    palette.grassland.b * grasslandWeight +
+    palette.mountain.b * mountainWeight +
+    palette.snow.b * snowWeight +
+    palette.desert.b * desertWeight +
+    palette.barrens.b * barrensWeight;
+  lerpRGB(outColor, palette.base, 0.08 + cliffiness * 0.06);
   if (cliffiness > 0.45) {
-    outColor.lerp(palette.mountain, cliffiness * 0.2);
+    lerpRGB(outColor, palette.mountain, cliffiness * 0.2);
   }
-  outColor.lerp(
+  lerpRGB(
+    outColor,
     palette.midMountainGray,
     midAltitudeFactor * (0.14 + mountainWeight * 0.18),
   );
-  outColor.lerp(
+  lerpRGB(
+    outColor,
     palette.highMountainGray,
     altitudeFactor * (0.26 + mountainWeight * 0.42),
   );
   if (snowWeight > 0.34) {
-    outColor.lerp(palette.snow, snowWeight * 0.72);
+    lerpRGB(outColor, palette.snow, snowWeight * 0.72);
   }
   if (desertWeight > 0.42) {
-    outColor.lerp(palette.desert, desertWeight * 0.12);
+    lerpRGB(outColor, palette.desert, desertWeight * 0.12);
   }
   if (pondWeight > 0.08) {
-    outColor.lerp(palette.water, pondWeight * 0.48);
+    lerpRGB(outColor, palette.water, pondWeight * 0.48);
   }
 }

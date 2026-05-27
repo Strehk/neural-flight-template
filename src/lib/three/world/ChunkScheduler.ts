@@ -1,33 +1,31 @@
 /**
  * ChunkScheduler — generic anchor-tracked, dual-radius chunk loader
- * with hysteresis. Replaces `BatWorld.ensureChunks` (world.ts:610–646)
- * with a reusable streaming primitive that any future grid-tiled
- * world can adopt.
+ * with hysteresis. Supports both synchronous and asynchronous chunk
+ * factories.
  *
- * Refactor step 7. The plan calls for three behaviours:
+ * Behaviour:
  *
  * 1. **Anchor decoupled from the player.** The anchor is a discrete
  *    chunk cell that only advances when the player has moved
- *    `anchorStepCells` cells away from it. Set to 1 (default) the
- *    anchor tracks the player; set to ≥2 the player can wobble
- *    around the boundary without triggering work.
+ *    `anchorStepCells` cells away from it. Set to 1 the anchor tracks
+ *    the player; set to ≥2 the player can wobble around the boundary
+ *    without triggering work.
  *
- * 2. **Build vs. keep radii.** A chunk is built (and uploaded to the
- *    scene by the caller's `buildChunk` factory) when it enters the
- *    build set. It's only disposed when it leaves the *keep* set — a
- *    Chebyshev ring one cell wider by default. The result is no
- *    rebuild thrash when the player oscillates near a boundary.
+ * 2. **Build vs. keep radii.** A chunk is built (and uploaded by the
+ *    caller's `buildChunk` factory) when it enters the build set. It's
+ *    only disposed when it leaves the *keep* set — a Chebyshev ring one
+ *    cell wider by default.
  *
- * 3. **Frame budget.** Each `update()` call builds at most
- *    `maxBuildsPerFrame` chunks. Missing cells are queued nearest-to-
- *    anchor first so the world fills in as a growing disk rather than
- *    a random scatter. Initial load takes ⌈cellsInBuildSet /
- *    budget⌉ frames.
+ * 3. **Frame budget.** Each `update()` call **initiates** at most
+ *    `maxBuildsPerFrame` builds. When `buildChunk` returns a Promise,
+ *    the chunk is tracked as in-flight; when it resolves, the chunk
+ *    enters the active set (unless its cell drifted outside the keep
+ *    radius or the request was cancelled by `clearAll`, in which case
+ *    the chunk is disposed immediately).
  *
- * Determinism: the scheduler holds no world state itself — chunks are
- * produced by the caller-supplied `buildChunk` factory and disposed
- * via their own `dispose()` method. Construction order doesn't affect
- * which cells become active for a given anchor.
+ * Cancellation: the scheduler can't abort a worker that's already
+ * running, but it can drop the result. `clearAll()` marks every
+ * in-flight request cancelled and disposes resolved results inline.
  */
 
 import type { StreamingConfig } from "$lib/experiences/sinneswandler_test1/world-config";
@@ -41,9 +39,13 @@ export interface ChunkLike {
 
 export interface ChunkSchedulerOptions<T extends ChunkLike> {
   config: StreamingConfig;
-  /** Build a chunk for the given grid cell. Caller does scene attach. */
-  buildChunk: (gridX: number, gridZ: number) => T;
-  /** Fired immediately after `buildChunk` returns. */
+  /**
+   * Build a chunk for the given grid cell. May return synchronously
+   * (legacy path) or a Promise (worker pool). Scene attachment is the
+   * caller's responsibility on resolve.
+   */
+  buildChunk: (gridX: number, gridZ: number) => T | Promise<T>;
+  /** Fired immediately after a chunk enters the active set. */
   onChunkBuilt?: (chunk: T) => void;
   /** Fired immediately after a chunk's `dispose()`; caller does scene detach. */
   onChunkDisposed?: (chunk: T) => void;
@@ -52,23 +54,37 @@ export interface ChunkSchedulerOptions<T extends ChunkLike> {
 export interface SchedulerStats {
   /** Active chunks after this tick. */
   active: number;
-  /** Chunks built this tick (≤ maxBuildsPerFrame). */
+  /** Builds initiated this tick (≤ maxBuildsPerFrame). */
   built: number;
-  /** Chunks disposed this tick. */
+  /** Chunks disposed this tick (does NOT include in-flight cancellations). */
   disposed: number;
   /** Chunks still inside the build set but deferred to a later frame. */
   pending: number;
+  /** Builds still in flight (initiated, not yet resolved). */
+  inFlight: number;
+}
+
+interface InFlightEntry {
+  gridX: number;
+  gridZ: number;
+  generation: number;
+  cancelled: boolean;
 }
 
 export class ChunkScheduler<T extends ChunkLike> {
   readonly config: StreamingConfig;
 
-  private readonly buildChunk: (gx: number, gz: number) => T;
+  private readonly buildChunk: (gx: number, gz: number) => T | Promise<T>;
   private readonly onBuilt?: (chunk: T) => void;
   private readonly onDisposed?: (chunk: T) => void;
 
   /** Active chunks keyed by `"gx,gz"`. Map preserves insertion order. */
   private readonly active = new Map<string, T>();
+  /** Builds initiated but not yet resolved. Keyed by `"gx,gz"`. */
+  private readonly inFlight = new Map<string, InFlightEntry>();
+  /** Bumped on `clearAll` so resolved-after-clear chunks dispose themselves. */
+  private generation = 0;
+
   /** `NaN` means "not yet anchored" — first `update()` plants the anchor. */
   private anchorX = Number.NaN;
   private anchorZ = Number.NaN;
@@ -89,7 +105,7 @@ export class ChunkScheduler<T extends ChunkLike> {
     this.onDisposed = opts.onChunkDisposed;
   }
 
-  /** Active chunks, in insertion order (matches the legacy `active.values()`). */
+  /** Active chunks, in insertion order. */
   chunks(): IterableIterator<T> {
     return this.active.values();
   }
@@ -100,8 +116,7 @@ export class ChunkScheduler<T extends ChunkLike> {
 
   /**
    * Resolve the active chunk that owns world coords `(x, z)`, or
-   * `undefined` if it's outside the loaded set. O(1) — keyed off
-   * the same `"gx,gz"` string the scheduler uses internally.
+   * `undefined` if it's outside the loaded set.
    */
   chunkAt(x: number, z: number): T | undefined {
     const gx = Math.floor(x / this.config.chunkSize);
@@ -127,9 +142,9 @@ export class ChunkScheduler<T extends ChunkLike> {
   }
 
   /**
-   * One streaming tick. Advances the anchor if the player has moved
-   * far enough, disposes chunks outside the keep set, builds missing
-   * chunks inside the build set up to the per-frame budget.
+   * One streaming tick. Advances the anchor, disposes chunks outside
+   * the keep set, initiates builds for missing chunks inside the build
+   * set up to the per-frame budget.
    */
   update(positionX: number, positionZ: number): SchedulerStats {
     const cs = this.config.chunkSize;
@@ -165,38 +180,44 @@ export class ChunkScheduler<T extends ChunkLike> {
       }
     }
 
+    // Cancel any in-flight cells that drifted outside the keep radius
+    // while the worker was still building. The result will be disposed
+    // on arrival.
+    for (const entry of this.inFlight.values()) {
+      if (entry.cancelled) continue;
+      const ddx = entry.gridX - this.anchorX;
+      const ddz = entry.gridZ - this.anchorZ;
+      if (Math.abs(ddx) > keep || Math.abs(ddz) > keep) {
+        entry.cancelled = true;
+      }
+    }
+
     const build = this.config.buildRadius;
     const budget = this.config.maxBuildsPerFrame;
     let built = 0;
     let pending = 0;
 
-    // Iterate Chebyshev rings outward (0 = anchor cell, 1 = 8 cells, …) so
-    // nearest-to-anchor builds first when the budget is tight.
+    // Iterate Chebyshev rings outward so nearest-to-anchor builds first
+    // when the budget is tight.
     rings: for (let radius = 0; radius <= build; radius++) {
       for (let dx = -radius; dx <= radius; dx++) {
         for (let dz = -radius; dz <= radius; dz++) {
-          // Only emit cells exactly on this ring; skip the interior.
           if (Math.max(Math.abs(dx), Math.abs(dz)) !== radius) continue;
 
           const gx = this.anchorX + dx;
           const gz = this.anchorZ + dz;
           const key = `${gx},${gz}`;
-          if (this.active.has(key)) continue;
+          if (this.active.has(key) || this.inFlight.has(key)) continue;
 
           if (built >= budget) {
             pending++;
             continue;
           }
-          const chunk = this.buildChunk(gx, gz);
-          this.active.set(key, chunk);
-          this.onBuilt?.(chunk);
+          this.initiateBuild(gx, gz, key);
           built++;
-          this.builtLifetime++;
         }
       }
       if (built >= budget) {
-        // Don't break — we still want to count `pending` for outer rings.
-        // (Falls through; the inner `built >= budget` check skips builds.)
         continue rings;
       }
     }
@@ -206,32 +227,99 @@ export class ChunkScheduler<T extends ChunkLike> {
       built,
       disposed,
       pending,
+      inFlight: this.inFlight.size,
     };
   }
 
   /**
-   * Dispose every active chunk + drop the anchor. The next `update()`
-   * call re-plants the anchor at the player's position and starts
-   * filling the build set from scratch (over multiple frames if
-   * `maxBuildsPerFrame < buildSetSize`).
+   * Dispose every active chunk + cancel every in-flight build + drop
+   * the anchor. The next `update()` re-plants the anchor at the
+   * player's position and starts filling the build set from scratch.
    */
   clearAll(): void {
+    this.generation += 1;
     for (const chunk of this.active.values()) {
       chunk.dispose();
       this.onDisposed?.(chunk);
       this.disposedLifetime++;
     }
     this.active.clear();
+    for (const entry of this.inFlight.values()) {
+      entry.cancelled = true;
+    }
+    // Don't clear inFlight — entries auto-clean when their promises
+    // resolve into the disposal branch. Cancelling them ensures they
+    // never reach the active set, which is the important guarantee.
     this.anchorX = Number.NaN;
     this.anchorZ = Number.NaN;
   }
 
-  /**
-   * Reset the lifetime counters. Useful at the start of a regression
-   * test that measures churn in response to deliberate player motion.
-   */
+  /** Reset the lifetime counters. */
   resetCounters(): void {
     this.builtLifetime = 0;
     this.disposedLifetime = 0;
   }
+
+  private initiateBuild(gridX: number, gridZ: number, key: string): void {
+    const entry: InFlightEntry = {
+      gridX,
+      gridZ,
+      generation: this.generation,
+      cancelled: false,
+    };
+    this.inFlight.set(key, entry);
+
+    let result: T | Promise<T>;
+    try {
+      result = this.buildChunk(gridX, gridZ);
+    } catch (err) {
+      this.inFlight.delete(key);
+      throw err;
+    }
+
+    if (isThenable(result)) {
+      result.then(
+        (chunk) => this.completeBuild(key, entry, chunk),
+        // Build failure: drop the in-flight entry; the caller's
+        // buildChunk promise has already rejected, no chunk to dispose.
+        () => { this.inFlight.delete(key); },
+      );
+    } else {
+      this.completeBuild(key, entry, result);
+    }
+  }
+
+  private completeBuild(key: string, entry: InFlightEntry, chunk: T): void {
+    this.inFlight.delete(key);
+    if (entry.cancelled || entry.generation !== this.generation) {
+      // Anchor moved (or clearAll was called) before this chunk
+      // arrived. Dispose immediately; the scene was never updated.
+      chunk.dispose();
+      this.onDisposed?.(chunk);
+      this.disposedLifetime++;
+      return;
+    }
+    // Final keep-radius re-check — covers the case where the anchor
+    // advanced after we marked the entry, but before resolution.
+    const keep = this.config.keepRadius;
+    const ddx = chunk.gridX - this.anchorX;
+    const ddz = chunk.gridZ - this.anchorZ;
+    if (Math.abs(ddx) > keep || Math.abs(ddz) > keep) {
+      chunk.dispose();
+      this.onDisposed?.(chunk);
+      this.disposedLifetime++;
+      return;
+    }
+    this.active.set(key, chunk);
+    this.onBuilt?.(chunk);
+    this.builtLifetime++;
+  }
+}
+
+function isThenable<T>(value: T | Promise<T>): value is Promise<T> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as { then?: unknown }).then === "function"
+  );
 }
