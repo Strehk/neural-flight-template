@@ -90,6 +90,17 @@ export class SenseSwitchManager {
   readonly group = new THREE.Group();
   currentMode: VisionModeId;
 
+  /**
+   * Fires whenever `switchTo` initiates (or no-ops a re-activation of)
+   * a mode change. Scene code wires this to
+   * `perceptionRouter.activate(id, fadeMs)` so the router stays in
+   * sync with the working transition logic in this manager
+   * (refactor step 10b).
+   *
+   * `fadeMs` matches the manager's internal `TRANSITION_DURATION`.
+   */
+  onModeChange: ((id: VisionModeId, fadeMs: number) => void) | null = null;
+
   private zones: TriggerZone[] = [];
   private rings: SenseRing[] = [];
   private transition: ActiveTransition | null = null;
@@ -199,6 +210,10 @@ export class SenseSwitchManager {
     if (targetMode === this.currentMode && !this.transition) return;
     this.transition = { fromMode: this.currentMode, toMode: targetMode, progress: 0 };
     this.currentMode = targetMode;
+    // Mirror the transition into the PerceptionRouter (if one is wired).
+    // The router handles layer-mask + future overrides / post-fx; SSM
+    // keeps owning the uniform-lerp via `applyModeLerp`.
+    this.onModeChange?.(targetMode, TRANSITION_DURATION * 1000);
   }
 
   dispose(): void {

@@ -26,6 +26,8 @@ import { BatFlightController } from "./flight-controller";
 import type { EchoPulseRenderState } from "./shaders";
 import { BatWorld, type EchoProbeProfile } from "./world";
 import { SenseSwitchManager } from "./sense-switch";
+import { PerceptionRouter, setObjectLayers, LAYER_IDS, makeMask } from "$lib/three/perception";
+import { SINNESWANDLER_PERCEPTIONS } from "./perceptions";
 import { KeyboardInput } from "./keyboard-input";
 import { ChemosenseLayer } from "./chemosense-layer";
 import { loadWorldModels } from "./world-models";
@@ -84,6 +86,13 @@ export interface BatEcholocationState extends ExperienceState {
   keyboardInput: KeyboardInput;
   chemosenseLayer: ChemosenseLayer;
   chemosenseScore: number;
+  /**
+   * Multi-Perception-Rendering router (refactor step 10b). Holds the
+   * three sinneswandler Perception plugins; activation is driven by
+   * `senseSwitch.onModeChange`. Layer-mask hides chemosense hotspots
+   * outside chemosense mode automatically.
+   */
+  perceptionRouter: PerceptionRouter;
 }
 
 function createRenderPulseState(
@@ -452,6 +461,10 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
     "echolocation",
   );
   const chemosenseLayer = new ChemosenseLayer(world);
+  // Chemosense particles only render when the chemosense perception
+  // is active (or fading). Layer-mask + the existing opacity fade
+  // play together: out of mode, the GPU skips them entirely.
+  setObjectLayers(chemosenseLayer.group, makeMask("base", "chemosense"));
 
   ctx.scene.add(world.group);
   ctx.scene.add(player.rig);
@@ -461,6 +474,24 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
   ctx.scene.add(mothEchoFx);
   ctx.scene.add(senseSwitch.group);
   ctx.scene.add(chemosenseLayer.group);
+
+  // Multi-Perception-Rendering router. SenseSwitchManager keeps owning
+  // the uniform-lerp (working today); the router handles layer-mask
+  // application + future post-fx + material overrides as more
+  // perceptions ship.
+  const perceptionRouter = new PerceptionRouter({
+    scene: ctx.scene,
+    camera: player.camera,
+  });
+  for (const perception of SINNESWANDLER_PERCEPTIONS) {
+    perceptionRouter.register(perception);
+  }
+  perceptionRouter.activate(senseSwitch.currentMode, {}, 0);
+  // Bridge SSM ⇄ router so a switch initiated anywhere (zone, ring,
+  // biome lock, manual cycle) drives both in lockstep.
+  senseSwitch.onModeChange = (id, fadeMs) => {
+    perceptionRouter.activate(id, {}, fadeMs);
+  };
 
   const state: BatEcholocationState = {
     player,
@@ -494,6 +525,7 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
     keyboardInput,
     chemosenseLayer,
     chemosenseScore: 0,
+    perceptionRouter,
   };
 
   if (ctx.scene.fog instanceof THREE.Fog) {
@@ -527,6 +559,9 @@ export function tick(
   }
 
   s.senseSwitch.tick(s.player.rig.position, ctx.delta, ctx.elapsed);
+  // Router runs after senseSwitch so any `switchTo` triggered above
+  // has already fired its onModeChange hook this frame.
+  s.perceptionRouter.update(ctx.delta);
   s.player.tick(ctx.delta, (x, z) => s.world.sampleHeight(x, z));
   s.sky.position.copy(s.player.rig.position);
   s.moon.position

@@ -11,11 +11,16 @@ function webSocketPlugin(): Plugin {
 		configureServer(server) {
 			const wss = new WebSocketServer({ noServer: true });
 
-			server.httpServer?.on("upgrade", (request, socket, head) => {
-				// Let Vite HMR keep its own WebSocket
-				if (request.headers["sec-websocket-protocol"]?.includes("vite-hmr"))
-					return;
+			console.log("[WS Plugin] httpServer exists:", !!server.httpServer);
 
+			server.httpServer?.on("upgrade", (request, socket, head) => {
+				const protocol = request.headers["sec-websocket-protocol"] ?? "";
+				console.log("[WS Plugin] upgrade event, protocol:", protocol);
+
+				// Let Vite HMR keep its own WebSocket
+				if (protocol.includes("vite-hmr")) return;
+
+				console.log("[WS Plugin] handling app WebSocket");
 				wss.handleUpgrade(request, socket, head, (ws) => {
 					handleConnection(ws);
 				});
