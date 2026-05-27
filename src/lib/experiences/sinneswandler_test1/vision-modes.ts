@@ -1,7 +1,13 @@
 import * as THREE from "three";
 import type { BatBiomeId } from "./config";
 
-export type VisionModeId = "echolocation" | "daylight" | "chemosense";
+export type VisionModeId =
+  | "luft"
+  | "echoLocation"
+  | "infrarot"
+  | "duft"
+  | "netzwerk"
+  | "depthDebug";
 
 export interface VisionMode {
   id: VisionModeId;
@@ -18,70 +24,100 @@ export interface VisionMode {
 }
 
 export const VISION_MODES: Record<VisionModeId, VisionMode> = {
-  echolocation: {
-    id: "echolocation",
-    label: "Echoortung",
-    fogNear: 10,
-    fogFar: 180,
-    fogColorHex: 0x040812,
-    skyColors: [0x05070a, 0x020305, 0x000000],
-    baseVisibility: 0.0195,
-    moonColorHex: 0xf6fbff,
-    moonDirection: new THREE.Vector3(-0.44, 0.74, -0.5).normalize(),
-    echoEnabled: true,
-    accentHex: 0xf7c948,
-  },
-  daylight: {
-    id: "daylight",
-    label: "Tagsicht",
-    fogNear: 60,
-    fogFar: 500,
-    fogColorHex: 0xc8dff0,
-    skyColors: [0x1a5fa0, 0x4a9fd4, 0x87ceeb],
-    baseVisibility: 1.0,
-    moonColorHex: 0xfff4d0,
-    moonDirection: new THREE.Vector3(0.3, 0.85, -0.4).normalize(),
+  luft: {
+    id: "luft",
+    label: "Luft",
+    fogNear: 20,
+    fogFar: 260,
+    fogColorHex: 0xffffff,
+    skyColors: [0xffffff, 0xffffff, 0xffffff],
+    baseVisibility: 1,
+    moonColorHex: 0xffffff,
+    moonDirection: new THREE.Vector3(0.12, 0.38, -0.92).normalize(),
     echoEnabled: false,
-    accentHex: 0x7fd0bc,
+    accentHex: 0x111111,
   },
-  chemosense: {
-    id: "chemosense",
-    label: "Geruchssinn",
-    fogNear: 8,
-    fogFar: 80,
-    fogColorHex: 0x010204,
-    skyColors: [0x010204, 0x010102, 0x000000],
-    baseVisibility: 0.006,
-    moonColorHex: 0x223311,
-    moonDirection: new THREE.Vector3(0.0, 1.0, -0.2).normalize(),
+  echoLocation: {
+    id: "echoLocation",
+    label: "Echo Location",
+    fogNear: 180,
+    fogFar: 760,
+    fogColorHex: 0xf8f8f3,
+    skyColors: [0xffffff, 0xfafaf5, 0xf0f0eb],
+    baseVisibility: 1,
+    moonColorHex: 0xffffff,
+    moonDirection: new THREE.Vector3(-0.34, 0.62, -0.7).normalize(),
+    echoEnabled: false,
+    accentHex: 0xd8ff88,
+  },
+  infrarot: {
+    id: "infrarot",
+    label: "Infrarot",
+    fogNear: 120,
+    fogFar: 620,
+    fogColorHex: 0xf6f6f1,
+    skyColors: [0xffffff, 0xf9f9f3, 0xefefea],
+    baseVisibility: 1,
+    moonColorHex: 0xffffff,
+    moonDirection: new THREE.Vector3(-0.34, 0.62, -0.7).normalize(),
+    echoEnabled: false,
+    accentHex: 0xffffff,
+  },
+  netzwerk: {
+    id: "netzwerk",
+    label: "Netzwerk",
+    fogNear: 150,
+    fogFar: 680,
+    fogColorHex: 0xf7f7f2,
+    skyColors: [0xffffff, 0xf9f9f3, 0xefefea],
+    baseVisibility: 1,
+    moonColorHex: 0xffffff,
+    moonDirection: new THREE.Vector3(-0.34, 0.62, -0.7).normalize(),
+    echoEnabled: false,
+    accentHex: 0x8fffce,
+  },
+  duft: {
+    id: "duft",
+    label: "Duft",
+    fogNear: 120,
+    fogFar: 620,
+    fogColorHex: 0xf8f8f4,
+    skyColors: [0xffffff, 0xf9f9f4, 0xf0f0eb],
+    baseVisibility: 1,
+    moonColorHex: 0xffffff,
+    moonDirection: new THREE.Vector3(-0.34, 0.62, -0.7).normalize(),
     echoEnabled: false,
     accentHex: 0x88ff44,
+  },
+  depthDebug: {
+    id: "depthDebug",
+    label: "Depth Debug",
+    fogNear: 55,
+    fogFar: 460,
+    fogColorHex: 0xf8f8f4,
+    skyColors: [0xffffff, 0xfdfdf9, 0xf5f5ef],
+    baseVisibility: 1,
+    moonColorHex: 0xffffff,
+    moonDirection: new THREE.Vector3(-0.28, 0.58, -0.76).normalize(),
+    echoEnabled: false,
+    accentHex: 0x111111,
   },
 };
 
 // Extend this array to add new switchable modes in order.
-export const MODE_SEQUENCE: VisionModeId[] = ["echolocation", "daylight", "chemosense"];
+export const MODE_SEQUENCE: VisionModeId[] = [
+  "luft",
+  "echoLocation",
+  "infrarot",
+  "duft",
+  "netzwerk",
+  "depthDebug",
+];
 
 export function nextMode(current: VisionModeId): VisionModeId {
   const idx = MODE_SEQUENCE.indexOf(current);
   return MODE_SEQUENCE[(idx + 1) % MODE_SEQUENCE.length];
 }
 
-/**
- * Biomes listed here lock the player into a specific vision mode while inside.
- * Biomes not listed impose no override (player stays in whatever mode they're in).
- *
- *  mountains  → Tagsicht  (open alpine panorama, fully visible)
- *  snow       → Tagsicht  (bright open snow fields)
- *  grassland  → Tagsicht  (wide open fields, sunlit)
- *  forest     → Echoortung (dense canopy, navigate by sound)
- *  desert     → Tagsicht  (open desert, visible landmarks)
- *  barrens    → (no override)
- */
-export const BIOME_VISION_MODES: Partial<Record<BatBiomeId, VisionModeId>> = {
-  mountains: "daylight",
-  snow:      "daylight",
-  grassland: "daylight",
-  forest:    "echolocation",
-  desert:    "daylight",
-};
+/** Biome mode overrides are disabled; these modes are selected manually. */
+export const BIOME_VISION_MODES: Partial<Record<BatBiomeId, VisionModeId>> = {};

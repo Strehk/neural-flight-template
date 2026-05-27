@@ -144,6 +144,14 @@ export interface TickContext {
 	playerRotation: THREE.Euler;
 }
 
+export interface RenderContext {
+	scene: THREE.Scene;
+	renderer: THREE.WebGLRenderer;
+	camera: THREE.PerspectiveCamera;
+	delta: number;
+	elapsed: number;
+}
+
 // ── The Manifest ──
 
 export interface ExperienceManifest {
@@ -187,6 +195,9 @@ export interface ExperienceManifest {
 		state: ExperienceState;
 		outputs?: Record<string, SignalValue | ColorValue>;
 	};
+
+	/** Optional custom rendering hook for experience-specific post-processing. */
+	render?: (state: ExperienceState, ctx: RenderContext) => void;
 
 	/** Called when a parameter changes. Map parameter ID to scene changes. */
 	applySettings: (

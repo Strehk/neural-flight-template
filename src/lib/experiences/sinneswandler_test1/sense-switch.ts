@@ -31,6 +31,7 @@ const RING_TUBE_RADIUS = 0.7;
 const RING_SPAWN_DIST_MIN = 90;
 const RING_SPAWN_DIST_MAX = 170;
 const RING_COUNT_TARGET = 2;
+const AUTO_MODE_TRIGGERS_ENABLED = false;
 
 interface TriggerZone {
   group: THREE.Group;
@@ -71,6 +72,25 @@ function smoothstep(t: number): number {
   return c * c * (3 - 2 * c);
 }
 
+function modeRank(mode: VisionModeId): number {
+  const index = MODE_SEQUENCE.indexOf(mode);
+  return index >= 0 ? index : -1;
+}
+
+function hasStackedLayer(mode: VisionModeId, layer: VisionModeId): boolean {
+  const modeIndex = modeRank(mode);
+  const layerIndex = modeRank(layer);
+  return modeIndex >= 0 && layerIndex >= 0 && modeIndex >= layerIndex;
+}
+
+function setSceneBackground(scene: THREE.Scene, color: THREE.Color): void {
+  if (scene.background instanceof THREE.Color) {
+    scene.background.copy(color);
+    return;
+  }
+  scene.background = color.clone();
+}
+
 function disposeMesh(mesh: THREE.Mesh): void {
   mesh.geometry.dispose();
   if (Array.isArray(mesh.material)) {
@@ -107,7 +127,7 @@ export class SenseSwitchManager {
     sharedUniforms: SharedEchoUniforms,
     scene: THREE.Scene,
     sky: THREE.Mesh,
-    initialMode: VisionModeId = "echolocation",
+    initialMode: VisionModeId = "luft",
   ) {
     this.sharedUniforms = sharedUniforms;
     this.scene = scene;
@@ -131,26 +151,82 @@ export class SenseSwitchManager {
     return VISION_MODES[this.currentMode].echoEnabled;
   }
 
-  /** 0–1 blend weight for chemosense mode (accounting for in-progress transitions). */
-  getChemosenseFactor(): number {
+  /** 0–1 blend weight for Duft mode (accounting for in-progress transitions). */
+  getDuftFactor(): number {
+    return this.getStackedLayerFactor("duft");
+  }
+
+  /** 0–1 blend weight for the stacked ecological network layer. */
+  getNetzwerkFactor(): number {
+    return this.getStackedLayerFactor("netzwerk");
+  }
+
+  /** Blend weight for the depth-map spatial basis. */
+  getDepthFactor(): number {
     if (!this.transition) {
-      return this.currentMode === "chemosense" ? 1 : 0;
+      return this.currentMode === "echoLocation" || this.currentMode === "depthDebug" ? 1 : 0;
     }
-    const fromVal = this.transition.fromMode === "chemosense" ? 1 : 0;
-    const toVal   = this.transition.toMode   === "chemosense" ? 1 : 0;
+    const fromVal =
+      this.transition.fromMode === "echoLocation" || this.transition.fromMode === "depthDebug"
+        ? 1
+        : 0;
+    const toVal =
+      this.transition.toMode === "echoLocation" || this.transition.toMode === "depthDebug"
+        ? 1
+        : 0;
     const t = smoothstep(this.transition.progress);
     return fromVal + (toVal - fromVal) * t;
   }
 
-  /** 0–1 blend weight for echolocation mode (accounting for in-progress transitions). */
-  getEcholocationFactor(): number {
+  /** 1 = near black/far white, 0 = original near white/far black. */
+  getDepthInvertFactor(): number {
     if (!this.transition) {
-      return this.currentMode === "echolocation" ? 1 : 0;
+      return this.currentMode === "depthDebug" ? 1 : 0;
     }
-    const fromVal = this.transition.fromMode === "echolocation" ? 1 : 0;
-    const toVal   = this.transition.toMode   === "echolocation" ? 1 : 0;
+    const fromVal = this.transition.fromMode === "depthDebug" ? 1 : 0;
+    const toVal = this.transition.toMode === "depthDebug" ? 1 : 0;
     const t = smoothstep(this.transition.progress);
     return fromVal + (toVal - fromVal) * t;
+  }
+
+  /** 0–1 blend weight for Luft mode. */
+  getLuftFactor(): number {
+    return this.getModeFactor("luft");
+  }
+
+  /** 0–1 blend weight for Echo Location mode. */
+  getEchoLocationFactor(): number {
+    return this.getModeFactor("echoLocation");
+  }
+
+  /** 0–1 blend weight for Infrarot mode. */
+  getInfrarotFactor(): number {
+    return this.getStackedLayerFactor("infrarot");
+  }
+
+  private getModeFactor(mode: VisionModeId): number {
+    if (!this.transition) {
+      return this.currentMode === mode ? 1 : 0;
+    }
+    const fromVal = this.transition.fromMode === mode ? 1 : 0;
+    const toVal = this.transition.toMode === mode ? 1 : 0;
+    const t = smoothstep(this.transition.progress);
+    return fromVal + (toVal - fromVal) * t;
+  }
+
+  private getStackedLayerFactor(layer: VisionModeId): number {
+    if (!this.transition) {
+      return hasStackedLayer(this.currentMode, layer) ? 1 : 0;
+    }
+    const fromVal = hasStackedLayer(this.transition.fromMode, layer) ? 1 : 0;
+    const toVal = hasStackedLayer(this.transition.toMode, layer) ? 1 : 0;
+    const t = smoothstep(this.transition.progress);
+    return fromVal + (toVal - fromVal) * t;
+  }
+
+  /** Legacy echo pulse visibility is disabled for the new named modes. */
+  getEcholocationFactor(): number {
+    return 0;
   }
 
   tick(playerPos: THREE.Vector3, delta: number, elapsed: number): void {
@@ -185,8 +261,16 @@ export class SenseSwitchManager {
    */
   updateAtmosphere(aheadBiome: BatBiomeId, delta: number): void {
     if (this.transition) return;
+    if (
+      this.currentMode === "luft" ||
+      this.currentMode === "echoLocation" ||
+      this.currentMode === "infrarot" ||
+      this.currentMode === "duft" ||
+      this.currentMode === "netzwerk" ||
+      this.currentMode === "depthDebug"
+    ) return;
     const tintInfo = BIOME_FOG_TINTS[aheadBiome];
-    const tintHex = this.currentMode === "daylight" ? tintInfo.day : tintInfo.echo; // chemosense uses echo tints (dark)
+    const tintHex = tintInfo.echo;
     _c1.set(tintHex);
     const targetFog = _c1.clone().lerp(this.baseFogColor, 1 - ATMO_TINT_MAX);
     this.sharedUniforms.uFogColor.value.lerp(targetFog, delta * ATMO_LERP_SPEED);
@@ -256,6 +340,8 @@ export class SenseSwitchManager {
   }
 
   private maintain(playerPos: THREE.Vector3, elapsed: number): void {
+    if (!AUTO_MODE_TRIGGERS_ENABLED || MODE_SEQUENCE.length <= 1) return;
+
     if (this.zones.length < ZONE_COUNT_TARGET && elapsed - this.lastZoneSpawn > 2) {
       this.spawnZone(playerPos, elapsed);
       this.lastZoneSpawn = elapsed;
@@ -381,18 +467,23 @@ export class SenseSwitchManager {
     this.sharedUniforms.uBaseVisibility.value = mode.baseVisibility;
     this.sharedUniforms.uMoonColor.value.set(mode.moonColorHex);
     this.sharedUniforms.uMoonDirection.value.copy(mode.moonDirection);
-    this.sharedUniforms.uDaylightFactor.value = mode.id === "daylight" ? 1 : 0;
+    this.sharedUniforms.uDaylightFactor.value = 0;
+    this.sharedUniforms.uWhiteoutFactor.value = mode.id === "luft" ? 1 : 0;
+    this.sharedUniforms.uEdgeFactor.value = hasStackedLayer(mode.id, "infrarot") ? 1 : 0;
+    this.sharedUniforms.uNoirFactor.value = hasStackedLayer(mode.id, "infrarot") ? 1 : 0;
 
     if (this.scene.fog instanceof THREE.Fog) {
       this.scene.fog.color.set(mode.fogColorHex);
       this.scene.fog.near = mode.fogNear;
       this.scene.fog.far = mode.fogFar;
     }
+    setSceneBackground(this.scene, this.sharedUniforms.uFogColor.value);
 
     const skyMat = this.sky.material as THREE.ShaderMaterial;
     if (skyMat.uniforms?.uColors) {
-      mode.skyColors.forEach((hex, i) => {
-        skyMat.uniforms.uColors.value[i]?.set(hex);
+      const skyColors = skyMat.uniforms.uColors.value as THREE.Color[];
+      skyColors.forEach((color, i) => {
+        color.set(mode.skyColors[i] ?? mode.skyColors[mode.skyColors.length - 1]);
       });
     }
   }
@@ -415,23 +506,31 @@ export class SenseSwitchManager {
       .copy(from.moonDirection)
       .lerp(to.moonDirection, t)
       .normalize();
-    // Lerp daylight factor: echolocation=0, daylight=1
-    const fromDL = from.id === "daylight" ? 1 : 0;
-    const toDL   = to.id   === "daylight" ? 1 : 0;
-    this.sharedUniforms.uDaylightFactor.value = lerp(fromDL, toDL, t);
+    this.sharedUniforms.uDaylightFactor.value = 0;
+    const fromShadow = hasStackedLayer(from.id, "infrarot") ? 1 : 0;
+    const toShadow = hasStackedLayer(to.id, "infrarot") ? 1 : 0;
+    const fromWhiteout = from.id === "luft" ? 1 : 0;
+    const toWhiteout = to.id === "luft" ? 1 : 0;
+    const fromEdges = hasStackedLayer(from.id, "infrarot") ? 1 : 0;
+    const toEdges = hasStackedLayer(to.id, "infrarot") ? 1 : 0;
+    this.sharedUniforms.uWhiteoutFactor.value = lerp(fromWhiteout, toWhiteout, t);
+    this.sharedUniforms.uEdgeFactor.value = lerp(fromEdges, toEdges, t);
+    this.sharedUniforms.uNoirFactor.value = lerp(fromShadow, toShadow, t);
 
     if (this.scene.fog instanceof THREE.Fog) {
       this.scene.fog.color.copy(fogColor);
       this.scene.fog.near = this.sharedUniforms.uFogNear.value;
       this.scene.fog.far = this.sharedUniforms.uFogFar.value;
     }
+    setSceneBackground(this.scene, fogColor);
 
     const skyMat = this.sky.material as THREE.ShaderMaterial;
     if (skyMat.uniforms?.uColors) {
-      from.skyColors.forEach((fromHex, i) => {
-        skyMat.uniforms.uColors.value[i]
-          ?.set(fromHex)
-          .lerp(_c2.set(to.skyColors[i]), t);
+      const skyColors = skyMat.uniforms.uColors.value as THREE.Color[];
+      skyColors.forEach((color, i) => {
+        const fromHex = from.skyColors[i] ?? from.skyColors[from.skyColors.length - 1];
+        const toHex = to.skyColors[i] ?? to.skyColors[to.skyColors.length - 1];
+        color.set(fromHex).lerp(_c2.set(toHex), t);
       });
     }
   }

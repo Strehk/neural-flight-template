@@ -1,7 +1,12 @@
 import * as THREE from "three";
 import { createGradientSky, updateGradientSky } from "$lib/three/gradient-sky";
+import type { RenderContext } from "../types";
 
 const _sceneFwd = new THREE.Vector3();
+const WHITEOUT_PARTICLE_COUNT = 280;
+const WHITEOUT_PARTICLE_RADIUS = 165;
+const WHITEOUT_PARTICLE_MIN_DISTANCE = 16;
+const WHITEOUT_PARTICLE_SPEED = 24;
 import type { TriggerCommand } from "$lib/types/orientation";
 import type { ExperienceState, SetupContext, TickContext } from "../types";
 import { EchoAudioManager } from "./audio";
@@ -15,7 +20,6 @@ import {
   BAT_ECHO_DEFAULTS,
   BAT_MOTH_DEFAULTS,
   BAT_MOON,
-  BAT_SCENE,
   BAT_TRIGGER_ID,
   type BatWorldSettings,
   BAT_WORLD_DEFAULTS,
@@ -28,6 +32,11 @@ import { BatWorld, type EchoProbeProfile } from "./world";
 import { SenseSwitchManager } from "./sense-switch";
 import { KeyboardInput } from "./keyboard-input";
 import { ChemosenseLayer } from "./chemosense-layer";
+import {
+  createDepthPostprocess,
+  type DepthPostprocess,
+} from "./depth-postprocess";
+import { NetworkLayer } from "./network-layer";
 import { loadWorldModels } from "./world-models";
 
 interface CollectionBurst {
@@ -80,9 +89,15 @@ export interface BatEcholocationState extends ExperienceState {
   mothEchoFx: THREE.Group;
   mothEchoTexture: THREE.CanvasTexture;
   mothEchoBursts: MothEchoBurst[];
+  whiteoutParticles: THREE.Points;
+  whiteoutOverlayScene: THREE.Scene;
+  whiteoutOverlayParticles: THREE.Points;
   senseSwitch: SenseSwitchManager;
   keyboardInput: KeyboardInput;
   chemosenseLayer: ChemosenseLayer;
+  networkLayer: NetworkLayer;
+  depthPostprocess: DepthPostprocess;
+  invertOutput: boolean;
   chemosenseScore: number;
 }
 
@@ -378,6 +393,113 @@ function updateMothEchoBursts(
   state.mothEchoBursts = [];
 }
 
+function randomParticleOffset(target: THREE.Vector3): THREE.Vector3 {
+  const distance =
+    WHITEOUT_PARTICLE_MIN_DISTANCE +
+    Math.random() * (WHITEOUT_PARTICLE_RADIUS - WHITEOUT_PARTICLE_MIN_DISTANCE);
+  const yaw = Math.random() * Math.PI * 2;
+  const pitch = (Math.random() - 0.5) * 0.72;
+  const flat = Math.cos(pitch) * distance;
+  target.set(
+    Math.sin(yaw) * flat,
+    Math.sin(pitch) * distance,
+    Math.cos(yaw) * flat,
+  );
+  return target;
+}
+
+function createWhiteoutParticles(
+  center: THREE.Vector3,
+): THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial> {
+  const positions = new Float32Array(WHITEOUT_PARTICLE_COUNT * 3);
+  const offset = new THREE.Vector3();
+  for (let i = 0; i < WHITEOUT_PARTICLE_COUNT; i++) {
+    randomParticleOffset(offset);
+    positions[i * 3] = center.x + offset.x;
+    positions[i * 3 + 1] = center.y + offset.y;
+    positions[i * 3 + 2] = center.z + offset.z;
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setDrawRange(0, WHITEOUT_PARTICLE_COUNT);
+
+  const material = new THREE.PointsMaterial({
+    color: 0x050505,
+    size: 0.42,
+    sizeAttenuation: true,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    depthTest: false,
+    fog: false,
+    toneMapped: false,
+  });
+
+  const points = new THREE.Points(geometry, material);
+  points.frustumCulled = false;
+  points.renderOrder = 30;
+  return points;
+}
+
+function createWhiteoutOverlayParticles(source: THREE.Points): THREE.Points {
+  const material = (source.material as THREE.PointsMaterial).clone();
+  const points = new THREE.Points(source.geometry, material);
+  points.frustumCulled = false;
+  points.renderOrder = 30;
+  return points;
+}
+
+function updateWhiteoutParticles(
+  state: BatEcholocationState,
+  factor: number,
+  delta: number,
+): void {
+  const material = state.whiteoutParticles.material as THREE.PointsMaterial;
+  const overlayMaterial = state.whiteoutOverlayParticles
+    .material as THREE.PointsMaterial;
+  material.opacity = factor * 0.64;
+  overlayMaterial.opacity = material.opacity;
+  state.whiteoutParticles.visible = factor > 0.01;
+  state.whiteoutOverlayParticles.visible = state.whiteoutParticles.visible;
+  if (factor <= 0.01) return;
+
+  const positionAttribute = state.whiteoutParticles.geometry.getAttribute("position");
+  if (!(positionAttribute instanceof THREE.BufferAttribute)) return;
+
+  const positions = positionAttribute.array;
+  if (!(positions instanceof Float32Array)) return;
+
+  const center = state.player.rig.position;
+  const maxDistanceSq = WHITEOUT_PARTICLE_RADIUS * WHITEOUT_PARTICLE_RADIUS;
+  const minDistanceSq =
+    WHITEOUT_PARTICLE_MIN_DISTANCE * WHITEOUT_PARTICLE_MIN_DISTANCE;
+  const step = WHITEOUT_PARTICLE_SPEED * delta;
+  const offset = new THREE.Vector3();
+  for (let i = 0; i < WHITEOUT_PARTICLE_COUNT; i++) {
+    const x = positions[i * 3];
+    const y = positions[i * 3 + 1];
+    const z = positions[i * 3 + 2];
+    const dx = x - center.x;
+    const dy = y - center.y;
+    const dz = z - center.z;
+    const distanceSq = dx * dx + dy * dy + dz * dz;
+    if (distanceSq > minDistanceSq && distanceSq <= maxDistanceSq) {
+      const distance = Math.sqrt(distanceSq);
+      positions[i * 3] = x - (dx / distance) * step;
+      positions[i * 3 + 1] = y - (dy / distance) * step;
+      positions[i * 3 + 2] = z - (dz / distance) * step;
+      continue;
+    }
+
+    randomParticleOffset(offset);
+    positions[i * 3] = center.x + offset.x;
+    positions[i * 3 + 1] = center.y + offset.y;
+    positions[i * 3 + 2] = center.z + offset.z;
+  }
+  positionAttribute.needsUpdate = true;
+}
+
 export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
   const player = new BatFlightController();
   let batMount: THREE.Group | null = null;
@@ -420,10 +542,11 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
     snowPlant: models?.snowPlant ?? null,
   });
   const audio = new EchoAudioManager({ ...BAT_AUDIO_DEFAULTS });
+  audio.startBackgroundMusic();
   world.sharedUniforms.uMoonDirection.value.copy(moonDirection);
   world.sharedUniforms.uMoonColor.value.set(BAT_MOON.glowColor);
   const sky = createGradientSky({
-    colors: [0x05070a, 0x020305, 0x000000],
+    colors: [0xffffff, 0xffffff, 0xffffff],
     radius: BAT_CAMERA.far * 1.3,
     animationSpeed: 0.0008,
   });
@@ -432,6 +555,10 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
   const collectionBurstTexture = createCollectionBurstTexture();
   const mothEchoFx = new THREE.Group();
   const mothEchoTexture = createMothEchoTexture();
+  const whiteoutParticles = createWhiteoutParticles(player.rig.position);
+  const whiteoutOverlayScene = new THREE.Scene();
+  const whiteoutOverlayParticles = createWhiteoutOverlayParticles(whiteoutParticles);
+  whiteoutOverlayScene.add(whiteoutOverlayParticles);
 
   try {
     batMount = await loadBatMount();
@@ -449,9 +576,11 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
     world.sharedUniforms,
     ctx.scene,
     sky,
-    "echolocation",
+    "luft",
   );
   const chemosenseLayer = new ChemosenseLayer(world);
+  const networkLayer = new NetworkLayer(world);
+  const depthPostprocess = createDepthPostprocess(ctx.renderer);
 
   ctx.scene.add(world.group);
   ctx.scene.add(player.rig);
@@ -459,8 +588,10 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
   ctx.scene.add(moon);
   ctx.scene.add(collectionFx);
   ctx.scene.add(mothEchoFx);
+  ctx.scene.add(whiteoutParticles);
   ctx.scene.add(senseSwitch.group);
   ctx.scene.add(chemosenseLayer.group);
+  ctx.scene.add(networkLayer.group);
 
   const state: BatEcholocationState = {
     player,
@@ -490,17 +621,17 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
     mothEchoFx,
     mothEchoTexture,
     mothEchoBursts: [],
+    whiteoutParticles,
+    whiteoutOverlayScene,
+    whiteoutOverlayParticles,
     senseSwitch,
     keyboardInput,
     chemosenseLayer,
+    networkLayer,
+    depthPostprocess,
+    invertOutput: false,
     chemosenseScore: 0,
   };
-
-  if (ctx.scene.fog instanceof THREE.Fog) {
-    ctx.scene.fog.color.set(BAT_SCENE.fogColor);
-    ctx.scene.fog.near = BAT_SCENE.fogNear;
-    ctx.scene.fog.far = BAT_SCENE.fogFar;
-  }
 
   return state;
 }
@@ -513,8 +644,14 @@ export function tick(
   s.elapsedTime = ctx.elapsed;
 
   s.keyboardInput.applyTo(s.player);
+  if (s.keyboardInput.consumeInvertToggle()) {
+    s.invertOutput = !s.invertOutput;
+  }
   const pendingMode = s.keyboardInput.consumePendingMode();
-  if (pendingMode) s.senseSwitch.switchTo(pendingMode);
+  if (pendingMode && pendingMode !== s.senseSwitch.currentMode) {
+    s.audio.playTransition();
+    s.senseSwitch.switchTo(pendingMode);
+  }
 
   const pendingBiomeDelta = s.keyboardInput.consumePendingBiomeDelta();
   if (pendingBiomeDelta !== 0) {
@@ -550,16 +687,36 @@ export function tick(
   s.senseSwitch.updateAtmosphere(aheadBiome, ctx.delta);
 
   // Chemosense layer: show/hide particle clouds with mode blend.
-  const chemoFactor = s.senseSwitch.getChemosenseFactor();
+  const chemoFactor = s.senseSwitch.getDuftFactor();
   s.chemosenseLayer.setFactor(chemoFactor);
   if (chemoFactor > 0.01) {
     s.chemosenseLayer.tick(s.player.rig.position, ctx.elapsed);
     s.chemosenseScore += s.chemosenseLayer.drainScore();
   }
+  const networkFactor = s.senseSwitch.getNetzwerkFactor();
+  s.networkLayer.setFactor(networkFactor);
+  if (networkFactor > 0.01) {
+    s.networkLayer.tick(s.player.rig.position, ctx.elapsed);
+  }
 
   // Moths are 2x larger in echolocation mode.
   const echoFactor = s.senseSwitch.getEcholocationFactor();
   s.world.setMothScale(1 + echoFactor);
+  const whiteoutFactor = s.senseSwitch.getLuftFactor();
+  const edgeFactor = s.senseSwitch.getEchoLocationFactor();
+  const shadowFactor = s.senseSwitch.getInfrarotFactor();
+  s.world.setMonochromeFactors(whiteoutFactor, edgeFactor, shadowFactor);
+  const driftParticleFactor = Math.max(
+    whiteoutFactor,
+    edgeFactor,
+    shadowFactor * 0.28,
+    chemoFactor * 0.18,
+    networkFactor * 0.12,
+  );
+  updateWhiteoutParticles(s, driftParticleFactor, ctx.delta);
+  if (s.batMount) {
+    s.batMount.visible = whiteoutFactor + edgeFactor + shadowFactor < 0.01;
+  }
 
   s.activeMoths = worldFrame.activeMoths;
   s.nearestMothDistance = worldFrame.nearestMothDistance;
@@ -601,6 +758,35 @@ export function tick(
   return { state: s, outputs: { score: s.collectedMoths + s.chemosenseScore } };
 }
 
+export function render(state: ExperienceState, ctx: RenderContext): void {
+  const s = state as BatEcholocationState;
+  const renderLayers = (): void => {
+    const depthFactor = s.senseSwitch.getDepthFactor();
+    if (depthFactor > 0.001) {
+      s.depthPostprocess.render(
+        ctx.scene,
+        ctx.camera,
+        depthFactor,
+        s.senseSwitch.getDepthInvertFactor() > 0.5,
+      );
+    } else {
+      ctx.renderer.render(ctx.scene, ctx.camera);
+    }
+
+    const previousAutoClear = ctx.renderer.autoClear;
+    ctx.renderer.autoClear = false;
+    ctx.renderer.render(s.whiteoutOverlayScene, ctx.camera);
+    ctx.renderer.autoClear = previousAutoClear;
+  };
+
+  if (s.invertOutput) {
+    s.depthPostprocess.renderInverted(renderLayers);
+    return;
+  }
+
+  renderLayers();
+}
+
 export function handleTrigger(
   trigger: TriggerCommand,
   state: ExperienceState,
@@ -618,6 +804,8 @@ export function dispose(state: ExperienceState, scene: THREE.Scene): void {
   s.senseSwitch.dispose();
   s.keyboardInput.dispose();
   s.chemosenseLayer.dispose();
+  s.networkLayer.dispose();
+  s.depthPostprocess.dispose();
   disposeBatMount(s.batMount);
   s.world.dispose();
   scene.remove(s.world.group);
@@ -626,10 +814,15 @@ export function dispose(state: ExperienceState, scene: THREE.Scene): void {
   scene.remove(s.moon);
   scene.remove(s.collectionFx);
   scene.remove(s.mothEchoFx);
+  scene.remove(s.whiteoutParticles);
   scene.remove(s.senseSwitch.group);
   scene.remove(s.chemosenseLayer.group);
+  scene.remove(s.networkLayer.group);
   s.sky.geometry.dispose();
   (s.sky.material as THREE.Material).dispose();
+  s.whiteoutParticles.geometry.dispose();
+  (s.whiteoutParticles.material as THREE.Material).dispose();
+  (s.whiteoutOverlayParticles.material as THREE.Material).dispose();
   s.collectionBurstTexture.dispose();
   s.mothEchoTexture.dispose();
   for (const burst of s.collectionBursts) {

@@ -92,6 +92,13 @@ export const BAT_AUDIO_DEFAULTS = {
   stereoWidth: 0.32,
 } as const;
 
+export const BAT_SOUND = {
+  backgroundUrl: "/sinneswandler_test1/Sound/Hintergrundmusik.mp3",
+  transitionUrl: "/sinneswandler_test1/Sound/U%CC%88bergang.wav",
+  backgroundVolume: 0.22,
+  transitionVolume: 0.72,
+} as const;
+
 export const BAT_WORLD_DEFAULTS = {
   chunkSize: 112,
   viewRadius: 2,

@@ -23,6 +23,9 @@ export interface SharedEchoUniforms {
   uMoonDirection: THREE.IUniform<THREE.Vector3>;
   uMoonColor: THREE.IUniform<THREE.Color>;
   uDaylightFactor: THREE.IUniform<number>;
+  uWhiteoutFactor: THREE.IUniform<number>;
+  uEdgeFactor: THREE.IUniform<number>;
+  uNoirFactor: THREE.IUniform<number>;
 }
 
 interface RevealMaterialOptions {
@@ -35,6 +38,7 @@ interface RevealMaterialOptions {
   baseVisibilityBoost: number;
   trailBoost?: number;
   pulseBoost?: number;
+  noirGroundWeight?: number;
   doubleSided?: boolean;
   instanced?: boolean;
 }
@@ -56,6 +60,9 @@ uniform float uWireThickness;
 uniform vec3 uMoonDirection;
 uniform vec3 uMoonColor;
 uniform float uDaylightFactor;
+uniform float uWhiteoutFactor;
+uniform float uEdgeFactor;
+uniform float uNoirFactor;
 uniform vec3 uTintColor;
 uniform vec3 uDaylightTintColor;
 uniform float uFillStrength;
@@ -64,6 +71,7 @@ uniform float uSilhouetteStrength;
 uniform float uBaseVisibilityBoost;
 uniform float uTrailBoost;
 uniform float uPulseBoost;
+uniform float uNoirGroundWeight;
 
 varying vec3 vWorldPos;
 varying vec3 vWorldNormal;
@@ -143,6 +151,33 @@ void main() {
 	// Blend echo → daylight
 	vec3 color = mix(echoModeColor, daylightColor, uDaylightFactor);
 
+	// ── Echoortung: weisse Skulpturformen aus weissem Nebel ──
+	float grazingLight = max(dot(normalDir, moonDir), 0.0);
+	float paperLight = clamp(grazingLight * 1.02 + upLight * 0.34, 0.0, 1.0);
+	float softShadow = 1.0 - smoothstep(0.2, 0.82, paperLight);
+	float formVolume = smoothstep(0.66, 0.94, silhouette);
+	float thinFormEdge = smoothstep(0.9, 0.99, silhouette);
+	vec3 paperWhite = vec3(0.985, 0.985, 0.965);
+	vec3 structureShadow = mix(vec3(0.86, 0.86, 0.82), vec3(0.62, 0.62, 0.58), uNoirGroundWeight);
+	vec3 structureColor = mix(paperWhite, structureShadow, softShadow * 0.62 + formVolume * 0.2);
+	color = mix(color, structureColor, uEdgeFactor);
+
+	// ── Infrarot: gestapelte Material- und Aktivitätskontraste ──
+	float luma = dot(vDayColor, vec3(0.299, 0.587, 0.114));
+	float greenDominance = vDayColor.g - max(vDayColor.r, vDayColor.b) * 0.82;
+	float organic = smoothstep(0.02, 0.32, greenDominance);
+	float stone = smoothstep(0.0, 0.16, 1.0 - abs(vDayColor.r - vDayColor.g) - abs(vDayColor.g - vDayColor.b));
+	float activityPulse = 0.5 + 0.5 * sin(uTime * 1.65 + dot(vWorldPos.xz, vec2(0.09, 0.07)));
+	float materialTone = clamp(0.72 - organic * (0.18 + activityPulse * 0.12) + stone * 0.1 + luma * 0.12, 0.18, 0.94);
+	float infraredInk = clamp(softShadow * 0.72 + thinFormEdge * 0.22 + organic * 0.2, 0.0, 0.86);
+	vec3 infraredColor = mix(vec3(materialTone), vec3(0.12), infraredInk);
+	infraredColor = mix(infraredColor, vec3(0.92), uNoirGroundWeight * 0.36);
+	color = mix(color, infraredColor, uNoirFactor);
+
+	// ── Weissraum: Welt verschwindet vollständig in Weiß ──
+	vec3 whiteoutColor = vec3(1.0);
+	color = mix(color, whiteoutColor, uWhiteoutFactor);
+
 	// Fog: in echo mode echo reveals suppress fog; in daylight fog is natural.
 	float fog = fogAmount(vWorldPos);
 	float echoSuppression = clamp(baseReveal * 9.4 + moonScatter * 0.24 + moonDiffuse * 0.24, 0.0, 0.58);
@@ -220,6 +255,9 @@ export function createSharedEchoUniforms(): SharedEchoUniforms {
     },
     uMoonColor: { value: new THREE.Color(BAT_MOON.glowColor) },
     uDaylightFactor: { value: 0 },
+    uWhiteoutFactor: { value: 0 },
+    uEdgeFactor: { value: 0 },
+    uNoirFactor: { value: 0 },
   };
 }
 
@@ -266,6 +304,7 @@ function createRevealMaterial(
       uBaseVisibilityBoost: { value: options.baseVisibilityBoost },
       uTrailBoost: { value: options.trailBoost ?? 1 },
       uPulseBoost: { value: options.pulseBoost ?? 1 },
+      uNoirGroundWeight: { value: options.noirGroundWeight ?? 0 },
     },
     side: options.doubleSided ? THREE.DoubleSide : THREE.FrontSide,
     depthWrite: true,
@@ -285,6 +324,7 @@ export function createTerrainRevealMaterial(
     edgeStrength: 1.85,
     silhouetteStrength: 0.72,
     baseVisibilityBoost: 1.18,
+    noirGroundWeight: 1,
   });
 }
 

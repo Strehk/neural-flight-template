@@ -16,15 +16,19 @@ const PREV_BIOME_KEYS = ["ArrowLeft", "ArrowDown"];
 const BIOME_KEYS = [...NEXT_BIOME_KEYS, ...PREV_BIOME_KEYS];
 
 const MODE_KEYS: Record<string, VisionModeId> = {
-  Digit1: "echolocation",
-  Digit2: "daylight",
-  Digit3: "chemosense",
+  Digit1: "luft",
+  Digit2: "echoLocation",
+  Digit3: "infrarot",
+  Digit4: "duft",
+  Digit5: "netzwerk",
+  Digit6: "depthDebug",
 };
 
 export class KeyboardInput {
   private readonly keys = new Set<string>();
   private pendingMode: VisionModeId | null = null;
   private pendingBiomeDelta = 0;
+  private pendingInvertToggle = false;
   private readonly onDown: (e: KeyboardEvent) => void;
   private readonly onUp: (e: KeyboardEvent) => void;
 
@@ -32,6 +36,9 @@ export class KeyboardInput {
     this.onDown = (e) => {
       if (FLIGHT_KEYS.includes(e.code)) this.keys.add(e.code);
       if (e.code in MODE_KEYS) this.pendingMode = MODE_KEYS[e.code];
+      if (e.code === "KeyI" && !e.repeat) {
+        this.pendingInvertToggle = true;
+      }
       if (BIOME_KEYS.includes(e.code) && !e.repeat) {
         e.preventDefault();
         this.pendingBiomeDelta += NEXT_BIOME_KEYS.includes(e.code) ? 1 : -1;
@@ -47,6 +54,13 @@ export class KeyboardInput {
     const m = this.pendingMode;
     this.pendingMode = null;
     return m;
+  }
+
+  /** Returns whether global color inversion was toggled this frame. */
+  consumeInvertToggle(): boolean {
+    const pending = this.pendingInvertToggle;
+    this.pendingInvertToggle = false;
+    return pending;
   }
 
   /** Returns a requested biome cycle step and clears it (edge-triggered). */

@@ -135,6 +135,7 @@ const GRASS_COLOR = new THREE.Color("#d7f0b4");
 const BUSH_COLOR = new THREE.Color("#9fd07e");
 const FLOWER_COLOR = new THREE.Color("#ffd5dc");
 const WATER_COLOR = new THREE.Color("#4f8fa7");
+const NOIR_WATER_COLOR = new THREE.Color("#f1f1ea");
 const PALM_COLOR = new THREE.Color("#3f7b38");
 const CACTUS_COLOR = new THREE.Color("#6ca35a");
 const MOTH_CORE_COLOR = new THREE.Color("#ffb0b0");
@@ -547,6 +548,24 @@ export class BatWorld {
 
   setMothScale(factor: number): void {
     this.mothScaleFactor = factor;
+  }
+
+  setMonochromeFactors(
+    whiteoutFactor: number,
+    edgeFactor: number,
+    shadowFactor: number,
+  ): void {
+    const baseOnly = saturate(whiteoutFactor);
+    const structure = saturate(edgeFactor);
+    const shadow = saturate(shadowFactor);
+    const monochrome = saturate(Math.max(baseOnly, structure, shadow));
+    this.pondMaterial.color.copy(WATER_COLOR).lerp(NOIR_WATER_COLOR, monochrome);
+    const targetOpacity = baseOnly > 0.01 ? 0.18 : shadow > 0.01 ? 0.62 : 0.42;
+    this.pondMaterial.opacity = THREE.MathUtils.lerp(
+      0.76,
+      targetOpacity,
+      monochrome,
+    );
   }
 
   sampleHeight(x: number, z: number): number {
