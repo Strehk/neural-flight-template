@@ -31,6 +31,7 @@ import type { EchoPulseRenderState } from "./shaders";
 import { BatWorld, type EchoProbeProfile } from "./world";
 import { SenseSwitchManager } from "./sense-switch";
 import { KeyboardInput } from "./keyboard-input";
+import { IntroSequence } from "./intro-sequence";
 import { ChemosenseLayer } from "./chemosense-layer";
 import {
   createDepthPostprocess,
@@ -99,6 +100,7 @@ export interface BatEcholocationState extends ExperienceState {
   depthPostprocess: DepthPostprocess;
   invertOutput: boolean;
   chemosenseScore: number;
+  intro: IntroSequence;
 }
 
 function createRenderPulseState(
@@ -631,8 +633,10 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
     depthPostprocess,
     invertOutput: false,
     chemosenseScore: 0,
+    intro: new IntroSequence(senseSwitch),
   };
 
+  state.intro.start();
   return state;
 }
 
@@ -648,7 +652,11 @@ export function tick(
     s.invertOutput = !s.invertOutput;
   }
   const pendingMode = s.keyboardInput.consumePendingMode();
-  if (pendingMode && pendingMode !== s.senseSwitch.currentMode) {
+  if (
+    pendingMode &&
+    !s.intro.isActive &&
+    pendingMode !== s.senseSwitch.currentMode
+  ) {
     s.audio.playTransition();
     s.senseSwitch.switchTo(pendingMode);
   }
@@ -800,6 +808,7 @@ export function handleTrigger(
 export function dispose(state: ExperienceState, scene: THREE.Scene): void {
   const s = state as BatEcholocationState;
 
+  s.intro.dispose();
   s.audio.dispose();
   s.senseSwitch.dispose();
   s.keyboardInput.dispose();
