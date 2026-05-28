@@ -72,11 +72,19 @@ function smoothstep(t: number): number {
   return c * c * (3 - 2 * c);
 }
 
-const SUBTLE_DEPTH = 0.14;
+const SUBTLE_DEPTH = 0.45;
 
 function modeDepthFactor(mode: VisionModeId): number {
   if (mode === "echoLocation" || mode === "depthDebug") return 1;
   if (mode === "infrarot" || mode === "duft" || mode === "netzwerk") return SUBTLE_DEPTH;
+  return 0;
+}
+
+// Modes 3-5 use inverted depth (near=dark) so near geometry is visibly darker
+// against the bright white scene — non-inverted near=white would be invisible.
+function modeDepthInvert(mode: VisionModeId): number {
+  if (mode === "depthDebug") return 1;
+  if (mode === "infrarot" || mode === "duft" || mode === "netzwerk") return 1;
   return 0;
 }
 
@@ -183,10 +191,10 @@ export class SenseSwitchManager {
   /** 1 = near black/far white, 0 = original near white/far black. */
   getDepthInvertFactor(): number {
     if (!this.transition) {
-      return this.currentMode === "depthDebug" ? 1 : 0;
+      return modeDepthInvert(this.currentMode);
     }
-    const fromVal = this.transition.fromMode === "depthDebug" ? 1 : 0;
-    const toVal = this.transition.toMode === "depthDebug" ? 1 : 0;
+    const fromVal = modeDepthInvert(this.transition.fromMode);
+    const toVal   = modeDepthInvert(this.transition.toMode);
     const t = smoothstep(this.transition.progress);
     return fromVal + (toVal - fromVal) * t;
   }
