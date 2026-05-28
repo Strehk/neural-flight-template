@@ -244,7 +244,7 @@ export class NetworkLayer {
       Math.floor(seededRandom2D(seed, 11) * (sizeRange.max - sizeRange.min + 1));
 
     // Low flocks: chaotic, slower, less aligned. High flocks: organised, faster.
-    const maxSpeed      = isLow ? 4  : isLarge ? 11 : 9;
+    const maxSpeed      = isLow ? 4  : isLarge ? 22 : 18;
     const sepWeight     = isLow ? 2.4 : 1.6;
     const aliWeight     = isLow ? 0.3 : 1.0;
     const cohWeight     = isLow ? 0.7 : 1.0;
