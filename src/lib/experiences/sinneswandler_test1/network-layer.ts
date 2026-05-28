@@ -5,45 +5,63 @@ import type { BatWorld } from "./world";
 
 const CELL_SIZE = 24;
 const VIEW_DISTANCE = 260;
-const MAX_NODES = 400;
-const MAX_CONNECTIONS = 980;
+const MAX_NODES = 520;
+const MAX_CONNECTIONS = 1600;
 const CONNECTION_DISTANCE = 112;
-const CONNECTIONS_PER_NODE = 5;
+const CONNECTIONS_PER_NODE = 4;
 
-// ~30% of occupied cells become clusters; of those, ~45% are aerial (bird flocks).
 const CLUSTER_CHANCE = 0.3;
 const AERIAL_CLUSTER_CHANCE = 0.45;
-const CLUSTER_SIZE_MIN = 3;
-const CLUSTER_SIZE_MAX = 6;
-const CLUSTER_RADIUS_GROUND = 6.5;
-const CLUSTER_RADIUS_AERIAL = 5.0;
-const AERIAL_ALTITUDE_MIN = 18;
-const AERIAL_ALTITUDE_MAX = 38;
-// How fast the aerial flock center drifts around its cell origin.
-const FLOCK_DRIFT_SPEED = 0.11;
-const FLOCK_DRIFT_RADIUS_MIN = 6;
-const FLOCK_DRIFT_RADIUS_MAX = 18;
-// How fast individual birds orbit the flock center.
+
+const AERIAL_SIZE_MIN = 7;
+const AERIAL_SIZE_MAX = 16;
+const GROUND_SIZE_MIN = 3;
+const GROUND_SIZE_MAX = 6;
+const GROUND_CLUSTER_RADIUS = 6.5;
+
+// Aerial flock path: each flock flies an ellipse anchored at its cell origin.
+// primaryR = length of the long axis (flight direction), secondaryR = short axis.
+const FLIGHT_PRIMARY_R_MIN = 35;
+const FLIGHT_PRIMARY_R_MAX = 65;
+const FLIGHT_SECONDARY_R_MIN = 10;
+const FLIGHT_SECONDARY_R_MAX = 22;
+const FLIGHT_SPEED_MIN = 0.025;
+const FLIGHT_SPEED_MAX = 0.062;
+const AERIAL_ALT_MIN = 18;
+const AERIAL_ALT_MAX = 42;
+
+// Per-bird orbit around the moving flock center.
+const BIRD_ORBIT_R = 4.5;
 const BIRD_ORBIT_SPEED_MIN = 0.7;
-const BIRD_ORBIT_SPEED_MAX = 1.3;
-const BIRD_ORBIT_RADIUS = 4.5;
+const BIRD_ORBIT_SPEED_MAX = 1.4;
+
+// Cross-cluster connections: rare, slowly pulsing in/out (~12 % duty cycle).
+const INTER_CLUSTER_MAX_PER_NODE = 1;
 
 const NETWORK_BIOMES = new Set<BatBiomeId>(["forest", "grassland", "snow"]);
 
-// Red palette.
 const COLOR_SOLO = 0xff1a2e;
-const COLOR_CLUSTER_CORE = 0xff0022;
-const COLOR_CLUSTER_MEMBER = 0xff3344;
+const COLOR_CORE = 0xff0022;
+const COLOR_MEMBER = 0xff3344;
 
 interface NetworkNode {
   x: number;
   y: number;
   z: number;
   color: THREE.Color;
+  // Unique per cluster; solo nodes share clusterId = 0 (treated as "same group"
+  // so they still wire freely to each other but not to named clusters).
+  clusterId: number;
 }
 
 function cellSeed(gx: number, gz: number): number {
   return gx * 83492791 + gz * 2654435761 + 1949;
+}
+
+// Returns a value in [0, 1] that slowly oscillates, stable for a given pair.
+function interClusterPulse(cidA: number, cidB: number, elapsed: number): number {
+  const h = Math.abs((cidA * 1234567 + cidB * 7654321) & 0xffffff);
+  return (Math.sin(elapsed * 0.18 + h * 0.000026) + 1) * 0.5;
 }
 
 export class NetworkLayer {
@@ -74,7 +92,6 @@ export class NetworkLayer {
     lineGeo.setAttribute("color", this.lineColors);
     lineGeo.setDrawRange(0, 0);
 
-    // NormalBlending so red stays red against the bright white scene.
     const lineMat = new THREE.LineBasicMaterial({
       vertexColors: true,
       transparent: true,
@@ -128,7 +145,6 @@ export class NetworkLayer {
 
   tick(playerPos: THREE.Vector3, elapsed: number): void {
     if (this.factor <= 0.01) return;
-
     const nodes = this.collectNodes(playerPos, elapsed);
     this.writeNodes(nodes, elapsed);
     this.writeConnections(nodes, elapsed);
@@ -165,61 +181,80 @@ export class NetworkLayer {
 
         const isCluster = seededRandom2D(seed, 10) < CLUSTER_CHANCE;
 
-        if (isCluster) {
-          const clusterSize =
-            CLUSTER_SIZE_MIN +
-            Math.floor(seededRandom2D(seed, 11) * (CLUSTER_SIZE_MAX - CLUSTER_SIZE_MIN + 1));
-          const isAerial = seededRandom2D(seed, 15) < AERIAL_CLUSTER_CHANCE;
-
-          if (isAerial) {
-            // Flock center slowly orbits the cell origin.
-            const driftPhase = seededRandom2D(seed, 20) * Math.PI * 2;
-            const driftR =
-              FLOCK_DRIFT_RADIUS_MIN +
-              seededRandom2D(seed, 21) * (FLOCK_DRIFT_RADIUS_MAX - FLOCK_DRIFT_RADIUS_MIN);
-            const driftAngle = elapsed * FLOCK_DRIFT_SPEED + driftPhase;
-            const fcx = cx + Math.cos(driftAngle) * driftR;
-            const fcz = cz + Math.sin(driftAngle) * driftR;
-            const altitude =
-              AERIAL_ALTITUDE_MIN +
-              seededRandom2D(seed, 22) * (AERIAL_ALTITUDE_MAX - AERIAL_ALTITUDE_MIN);
-            const fcy = this.world.sampleHeight(cx, cz) + altitude;
-
-            for (let ci = 0; ci < clusterSize; ci++) {
-              const orbitSpeed =
-                BIRD_ORBIT_SPEED_MIN +
-                seededRandom2D(seed, 24 + ci) * (BIRD_ORBIT_SPEED_MAX - BIRD_ORBIT_SPEED_MIN);
-              const orbitPhase = seededRandom2D(seed, 30 + ci) * Math.PI * 2;
-              const orbitAngle = elapsed * orbitSpeed + orbitPhase;
-              const orbitR = ci === 0 ? 0 : seededRandom2D(seed, 36 + ci) * BIRD_ORBIT_RADIUS;
-              const nx = fcx + Math.cos(orbitAngle) * orbitR;
-              const nz = fcz + Math.sin(orbitAngle) * orbitR;
-              const ny = fcy + Math.sin(elapsed * 0.9 + ci * 0.83) * 2.0;
-              const color = new THREE.Color(ci === 0 ? COLOR_CLUSTER_CORE : COLOR_CLUSTER_MEMBER);
-              nodes.push({ x: nx, y: ny, z: nz, color });
-            }
-          } else {
-            // Ground cluster: tight group near terrain.
-            for (let ci = 0; ci < clusterSize; ci++) {
-              let nx = cx;
-              let nz = cz;
-              if (ci > 0) {
-                const angle = seededRandom2D(seed, 12 + ci * 2) * Math.PI * 2;
-                const r = seededRandom2D(seed, 13 + ci * 2) * CLUSTER_RADIUS_GROUND;
-                nx = cx + Math.cos(angle) * r;
-                nz = cz + Math.sin(angle) * r;
-              }
-              const wave = Math.sin(elapsed * 0.55 + seededRandom2D(seed, 4 + ci) * Math.PI * 2);
-              const y = this.world.sampleHeight(nx, nz) + 1.2 + wave * 0.35;
-              const color = new THREE.Color(ci === 0 ? COLOR_CLUSTER_CORE : COLOR_CLUSTER_MEMBER);
-              nodes.push({ x: nx, y, z: nz, color });
-            }
-          }
-        } else {
-          // Solo ground node.
+        if (!isCluster) {
+          // Isolated organism on the ground.
           const wave = Math.sin(elapsed * 0.55 + seededRandom2D(seed, 4) * Math.PI * 2);
           const y = this.world.sampleHeight(cx, cz) + 1.2 + wave * 0.35;
-          nodes.push({ x: cx, y, z: cz, color: new THREE.Color(COLOR_SOLO) });
+          nodes.push({ x: cx, y, z: cz, color: new THREE.Color(COLOR_SOLO), clusterId: 0 });
+          continue;
+        }
+
+        const isAerial = seededRandom2D(seed, 15) < AERIAL_CLUSTER_CHANCE;
+        // Use seed as unique cluster ID (always > 0 after the hash).
+        const clusterId = (seed >>> 0) || 1;
+
+        if (isAerial) {
+          // ── Aerial flock: flies an ellipse around its cell origin ──
+          const heading = seededRandom2D(seed, 17) * Math.PI * 2;
+          const primaryR =
+            FLIGHT_PRIMARY_R_MIN +
+            seededRandom2D(seed, 18) * (FLIGHT_PRIMARY_R_MAX - FLIGHT_PRIMARY_R_MIN);
+          const secondaryR =
+            FLIGHT_SECONDARY_R_MIN +
+            seededRandom2D(seed, 19) * (FLIGHT_SECONDARY_R_MAX - FLIGHT_SECONDARY_R_MIN);
+          const flightSpeed =
+            FLIGHT_SPEED_MIN +
+            seededRandom2D(seed, 20) * (FLIGHT_SPEED_MAX - FLIGHT_SPEED_MIN);
+          const phase = seededRandom2D(seed, 21) * Math.PI * 2;
+
+          const t = elapsed * flightSpeed + phase;
+          // Rotate ellipse by heading: hx/hz = heading unit vector.
+          const hx = Math.cos(heading);
+          const hz = Math.sin(heading);
+          const fcx = cx + hx * Math.cos(t) * primaryR - hz * Math.sin(t) * secondaryR;
+          const fcz = cz + hz * Math.cos(t) * primaryR + hx * Math.sin(t) * secondaryR;
+          const altitude =
+            AERIAL_ALT_MIN +
+            seededRandom2D(seed, 22) * (AERIAL_ALT_MAX - AERIAL_ALT_MIN);
+          const fcy = this.world.sampleHeight(cx, cz) + altitude;
+
+          const clusterSize =
+            AERIAL_SIZE_MIN +
+            Math.floor(seededRandom2D(seed, 11) * (AERIAL_SIZE_MAX - AERIAL_SIZE_MIN + 1));
+
+          for (let ci = 0; ci < clusterSize; ci++) {
+            const orbitPhase = seededRandom2D(seed, 30 + ci) * Math.PI * 2;
+            const orbitSpeed =
+              BIRD_ORBIT_SPEED_MIN +
+              seededRandom2D(seed, 40 + ci) * (BIRD_ORBIT_SPEED_MAX - BIRD_ORBIT_SPEED_MIN);
+            const orbitAngle = elapsed * orbitSpeed + orbitPhase;
+            const orbitR = ci === 0 ? 0 : seededRandom2D(seed, 50 + ci) * BIRD_ORBIT_R;
+            const nx = fcx + Math.cos(orbitAngle) * orbitR;
+            const nz = fcz + Math.sin(orbitAngle) * orbitR;
+            const ny = fcy + Math.sin(elapsed * 0.88 + ci * 0.83) * 2.2;
+            const color = new THREE.Color(ci === 0 ? COLOR_CORE : COLOR_MEMBER);
+            nodes.push({ x: nx, y: ny, z: nz, color, clusterId });
+          }
+        } else {
+          // ── Ground cluster: tight group near terrain ──
+          const clusterSize =
+            GROUND_SIZE_MIN +
+            Math.floor(seededRandom2D(seed, 11) * (GROUND_SIZE_MAX - GROUND_SIZE_MIN + 1));
+
+          for (let ci = 0; ci < clusterSize; ci++) {
+            let nx = cx;
+            let nz = cz;
+            if (ci > 0) {
+              const angle = seededRandom2D(seed, 12 + ci * 2) * Math.PI * 2;
+              const r = seededRandom2D(seed, 13 + ci * 2) * GROUND_CLUSTER_RADIUS;
+              nx = cx + Math.cos(angle) * r;
+              nz = cz + Math.sin(angle) * r;
+            }
+            const wave = Math.sin(elapsed * 0.55 + seededRandom2D(seed, 4 + ci) * Math.PI * 2);
+            const y = this.world.sampleHeight(nx, nz) + 1.2 + wave * 0.35;
+            const color = new THREE.Color(ci === 0 ? COLOR_CORE : COLOR_MEMBER);
+            nodes.push({ x: nx, y, z: nz, color, clusterId });
+          }
         }
       }
     }
@@ -259,50 +294,77 @@ export class NetworkLayer {
 
     for (let i = 0; i < nodes.length && connectionCount < MAX_CONNECTIONS; i++) {
       const a = nodes[i];
-      const candidates: { index: number; distanceSq: number }[] = [];
+      const intra: { index: number; distanceSq: number }[] = [];
+      const inter: { index: number; distanceSq: number }[] = [];
 
       for (let j = i + 1; j < nodes.length; j++) {
         const b = nodes[j];
-        const dx = a.x - b.x;
-        const dy = a.y - b.y;
-        const dz = a.z - b.z;
-        const distanceSq = dx * dx + dy * dy + dz * dz;
+        const ddx = a.x - b.x;
+        const ddy = a.y - b.y;
+        const ddz = a.z - b.z;
+        const distanceSq = ddx * ddx + ddy * ddy + ddz * ddz;
         if (distanceSq >= CONNECTION_DISTANCE * CONNECTION_DISTANCE) continue;
-        candidates.push({ index: j, distanceSq });
+
+        // Same named cluster OR both are solo (clusterId = 0) → intra-group.
+        const sameGroup =
+          (a.clusterId !== 0 && a.clusterId === b.clusterId) ||
+          (a.clusterId === 0 && b.clusterId === 0);
+
+        if (sameGroup) {
+          intra.push({ index: j, distanceSq });
+        } else {
+          inter.push({ index: j, distanceSq });
+        }
       }
 
-      candidates.sort((aCandidate, bCandidate) => aCandidate.distanceSq - bCandidate.distanceSq);
+      // ── Intra-cluster: connect up to CONNECTIONS_PER_NODE nearest ──
+      intra.sort((x, y) => x.distanceSq - y.distanceSq);
+      const maxIntra = Math.min(CONNECTIONS_PER_NODE, intra.length);
+      for (let ci = 0; ci < maxIntra && connectionCount < MAX_CONNECTIONS; ci++) {
+        this.emitConnection(pos, col, a, nodes[intra[ci].index], elapsed, i, connectionCount);
+        connectionCount++;
+      }
 
-      const maxCandidates = Math.min(CONNECTIONS_PER_NODE, candidates.length);
+      // ── Inter-cluster: at most 1 connection, only when slowly pulsing ──
+      inter.sort((x, y) => x.distanceSq - y.distanceSq);
+      let interAdded = 0;
       for (
-        let candidateIndex = 0;
-        candidateIndex < maxCandidates && connectionCount < MAX_CONNECTIONS;
-        candidateIndex++
+        let ci = 0;
+        ci < inter.length && interAdded < INTER_CLUSTER_MAX_PER_NODE && connectionCount < MAX_CONNECTIONS;
+        ci++
       ) {
-        const b = nodes[candidates[candidateIndex].index];
-        const base = connectionCount * 6;
-        const colorPulse = 0.66 + 0.34 * Math.sin(elapsed * 1.25 + i * 0.41);
-
-        pos[base] = a.x;
-        pos[base + 1] = a.y;
-        pos[base + 2] = a.z;
-        pos[base + 3] = b.x;
-        pos[base + 4] = b.y;
-        pos[base + 5] = b.z;
-
-        col[base] = a.color.r * colorPulse;
-        col[base + 1] = a.color.g * colorPulse;
-        col[base + 2] = a.color.b * colorPulse;
-        col[base + 3] = b.color.r * colorPulse;
-        col[base + 4] = b.color.g * colorPulse;
-        col[base + 5] = b.color.b * colorPulse;
-
-        connectionCount += 1;
+        const b = nodes[inter[ci].index];
+        if (interClusterPulse(a.clusterId, b.clusterId, elapsed) > 0.88) {
+          this.emitConnection(pos, col, a, b, elapsed, i, connectionCount);
+          connectionCount++;
+          interAdded++;
+        }
       }
     }
 
     this.linePositions.needsUpdate = true;
     this.lineColors.needsUpdate = true;
     this.lines.geometry.setDrawRange(0, connectionCount * 2);
+  }
+
+  private emitConnection(
+    pos: Float32Array,
+    col: Float32Array,
+    a: NetworkNode,
+    b: NetworkNode,
+    elapsed: number,
+    i: number,
+    connectionCount: number,
+  ): void {
+    const base = connectionCount * 6;
+    const colorPulse = 0.66 + 0.34 * Math.sin(elapsed * 1.25 + i * 0.41);
+    pos[base] = a.x; pos[base + 1] = a.y; pos[base + 2] = a.z;
+    pos[base + 3] = b.x; pos[base + 4] = b.y; pos[base + 5] = b.z;
+    col[base] = a.color.r * colorPulse;
+    col[base + 1] = a.color.g * colorPulse;
+    col[base + 2] = a.color.b * colorPulse;
+    col[base + 3] = b.color.r * colorPulse;
+    col[base + 4] = b.color.g * colorPulse;
+    col[base + 5] = b.color.b * colorPulse;
   }
 }
