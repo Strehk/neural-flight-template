@@ -3,11 +3,12 @@ import { seededRandom2D } from "$lib/three/random";
 import type { BatBiomeId } from "./config";
 import type { BatWorld } from "./world";
 
-const CELL_SIZE = 42;
-const VIEW_DISTANCE = 170;
-const MAX_NODES = 90;
-const MAX_CONNECTIONS = 150;
-const CONNECTION_DISTANCE = 76;
+const CELL_SIZE = 24;
+const VIEW_DISTANCE = 260;
+const MAX_NODES = 260;
+const MAX_CONNECTIONS = 980;
+const CONNECTION_DISTANCE = 112;
+const CONNECTIONS_PER_NODE = 5;
 
 const NETWORK_BIOMES = new Set<BatBiomeId>(["forest", "grassland", "snow"]);
 
@@ -61,6 +62,7 @@ export class NetworkLayer {
     });
     this.lines = new THREE.LineSegments(lineGeo, lineMat);
     this.lines.frustumCulled = false;
+    this.lines.renderOrder = 4;
 
     const nodeGeo = new THREE.BufferGeometry();
     this.nodePositions = new THREE.BufferAttribute(
@@ -88,13 +90,14 @@ export class NetworkLayer {
     });
     this.nodes = new THREE.Points(nodeGeo, nodeMat);
     this.nodes.frustumCulled = false;
+    this.nodes.renderOrder = 5;
 
     this.group.add(this.lines, this.nodes);
   }
 
   setFactor(factor: number): void {
     this.factor = THREE.MathUtils.clamp(factor, 0, 1);
-    (this.lines.material as THREE.LineBasicMaterial).opacity = this.factor * 0.46;
+    (this.lines.material as THREE.LineBasicMaterial).opacity = this.factor * 0.68;
     (this.nodes.material as THREE.PointsMaterial).opacity = this.factor * 0.82;
     this.group.visible = this.factor > 0.01;
   }
@@ -123,7 +126,7 @@ export class NetworkLayer {
     for (let gx = centerGX - halfCells; gx <= centerGX + halfCells; gx++) {
       for (let gz = centerGZ - halfCells; gz <= centerGZ + halfCells; gz++) {
         const seed = cellSeed(gx, gz);
-        if (seededRandom2D(seed, 1) > 0.68) continue;
+        if (seededRandom2D(seed, 1) > 0.82) continue;
 
         const jitterX = (seededRandom2D(seed, 2) - 0.5) * CELL_SIZE * 0.72;
         const jitterZ = (seededRandom2D(seed, 3) - 0.5) * CELL_SIZE * 0.72;
@@ -180,8 +183,7 @@ export class NetworkLayer {
 
     for (let i = 0; i < nodes.length && connectionCount < MAX_CONNECTIONS; i++) {
       const a = nodes[i];
-      let nearestIndex = -1;
-      let nearestDistanceSq = CONNECTION_DISTANCE * CONNECTION_DISTANCE;
+      const candidates: { index: number; distanceSq: number }[] = [];
 
       for (let j = i + 1; j < nodes.length; j++) {
         const b = nodes[j];
@@ -189,31 +191,38 @@ export class NetworkLayer {
         const dy = a.y - b.y;
         const dz = a.z - b.z;
         const distanceSq = dx * dx + dy * dy + dz * dz;
-        if (distanceSq >= nearestDistanceSq) continue;
-        nearestDistanceSq = distanceSq;
-        nearestIndex = j;
+        if (distanceSq >= CONNECTION_DISTANCE * CONNECTION_DISTANCE) continue;
+        candidates.push({ index: j, distanceSq });
       }
 
-      if (nearestIndex < 0) continue;
-      const b = nodes[nearestIndex];
-      const base = connectionCount * 6;
-      const colorPulse = 0.66 + 0.34 * Math.sin(elapsed * 1.25 + i * 0.41);
+      candidates.sort((aCandidate, bCandidate) => aCandidate.distanceSq - bCandidate.distanceSq);
 
-      pos[base] = a.x;
-      pos[base + 1] = a.y;
-      pos[base + 2] = a.z;
-      pos[base + 3] = b.x;
-      pos[base + 4] = b.y;
-      pos[base + 5] = b.z;
+      const maxCandidates = Math.min(CONNECTIONS_PER_NODE, candidates.length);
+      for (
+        let candidateIndex = 0;
+        candidateIndex < maxCandidates && connectionCount < MAX_CONNECTIONS;
+        candidateIndex++
+      ) {
+        const b = nodes[candidates[candidateIndex].index];
+        const base = connectionCount * 6;
+        const colorPulse = 0.66 + 0.34 * Math.sin(elapsed * 1.25 + i * 0.41);
 
-      col[base] = a.color.r * colorPulse;
-      col[base + 1] = a.color.g * colorPulse;
-      col[base + 2] = a.color.b * colorPulse;
-      col[base + 3] = b.color.r * colorPulse;
-      col[base + 4] = b.color.g * colorPulse;
-      col[base + 5] = b.color.b * colorPulse;
+        pos[base] = a.x;
+        pos[base + 1] = a.y;
+        pos[base + 2] = a.z;
+        pos[base + 3] = b.x;
+        pos[base + 4] = b.y;
+        pos[base + 5] = b.z;
 
-      connectionCount += 1;
+        col[base] = a.color.r * colorPulse;
+        col[base + 1] = a.color.g * colorPulse;
+        col[base + 2] = a.color.b * colorPulse;
+        col[base + 3] = b.color.r * colorPulse;
+        col[base + 4] = b.color.g * colorPulse;
+        col[base + 5] = b.color.b * colorPulse;
+
+        connectionCount += 1;
+      }
     }
 
     this.linePositions.needsUpdate = true;

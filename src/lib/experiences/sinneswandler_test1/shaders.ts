@@ -26,6 +26,7 @@ export interface SharedEchoUniforms {
   uWhiteoutFactor: THREE.IUniform<number>;
   uEdgeFactor: THREE.IUniform<number>;
   uNoirFactor: THREE.IUniform<number>;
+  uInfraredTone: THREE.IUniform<number>;
 }
 
 interface RevealMaterialOptions {
@@ -39,6 +40,7 @@ interface RevealMaterialOptions {
   trailBoost?: number;
   pulseBoost?: number;
   noirGroundWeight?: number;
+  infraredTone?: number;
   doubleSided?: boolean;
   instanced?: boolean;
 }
@@ -63,6 +65,7 @@ uniform float uDaylightFactor;
 uniform float uWhiteoutFactor;
 uniform float uEdgeFactor;
 uniform float uNoirFactor;
+uniform float uInfraredTone;
 uniform vec3 uTintColor;
 uniform vec3 uDaylightTintColor;
 uniform float uFillStrength;
@@ -164,14 +167,13 @@ void main() {
 
 	// ── Infrarot: gestapelte Material- und Aktivitätskontraste ──
 	float luma = dot(vDayColor, vec3(0.299, 0.587, 0.114));
-	float greenDominance = vDayColor.g - max(vDayColor.r, vDayColor.b) * 0.82;
-	float organic = smoothstep(0.02, 0.32, greenDominance);
-	float stone = smoothstep(0.0, 0.16, 1.0 - abs(vDayColor.r - vDayColor.g) - abs(vDayColor.g - vDayColor.b));
+	float organic = 1.0 - smoothstep(0.32, 0.62, uInfraredTone);
+	float stone = smoothstep(0.64, 0.9, uInfraredTone);
 	float activityPulse = 0.5 + 0.5 * sin(uTime * 1.65 + dot(vWorldPos.xz, vec2(0.09, 0.07)));
-	float materialTone = clamp(0.72 - organic * (0.18 + activityPulse * 0.12) + stone * 0.1 + luma * 0.12, 0.18, 0.94);
-	float infraredInk = clamp(softShadow * 0.72 + thinFormEdge * 0.22 + organic * 0.2, 0.0, 0.86);
-	vec3 infraredColor = mix(vec3(materialTone), vec3(0.12), infraredInk);
-	infraredColor = mix(infraredColor, vec3(0.92), uNoirGroundWeight * 0.36);
+	float materialTone = clamp(uInfraredTone - organic * activityPulse * 0.1 + luma * 0.04, 0.04, 0.96);
+	float infraredInk = clamp(softShadow * 0.46 + thinFormEdge * 0.14, 0.0, 0.52);
+	vec3 infraredColor = mix(vec3(materialTone), vec3(max(materialTone - 0.18, 0.02)), infraredInk);
+	infraredColor = mix(infraredColor, vec3(0.94), uNoirGroundWeight * 0.18);
 	color = mix(color, infraredColor, uNoirFactor);
 
 	// ── Weissraum: Welt verschwindet vollständig in Weiß ──
@@ -258,6 +260,7 @@ export function createSharedEchoUniforms(): SharedEchoUniforms {
     uWhiteoutFactor: { value: 0 },
     uEdgeFactor: { value: 0 },
     uNoirFactor: { value: 0 },
+    uInfraredTone: { value: 0.76 },
   };
 }
 
@@ -305,6 +308,7 @@ function createRevealMaterial(
       uTrailBoost: { value: options.trailBoost ?? 1 },
       uPulseBoost: { value: options.pulseBoost ?? 1 },
       uNoirGroundWeight: { value: options.noirGroundWeight ?? 0 },
+      uInfraredTone: { value: options.infraredTone ?? 0.76 },
     },
     side: options.doubleSided ? THREE.DoubleSide : THREE.FrontSide,
     depthWrite: true,
@@ -325,6 +329,7 @@ export function createTerrainRevealMaterial(
     silhouetteStrength: 0.72,
     baseVisibilityBoost: 1.18,
     noirGroundWeight: 1,
+    infraredTone: 0.92,
   });
 }
 

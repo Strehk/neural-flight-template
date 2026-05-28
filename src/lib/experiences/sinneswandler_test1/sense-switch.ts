@@ -467,7 +467,7 @@ export class SenseSwitchManager {
     this.sharedUniforms.uBaseVisibility.value = mode.baseVisibility;
     this.sharedUniforms.uMoonColor.value.set(mode.moonColorHex);
     this.sharedUniforms.uMoonDirection.value.copy(mode.moonDirection);
-    this.sharedUniforms.uDaylightFactor.value = 0;
+    this.sharedUniforms.uDaylightFactor.value = mode.id === "normal" ? 1 : 0;
     this.sharedUniforms.uWhiteoutFactor.value = mode.id === "luft" ? 1 : 0;
     this.sharedUniforms.uEdgeFactor.value = hasStackedLayer(mode.id, "infrarot") ? 1 : 0;
     this.sharedUniforms.uNoirFactor.value = hasStackedLayer(mode.id, "infrarot") ? 1 : 0;
@@ -506,7 +506,9 @@ export class SenseSwitchManager {
       .copy(from.moonDirection)
       .lerp(to.moonDirection, t)
       .normalize();
-    this.sharedUniforms.uDaylightFactor.value = 0;
+    const fromDL = from.id === "normal" ? 1 : 0;
+    const toDL = to.id === "normal" ? 1 : 0;
+    this.sharedUniforms.uDaylightFactor.value = lerp(fromDL, toDL, t);
     const fromShadow = hasStackedLayer(from.id, "infrarot") ? 1 : 0;
     const toShadow = hasStackedLayer(to.id, "infrarot") ? 1 : 0;
     const fromWhiteout = from.id === "luft" ? 1 : 0;

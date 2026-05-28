@@ -1,12 +1,6 @@
 import * as THREE from "three";
 import { createGradientSky, updateGradientSky } from "$lib/three/gradient-sky";
 import type { RenderContext } from "../types";
-
-const _sceneFwd = new THREE.Vector3();
-const WHITEOUT_PARTICLE_COUNT = 280;
-const WHITEOUT_PARTICLE_RADIUS = 165;
-const WHITEOUT_PARTICLE_MIN_DISTANCE = 16;
-const WHITEOUT_PARTICLE_SPEED = 24;
 import type { TriggerCommand } from "$lib/types/orientation";
 import type { ExperienceState, SetupContext, TickContext } from "../types";
 import { EchoAudioManager } from "./audio";
@@ -38,7 +32,15 @@ import {
   type DepthPostprocess,
 } from "./depth-postprocess";
 import { NetworkLayer } from "./network-layer";
+import type { VisionModeId } from "./vision-modes";
 import { loadWorldModels } from "./world-models";
+
+const _sceneFwd = new THREE.Vector3();
+const WHITEOUT_PARTICLE_COUNT = 280;
+const WHITEOUT_PARTICLE_RADIUS = 165;
+const WHITEOUT_PARTICLE_MIN_DISTANCE = 16;
+const WHITEOUT_PARTICLE_SPEED = 24;
+const SENSE_SWITCH_DELAY_SECONDS = 1;
 
 interface CollectionBurst {
   sprite: THREE.Sprite;
@@ -101,6 +103,8 @@ export interface BatEcholocationState extends ExperienceState {
   invertOutput: boolean;
   chemosenseScore: number;
   intro: IntroSequence;
+  delayedSenseMode: VisionModeId | null;
+  delayedSenseSwitchAt: number;
 }
 
 function createRenderPulseState(
@@ -633,10 +637,11 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
     depthPostprocess,
     invertOutput: false,
     chemosenseScore: 0,
-    intro: new IntroSequence(senseSwitch),
+    intro: new IntroSequence(),
+    delayedSenseMode: null,
+    delayedSenseSwitchAt: 0,
   };
 
-  state.intro.start();
   return state;
 }
 
@@ -652,13 +657,26 @@ export function tick(
     s.invertOutput = !s.invertOutput;
   }
   const pendingMode = s.keyboardInput.consumePendingMode();
+  if (pendingMode) {
+    s.intro.playForMode(pendingMode);
+    if (pendingMode !== s.senseSwitch.currentMode) {
+      s.delayedSenseMode = pendingMode;
+      s.delayedSenseSwitchAt = ctx.elapsed + SENSE_SWITCH_DELAY_SECONDS;
+    } else {
+      s.delayedSenseMode = null;
+    }
+  }
+
   if (
-    pendingMode &&
-    !s.intro.isActive &&
-    pendingMode !== s.senseSwitch.currentMode
+    s.delayedSenseMode &&
+    ctx.elapsed >= s.delayedSenseSwitchAt &&
+    s.delayedSenseMode !== s.senseSwitch.currentMode
   ) {
     s.audio.playTransition();
-    s.senseSwitch.switchTo(pendingMode);
+    s.senseSwitch.switchTo(s.delayedSenseMode);
+    s.delayedSenseMode = null;
+  } else if (s.delayedSenseMode && ctx.elapsed >= s.delayedSenseSwitchAt) {
+    s.delayedSenseMode = null;
   }
 
   const pendingBiomeDelta = s.keyboardInput.consumePendingBiomeDelta();

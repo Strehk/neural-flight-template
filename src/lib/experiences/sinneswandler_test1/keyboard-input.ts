@@ -22,6 +22,7 @@ const MODE_KEYS: Record<string, VisionModeId> = {
   Digit4: "duft",
   Digit5: "netzwerk",
   Digit6: "depthDebug",
+  Digit7: "normal",
 };
 
 export class KeyboardInput {
@@ -35,7 +36,7 @@ export class KeyboardInput {
   constructor() {
     this.onDown = (e) => {
       if (FLIGHT_KEYS.includes(e.code)) this.keys.add(e.code);
-      if (e.code in MODE_KEYS) this.pendingMode = MODE_KEYS[e.code];
+      if (e.code in MODE_KEYS && !e.repeat) this.pendingMode = MODE_KEYS[e.code];
       if (e.code === "KeyI" && !e.repeat) {
         this.pendingInvertToggle = true;
       }

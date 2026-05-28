@@ -7,7 +7,8 @@ export type VisionModeId =
   | "infrarot"
   | "duft"
   | "netzwerk"
-  | "depthDebug";
+  | "depthDebug"
+  | "normal";
 
 export interface VisionMode {
   id: VisionModeId;
@@ -102,6 +103,19 @@ export const VISION_MODES: Record<VisionModeId, VisionMode> = {
     echoEnabled: false,
     accentHex: 0x111111,
   },
+  normal: {
+    id: "normal",
+    label: "Normal",
+    fogNear: 60,
+    fogFar: 500,
+    fogColorHex: 0xc8dff0,
+    skyColors: [0x1a5fa0, 0x4a9fd4, 0x87ceeb],
+    baseVisibility: 1,
+    moonColorHex: 0xfff4d0,
+    moonDirection: new THREE.Vector3(0.3, 0.85, -0.4).normalize(),
+    echoEnabled: false,
+    accentHex: 0x7fd0bc,
+  },
 };
 
 // Extend this array to add new switchable modes in order.
@@ -112,6 +126,7 @@ export const MODE_SEQUENCE: VisionModeId[] = [
   "duft",
   "netzwerk",
   "depthDebug",
+  "normal",
 ];
 
 export function nextMode(current: VisionModeId): VisionModeId {

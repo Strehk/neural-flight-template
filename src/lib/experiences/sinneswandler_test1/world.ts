@@ -98,7 +98,17 @@ interface WorldChunk {
   gridZ: number;
   terrain: THREE.Mesh;
   decorations: THREE.Group;
+  chemosenseSources: ChemosenseSource[];
   dispose(): void;
+}
+
+export interface ChemosenseSource {
+  key: string;
+  position: THREE.Vector3;
+  color: number;
+  radius: number;
+  intensity: number;
+  particleCount: number;
 }
 
 const TERRAIN_BASE_COLOR = new THREE.Color("#9eb0cb");
@@ -307,6 +317,7 @@ export class BatWorld {
   readonly sharedUniforms: SharedEchoUniforms;
   readonly terrainMaterial: THREE.ShaderMaterial;
   readonly trunkMaterial: THREE.ShaderMaterial;
+  readonly deadWoodMaterial: THREE.ShaderMaterial;
   readonly crownMaterial: THREE.ShaderMaterial;
   readonly rockMaterial: THREE.ShaderMaterial;
   readonly grassMaterial: THREE.ShaderMaterial;
@@ -395,6 +406,16 @@ export class BatWorld {
       edgeStrength: 1.18,
       silhouetteStrength: 0.9,
       baseVisibilityBoost: 0.74,
+      infraredTone: 0.42,
+    });
+    this.deadWoodMaterial = createInstancedRevealMaterial(this.sharedUniforms, {
+      tintColor: "#eee5d4",
+      daylightTintColor: "#8a806e",
+      fillStrength: 0.08,
+      edgeStrength: 1.12,
+      silhouetteStrength: 0.84,
+      baseVisibilityBoost: 0.74,
+      infraredTone: 0.62,
     });
     this.crownMaterial = createInstancedRevealMaterial(this.sharedUniforms, {
       tintColor: "#effff8",
@@ -403,6 +424,7 @@ export class BatWorld {
       edgeStrength: 1.55,
       silhouetteStrength: 1.05,
       baseVisibilityBoost: 0.56,
+      infraredTone: 0.52,
     });
     this.rockMaterial = createInstancedRevealMaterial(this.sharedUniforms, {
       tintColor: "#f0f7ff",
@@ -411,6 +433,7 @@ export class BatWorld {
       edgeStrength: 1.72,
       silhouetteStrength: 0.96,
       baseVisibilityBoost: 0.86,
+      infraredTone: 0.82,
     });
     this.grassMaterial = createInstancedRevealMaterial(this.sharedUniforms, {
       tintColor: "#efffd6",
@@ -419,6 +442,7 @@ export class BatWorld {
       edgeStrength: 1.04,
       silhouetteStrength: 0.46,
       baseVisibilityBoost: 0.3,
+      infraredTone: 0.46,
       doubleSided: true,
     });
     this.mothMaterial = createInstancedRevealMaterial(this.sharedUniforms, {
@@ -430,6 +454,7 @@ export class BatWorld {
       baseVisibilityBoost: 0,
       trailBoost: BAT_MOTH_DEFAULTS.echoTrailBoost,
       pulseBoost: BAT_MOTH_DEFAULTS.echoPulseBoost,
+      infraredTone: 0.04,
       doubleSided: true,
     });
     this.pondMaterial = new THREE.MeshBasicMaterial({
@@ -574,6 +599,33 @@ export class BatWorld {
 
   sampleBiome(x: number, z: number): BatBiomeId {
     return this.sampleTerrainPoint(x, z, this.sampleColorA).dominantBiome;
+  }
+
+  sampleChemosenseSources(
+    playerPosition: THREE.Vector3,
+    range: number,
+  ): ChemosenseSource[] {
+    const rangeSq = range * range;
+    const sources: ChemosenseSource[] = [];
+
+    for (const chunk of this.active.values()) {
+      for (const source of chunk.chemosenseSources) {
+        const dx = source.position.x - playerPosition.x;
+        const dz = source.position.z - playerPosition.z;
+        if (dx * dx + dz * dz <= rangeSq) {
+          sources.push(source);
+        }
+      }
+    }
+
+    sources.sort(
+      (a, b) =>
+        (a.position.x - playerPosition.x) ** 2 +
+        (a.position.z - playerPosition.z) ** 2 -
+        ((b.position.x - playerPosition.x) ** 2 +
+          (b.position.z - playerPosition.z) ** 2),
+    );
+    return sources;
   }
 
   sampleEchoProfile(
@@ -806,6 +858,7 @@ export class BatWorld {
     this.rebuild();
     this.terrainMaterial.dispose();
     this.trunkMaterial.dispose();
+    this.deadWoodMaterial.dispose();
     this.crownMaterial.dispose();
     this.rockMaterial.dispose();
     this.grassMaterial.dispose();
@@ -1181,17 +1234,18 @@ export class BatWorld {
     );
 
     const decorations = this.createDecorations(gridX, gridZ);
-    decorations.position.copy(terrain.position);
+    decorations.group.position.copy(terrain.position);
 
     return {
       key: `${gridX},${gridZ}`,
       gridX,
       gridZ,
       terrain,
-      decorations,
+      decorations: decorations.group,
+      chemosenseSources: decorations.chemosenseSources,
       dispose() {
         terrain.geometry.dispose();
-        for (const child of decorations.children) {
+        for (const child of decorations.group.children) {
           if (child instanceof THREE.InstancedMesh) {
             child.dispose();
           }
@@ -1275,10 +1329,34 @@ export class BatWorld {
     );
   }
 
-  private createDecorations(gridX: number, gridZ: number): THREE.Group {
+  private createDecorations(
+    gridX: number,
+    gridZ: number,
+  ): { group: THREE.Group; chemosenseSources: ChemosenseSource[] } {
     const group = new THREE.Group();
+    const chemosenseSources: ChemosenseSource[] = [];
     const size = this.settings.chunkSize;
     const baseSeed = gridX * 73856093 + gridZ * 19349663;
+    const addChemosenseSource = (
+      kind: string,
+      index: number,
+      lx: number,
+      ly: number,
+      lz: number,
+      color: number,
+      radius: number,
+      intensity: number,
+      particleCount: number,
+    ): void => {
+      chemosenseSources.push({
+        key: `${gridX},${gridZ}:${kind}:${index}`,
+        position: new THREE.Vector3(lx + gridX * size, ly, lz + gridZ * size),
+        color,
+        radius,
+        intensity,
+        particleCount,
+      });
+    };
     const pineCapacity = Math.max(
       34,
       Math.round(this.settings.treeDensity * 4.7),
@@ -1367,7 +1445,7 @@ export class BatWorld {
     );
     const deadTrees = new THREE.InstancedMesh(
       this.deadTreeGeometry,
-      this.trunkMaterial,
+      this.deadWoodMaterial,
       deadCapacity,
     );
     const snowTrees = new THREE.InstancedMesh(
@@ -1417,7 +1495,7 @@ export class BatWorld {
     );
     const forestProps = new THREE.InstancedMesh(
       this.forestPropGeometry,
-      this.trunkMaterial,
+      this.deadWoodMaterial,
       forestPropCapacity,
     );
     const snowPlants = new THREE.InstancedMesh(
@@ -1515,6 +1593,17 @@ export class BatWorld {
       dummy.updateMatrix();
       pineTrees.setMatrixAt(pineIndex, dummy.matrix);
       pineTrees.setColorAt(pineIndex, crownColor);
+      addChemosenseSource(
+        "pine-crown",
+        pineIndex,
+        lx,
+        point.height + 2.7 * scale,
+        lz,
+        0xfff200,
+        3.4 * scale,
+        0.86,
+        24,
+      );
       pineIndex++;
     }
 
@@ -1565,6 +1654,17 @@ export class BatWorld {
       dummy.updateMatrix();
       commonTrees.setMatrixAt(commonIndex, dummy.matrix);
       commonTrees.setColorAt(commonIndex, crownColor);
+      addChemosenseSource(
+        "common-crown",
+        commonIndex,
+        lx,
+        point.height + 2.42 * scale,
+        lz,
+        0xffc300,
+        3.0 * scale,
+        0.8,
+        22,
+      );
       commonIndex++;
     }
 
@@ -1615,6 +1715,17 @@ export class BatWorld {
       dummy.updateMatrix();
       birchTrees.setMatrixAt(birchIndex, dummy.matrix);
       birchTrees.setColorAt(birchIndex, crownColor);
+      addChemosenseSource(
+        "birch-crown",
+        birchIndex,
+        lx,
+        point.height + 2.34 * scale,
+        lz,
+        0xdfff00,
+        2.7 * scale,
+        0.74,
+        20,
+      );
       birchIndex++;
     }
 
@@ -1664,6 +1775,17 @@ export class BatWorld {
       dummy.updateMatrix();
       willowTrees.setMatrixAt(willowIndex, dummy.matrix);
       willowTrees.setColorAt(willowIndex, crownColor);
+      addChemosenseSource(
+        "willow-crown",
+        willowIndex,
+        lx,
+        point.height + 2.1 * scale,
+        lz,
+        0xffef5a,
+        2.9 * scale,
+        0.82,
+        22,
+      );
       willowIndex++;
     }
 
@@ -1706,6 +1828,17 @@ export class BatWorld {
         deadIndex,
         tempColor.copy(DEAD_TREE_COLOR).lerp(ROCK_HIGHLIGHT, 0.18),
       );
+      addChemosenseSource(
+        "dead-tree",
+        deadIndex,
+        lx,
+        point.height + 1.7 * scale,
+        lz,
+        0xb66cff,
+        1.35 * scale,
+        0.4,
+        8,
+      );
       deadIndex++;
     }
 
@@ -1741,6 +1874,17 @@ export class BatWorld {
       snowTrees.setColorAt(
         snowIndex,
         tempColor.copy(SNOW_TREE_COLOR).lerp(SNOW_COLOR, 0.22),
+      );
+      addChemosenseSource(
+        "snow-crown",
+        snowIndex,
+        lx,
+        point.height + 2.62 * scale,
+        lz,
+        0x00e5ff,
+        2.9 * scale,
+        0.64,
+        18,
       );
       snowIndex++;
     }
@@ -1788,6 +1932,17 @@ export class BatWorld {
         palmIndex,
         tempColor.copy(PALM_COLOR).lerp(DESERT_DAY, 0.18),
       );
+      addChemosenseSource(
+        "palm-crown",
+        palmIndex,
+        lx,
+        point.height + 2.9 * scale,
+        lz,
+        0x00ffd0,
+        2.5 * scale,
+        0.52,
+        16,
+      );
       palmIndex++;
     }
 
@@ -1834,6 +1989,17 @@ export class BatWorld {
       cacti.setColorAt(
         cactusIndex,
         tempColor.copy(CACTUS_COLOR).lerp(DESERT_DAY, 0.12),
+      );
+      addChemosenseSource(
+        "cactus",
+        cactusIndex,
+        lx,
+        point.height + 0.9 * scale,
+        lz,
+        0x00ff3c,
+        1.1 * scale,
+        0.48,
+        12,
       );
       cactusIndex++;
     }
@@ -1926,6 +2092,17 @@ export class BatWorld {
         mossRockIndex,
         tempColor.copy(MOSS_ROCK_COLOR).lerp(ROCK_HIGHLIGHT, 0.16),
       );
+      addChemosenseSource(
+        "moss-rock",
+        mossRockIndex,
+        lx,
+        point.height + 0.35 * scale,
+        lz,
+        0x00ffaa,
+        1.0 * scale,
+        0.48,
+        14,
+      );
       mossRockIndex++;
     }
 
@@ -2007,6 +2184,17 @@ export class BatWorld {
         snowPlantIndex,
         tempColor.copy(SNOW_TREE_COLOR).lerp(SNOW_COLOR, 0.3),
       );
+      addChemosenseSource(
+        "snow-plant",
+        snowPlantIndex,
+        lx,
+        point.height + 0.55 * scale,
+        lz,
+        0x7df9ff,
+        0.9 * scale,
+        0.52,
+        10,
+      );
       snowPlantIndex++;
     }
 
@@ -2065,6 +2253,17 @@ export class BatWorld {
           .copy(GRASS_COLOR)
           .lerp(this.sampleColorB.copy(tempColor), 0.28),
       );
+      addChemosenseSource(
+        "grass",
+        grassIndex,
+        lx,
+        point.height + 0.75 * scale,
+        lz,
+        seededRandom2D(baseSeed + i, 809) < 0.5 ? 0xff2bd6 : 0xff74e8,
+        0.62 * scale,
+        0.44,
+        5,
+      );
       grassIndex++;
     }
 
@@ -2113,6 +2312,17 @@ export class BatWorld {
       bushes.setColorAt(
         bushIndex,
         tempColor.copy(BUSH_COLOR).lerp(this.sampleColorB.copy(tempColor), 0.24),
+      );
+      addChemosenseSource(
+        "bush",
+        bushIndex,
+        lx,
+        point.height + 0.78 * scale,
+        lz,
+        0x1a66ff,
+        1.35 * scale,
+        0.9,
+        20,
       );
       bushIndex++;
     }
@@ -2163,6 +2373,21 @@ export class BatWorld {
         flowerIndex,
         tempColor.copy(FLOWER_COLOR).lerp(GRASS_COLOR, seededRandom2D(baseSeed + i, 797) * 0.34),
       );
+      addChemosenseSource(
+        "flower",
+        flowerIndex,
+        lx,
+        point.height + 0.52 * scale,
+        lz,
+        seededRandom2D(baseSeed + i, 801) < 0.33
+          ? 0xff003c
+          : seededRandom2D(baseSeed + i, 803) < 0.5
+            ? 0x7a5cff
+            : 0xfff200,
+        0.78 * scale,
+        1.0,
+        16,
+      );
       flowerIndex++;
     }
 
@@ -2207,6 +2432,17 @@ export class BatWorld {
       forestProps.setColorAt(
         forestPropIndex,
         tempColor.copy(FOREST_PROP_COLOR).lerp(MOSS_ROCK_COLOR, point.forestWeight * 0.22),
+      );
+      addChemosenseSource(
+        "forest-prop",
+        forestPropIndex,
+        lx,
+        point.height + 0.62 * scale,
+        lz,
+        0xff8c00,
+        1.0 * scale,
+        0.42,
+        8,
       );
       forestPropIndex++;
     }
@@ -2270,7 +2506,7 @@ export class BatWorld {
       snowPlants,
       ponds,
     );
-    return group;
+    return { group, chemosenseSources };
   }
 
   private finalizeInstancedMesh(
