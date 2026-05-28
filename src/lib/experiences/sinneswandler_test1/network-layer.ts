@@ -5,12 +5,23 @@ import type { BatWorld } from "./world";
 
 const CELL_SIZE = 24;
 const VIEW_DISTANCE = 260;
-const MAX_NODES = 260;
+const MAX_NODES = 360;
 const MAX_CONNECTIONS = 980;
 const CONNECTION_DISTANCE = 112;
 const CONNECTIONS_PER_NODE = 5;
 
+// Cluster settings: ~30% of occupied cells spawn a tight group of organisms.
+const CLUSTER_CHANCE = 0.3;
+const CLUSTER_SIZE_MIN = 3;
+const CLUSTER_SIZE_MAX = 6;
+const CLUSTER_RADIUS = 6.5;
+
 const NETWORK_BIOMES = new Set<BatBiomeId>(["forest", "grassland", "snow"]);
+
+// Red palette — solo nodes vs. cluster nodes get slightly different shades.
+const COLOR_SOLO = 0xff1a2e;
+const COLOR_CLUSTER_CORE = 0xff0022;
+const COLOR_CLUSTER_MEMBER = 0xff3344;
 
 interface NetworkNode {
   x: number;
@@ -130,21 +141,42 @@ export class NetworkLayer {
 
         const jitterX = (seededRandom2D(seed, 2) - 0.5) * CELL_SIZE * 0.72;
         const jitterZ = (seededRandom2D(seed, 3) - 0.5) * CELL_SIZE * 0.72;
-        const x = gx * CELL_SIZE + jitterX;
-        const z = gz * CELL_SIZE + jitterZ;
-        const dx = x - playerPos.x;
-        const dz = z - playerPos.z;
+        const cx = gx * CELL_SIZE + jitterX;
+        const cz = gz * CELL_SIZE + jitterZ;
+        const dx = cx - playerPos.x;
+        const dz = cz - playerPos.z;
         if (dx * dx + dz * dz > VIEW_DISTANCE * VIEW_DISTANCE) continue;
 
-        const biome = this.world.sampleBiome(x, z);
+        const biome = this.world.sampleBiome(cx, cz);
         if (!NETWORK_BIOMES.has(biome)) continue;
 
-        const wave = Math.sin(elapsed * 0.55 + seededRandom2D(seed, 4) * Math.PI * 2);
-        const y = this.world.sampleHeight(x, z) + 1.2 + wave * 0.35;
-        const color = new THREE.Color(
-          biome === "forest" ? 0x8fffce : biome === "grassland" ? 0xd8ff88 : 0xb8e8ff,
-        );
-        nodes.push({ x, y, z, color });
+        const isCluster = seededRandom2D(seed, 10) < CLUSTER_CHANCE;
+
+        if (isCluster) {
+          // Spawn a tight group of organisms around this cell center.
+          const clusterSize =
+            CLUSTER_SIZE_MIN +
+            Math.floor(seededRandom2D(seed, 11) * (CLUSTER_SIZE_MAX - CLUSTER_SIZE_MIN + 1));
+
+          for (let ci = 0; ci < clusterSize; ci++) {
+            let nx = cx;
+            let nz = cz;
+            if (ci > 0) {
+              const angle = seededRandom2D(seed, 12 + ci * 2) * Math.PI * 2;
+              const r = seededRandom2D(seed, 13 + ci * 2) * CLUSTER_RADIUS;
+              nx = cx + Math.cos(angle) * r;
+              nz = cz + Math.sin(angle) * r;
+            }
+            const wave = Math.sin(elapsed * 0.55 + seededRandom2D(seed, 4 + ci) * Math.PI * 2);
+            const y = this.world.sampleHeight(nx, nz) + 1.2 + wave * 0.35;
+            const color = new THREE.Color(ci === 0 ? COLOR_CLUSTER_CORE : COLOR_CLUSTER_MEMBER);
+            nodes.push({ x: nx, y, z: nz, color });
+          }
+        } else {
+          const wave = Math.sin(elapsed * 0.55 + seededRandom2D(seed, 4) * Math.PI * 2);
+          const y = this.world.sampleHeight(cx, cz) + 1.2 + wave * 0.35;
+          nodes.push({ x: cx, y, z: cz, color: new THREE.Color(COLOR_SOLO) });
+        }
       }
     }
 

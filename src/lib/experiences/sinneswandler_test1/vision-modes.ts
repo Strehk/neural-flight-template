@@ -75,7 +75,7 @@ export const VISION_MODES: Record<VisionModeId, VisionMode> = {
     moonColorHex: 0xffffff,
     moonDirection: new THREE.Vector3(-0.34, 0.62, -0.7).normalize(),
     echoEnabled: false,
-    accentHex: 0x8fffce,
+    accentHex: 0xff1a2e,
   },
   duft: {
     id: "duft",
