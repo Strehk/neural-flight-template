@@ -72,6 +72,14 @@ function smoothstep(t: number): number {
   return c * c * (3 - 2 * c);
 }
 
+const SUBTLE_DEPTH = 0.14;
+
+function modeDepthFactor(mode: VisionModeId): number {
+  if (mode === "echoLocation" || mode === "depthDebug") return 1;
+  if (mode === "infrarot" || mode === "duft" || mode === "netzwerk") return SUBTLE_DEPTH;
+  return 0;
+}
+
 function modeRank(mode: VisionModeId): number {
   const index = MODE_SEQUENCE.indexOf(mode);
   return index >= 0 ? index : -1;
@@ -164,16 +172,10 @@ export class SenseSwitchManager {
   /** Blend weight for the depth-map spatial basis. */
   getDepthFactor(): number {
     if (!this.transition) {
-      return this.currentMode === "echoLocation" || this.currentMode === "depthDebug" ? 1 : 0;
+      return modeDepthFactor(this.currentMode);
     }
-    const fromVal =
-      this.transition.fromMode === "echoLocation" || this.transition.fromMode === "depthDebug"
-        ? 1
-        : 0;
-    const toVal =
-      this.transition.toMode === "echoLocation" || this.transition.toMode === "depthDebug"
-        ? 1
-        : 0;
+    const fromVal = modeDepthFactor(this.transition.fromMode);
+    const toVal   = modeDepthFactor(this.transition.toMode);
     const t = smoothstep(this.transition.progress);
     return fromVal + (toVal - fromVal) * t;
   }
