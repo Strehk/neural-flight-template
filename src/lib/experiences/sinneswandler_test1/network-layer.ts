@@ -19,14 +19,14 @@ const GROUND_SIZE_MIN = 3;
 const GROUND_SIZE_MAX = 6;
 const GROUND_CLUSTER_RADIUS = 6.5;
 
-// Aerial flock path: each flock flies an ellipse anchored at its cell origin.
-// primaryR = length of the long axis (flight direction), secondaryR = short axis.
-const FLIGHT_PRIMARY_R_MIN = 35;
-const FLIGHT_PRIMARY_R_MAX = 65;
-const FLIGHT_SECONDARY_R_MIN = 10;
-const FLIGHT_SECONDARY_R_MAX = 22;
-const FLIGHT_SPEED_MIN = 0.025;
-const FLIGHT_SPEED_MAX = 0.062;
+// Aerial flock path: very elongated ellipse so the flock clearly flies in one
+// direction. primaryR >> secondaryR gives a near-linear sweep along the heading.
+const FLIGHT_PRIMARY_R_MIN = 90;
+const FLIGHT_PRIMARY_R_MAX = 160;
+const FLIGHT_SECONDARY_R_MIN = 3;
+const FLIGHT_SECONDARY_R_MAX = 8;
+const FLIGHT_SPEED_MIN = 0.04;
+const FLIGHT_SPEED_MAX = 0.09;
 const AERIAL_ALT_MIN = 18;
 const AERIAL_ALT_MAX = 42;
 
@@ -34,9 +34,6 @@ const AERIAL_ALT_MAX = 42;
 const BIRD_ORBIT_R = 4.5;
 const BIRD_ORBIT_SPEED_MIN = 0.7;
 const BIRD_ORBIT_SPEED_MAX = 1.4;
-
-// Cross-cluster connections: rare, slowly pulsing in/out (~12 % duty cycle).
-const INTER_CLUSTER_MAX_PER_NODE = 1;
 
 const NETWORK_BIOMES = new Set<BatBiomeId>(["forest", "grassland", "snow"]);
 
@@ -58,11 +55,6 @@ function cellSeed(gx: number, gz: number): number {
   return gx * 83492791 + gz * 2654435761 + 1949;
 }
 
-// Returns a value in [0, 1] that slowly oscillates, stable for a given pair.
-function interClusterPulse(cidA: number, cidB: number, elapsed: number): number {
-  const h = Math.abs((cidA * 1234567 + cidB * 7654321) & 0xffffff);
-  return (Math.sin(elapsed * 0.18 + h * 0.000026) + 1) * 0.5;
-}
 
 export class NetworkLayer {
   readonly group = new THREE.Group();
@@ -295,7 +287,6 @@ export class NetworkLayer {
     for (let i = 0; i < nodes.length && connectionCount < MAX_CONNECTIONS; i++) {
       const a = nodes[i];
       const intra: { index: number; distanceSq: number }[] = [];
-      const inter: { index: number; distanceSq: number }[] = [];
 
       for (let j = i + 1; j < nodes.length; j++) {
         const b = nodes[j];
@@ -305,40 +296,21 @@ export class NetworkLayer {
         const distanceSq = ddx * ddx + ddy * ddy + ddz * ddz;
         if (distanceSq >= CONNECTION_DISTANCE * CONNECTION_DISTANCE) continue;
 
-        // Same named cluster OR both are solo (clusterId = 0) → intra-group.
+        // Same named cluster OR both are solo (clusterId = 0) → connect.
         const sameGroup =
           (a.clusterId !== 0 && a.clusterId === b.clusterId) ||
           (a.clusterId === 0 && b.clusterId === 0);
+        if (!sameGroup) continue;
 
-        if (sameGroup) {
-          intra.push({ index: j, distanceSq });
-        } else {
-          inter.push({ index: j, distanceSq });
-        }
+        intra.push({ index: j, distanceSq });
       }
 
-      // ── Intra-cluster: connect up to CONNECTIONS_PER_NODE nearest ──
+      // Only connect within the same group — no cross-cluster lines.
       intra.sort((x, y) => x.distanceSq - y.distanceSq);
       const maxIntra = Math.min(CONNECTIONS_PER_NODE, intra.length);
       for (let ci = 0; ci < maxIntra && connectionCount < MAX_CONNECTIONS; ci++) {
         this.emitConnection(pos, col, a, nodes[intra[ci].index], elapsed, i, connectionCount);
         connectionCount++;
-      }
-
-      // ── Inter-cluster: at most 1 connection, only when slowly pulsing ──
-      inter.sort((x, y) => x.distanceSq - y.distanceSq);
-      let interAdded = 0;
-      for (
-        let ci = 0;
-        ci < inter.length && interAdded < INTER_CLUSTER_MAX_PER_NODE && connectionCount < MAX_CONNECTIONS;
-        ci++
-      ) {
-        const b = nodes[inter[ci].index];
-        if (interClusterPulse(a.clusterId, b.clusterId, elapsed) > 0.88) {
-          this.emitConnection(pos, col, a, b, elapsed, i, connectionCount);
-          connectionCount++;
-          interAdded++;
-        }
       }
     }
 
