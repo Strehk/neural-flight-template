@@ -10,28 +10,41 @@ const MAX_CONNECTIONS = 1600;
 const CONNECTION_DISTANCE = 112;
 const CONNECTIONS_PER_NODE = 4;
 
-const CLUSTER_CHANCE = 0.3;
+// Fewer cells become flocks, but each flock can be much larger.
+const CLUSTER_CHANCE = 0.16;
 const AERIAL_CLUSTER_CHANCE = 0.45;
 
-const AERIAL_SIZE_MIN = 7;
-const AERIAL_SIZE_MAX = 16;
+// Flock type distribution (checked against seed after aerial is decided):
+//   LOW_CHANCE  → near-ground swarm, small, chaotic
+//   LARGE_CHANCE → high-altitude, many birds
+//   else         → normal aerial flock
+const LOW_FLOCK_CHANCE   = 0.30;
+const LARGE_FLOCK_CHANCE = 0.28;
+
+// Size per type
+const NORMAL_SIZE_MIN = 8;
+const NORMAL_SIZE_MAX = 14;
+const LARGE_SIZE_MIN  = 22;
+const LARGE_SIZE_MAX  = 40;
+const LOW_SIZE_MIN    = 3;
+const LOW_SIZE_MAX    = 8;
+
 const GROUND_SIZE_MIN = 3;
 const GROUND_SIZE_MAX = 6;
 const GROUND_CLUSTER_RADIUS = 6.5;
+
 const AERIAL_ALT_MIN = 18;
 const AERIAL_ALT_MAX = 42;
+const LOW_ALT_MIN    = 1.5;
+const LOW_ALT_MAX    = 6.0;
 
-// Boids physics
-const BOID_MAX_SPEED = 10;          // units/second
-const BOID_MAX_FORCE = 18;          // units/second² (acceleration cap per rule)
+// Boids physics — shared ranges, per-flock weights stored on AerialFlock
+const BOID_MAX_FORCE = 18;          // units/second²
 const BOID_SEP_RANGE = 8;
 const BOID_ALI_RANGE = 22;
 const BOID_COH_RANGE = 28;
-const BOID_SEP_WEIGHT = 1.6;
-const BOID_ALI_WEIGHT = 1.0;
-const BOID_COH_WEIGHT = 1.0;
-const BOID_ALT_SPRING = 2.2;        // spring constant pulling boids back to target altitude
-const BOID_BOUNDARY_RADIUS = 85;    // horizontal distance from home before return force kicks in
+const BOID_ALT_SPRING = 2.2;
+const BOID_BOUNDARY_RADIUS = 85;
 const BOID_BOUNDARY_WEIGHT = 2.8;
 
 const NETWORK_BIOMES = new Set<BatBiomeId>(["forest", "grassland", "snow"]);
@@ -51,6 +64,11 @@ interface AerialFlock {
   homeZ: number;
   targetY: number;
   clusterId: number;
+  maxSpeed: number;
+  sepWeight: number;
+  aliWeight: number;
+  cohWeight: number;
+  noiseStrength: number; // per-frame turbulence for low/ground flocks
 }
 
 interface NetworkNode {
@@ -209,20 +227,38 @@ export class NetworkLayer {
   }
 
   private createFlock(seed: number, cx: number, cz: number): AerialFlock {
-    const altitude = AERIAL_ALT_MIN + seededRandom2D(seed, 22) * (AERIAL_ALT_MAX - AERIAL_ALT_MIN);
-    const groundY = this.world.sampleHeight(cx, cz);
-    const targetY = groundY + altitude;
-    const heading = seededRandom2D(seed, 17) * Math.PI * 2;
-    const initialSpeed = BOID_MAX_SPEED * 0.65;
+    const typeRoll = seededRandom2D(seed, 23);
+    const isLow   = typeRoll < LOW_FLOCK_CHANCE;
+    const isLarge = !isLow && typeRoll < LOW_FLOCK_CHANCE + LARGE_FLOCK_CHANCE;
 
-    const count = AERIAL_SIZE_MIN +
-      Math.floor(seededRandom2D(seed, 11) * (AERIAL_SIZE_MAX - AERIAL_SIZE_MIN + 1));
+    const groundY = this.world.sampleHeight(cx, cz);
+    const altRange = isLow
+      ? { min: LOW_ALT_MIN,    max: LOW_ALT_MAX }
+      : { min: AERIAL_ALT_MIN, max: AERIAL_ALT_MAX };
+    const targetY = groundY + altRange.min + seededRandom2D(seed, 22) * (altRange.max - altRange.min);
+
+    const sizeRange = isLow ? { min: LOW_SIZE_MIN, max: LOW_SIZE_MAX }
+      : isLarge             ? { min: LARGE_SIZE_MIN, max: LARGE_SIZE_MAX }
+      :                       { min: NORMAL_SIZE_MIN, max: NORMAL_SIZE_MAX };
+    const count = sizeRange.min +
+      Math.floor(seededRandom2D(seed, 11) * (sizeRange.max - sizeRange.min + 1));
+
+    // Low flocks: chaotic, slower, less aligned. High flocks: organised, faster.
+    const maxSpeed      = isLow ? 4  : isLarge ? 11 : 9;
+    const sepWeight     = isLow ? 2.4 : 1.6;
+    const aliWeight     = isLow ? 0.3 : 1.0;
+    const cohWeight     = isLow ? 0.7 : 1.0;
+    const noiseStrength = isLow ? 9   : 0;
+
+    const heading = seededRandom2D(seed, 17) * Math.PI * 2;
+    const initialSpeed = maxSpeed * 0.65;
+    const spreadMax = isLow ? 6 : 10;
 
     const boids: Boid[] = [];
     for (let ci = 0; ci < count; ci++) {
       const spreadAngle = seededRandom2D(seed, 60 + ci) * Math.PI * 2;
-      const spreadR = seededRandom2D(seed, 70 + ci) * 10;
-      const velAngle = heading + (seededRandom2D(seed, 90 + ci) - 0.5) * 0.7;
+      const spreadR = seededRandom2D(seed, 70 + ci) * spreadMax;
+      const velAngle = heading + (seededRandom2D(seed, 90 + ci) - 0.5) * (isLow ? 2.0 : 0.7);
       boids.push({
         position: new THREE.Vector3(
           cx + Math.cos(spreadAngle) * spreadR,
@@ -243,6 +279,11 @@ export class NetworkLayer {
       homeZ: cz,
       targetY,
       clusterId: (seed >>> 0) || 1,
+      maxSpeed,
+      sepWeight,
+      aliWeight,
+      cohWeight,
+      noiseStrength,
     };
   }
 
@@ -251,6 +292,7 @@ export class NetworkLayer {
   private stepBoids(flock: AerialFlock, delta: number): void {
     const boids = flock.boids;
     const maxForce = BOID_MAX_FORCE * delta;
+    const { maxSpeed, sepWeight, aliWeight, cohWeight, noiseStrength } = flock;
 
     for (let i = 0; i < boids.length; i++) {
       const b = boids[i];
@@ -265,55 +307,54 @@ export class NetworkLayer {
         const dist = b.position.distanceTo(o.position);
 
         if (dist < BOID_SEP_RANGE && dist > 0) {
-          // Push away, weighted by proximity.
           _diff.subVectors(b.position, o.position).divideScalar(dist);
           _sep.add(_diff);
           sepN++;
         }
-        if (dist < BOID_ALI_RANGE) {
-          _ali.add(o.velocity);
-          aliN++;
-        }
-        if (dist < BOID_COH_RANGE) {
-          _coh.add(o.position);
-          cohN++;
-        }
+        if (dist < BOID_ALI_RANGE) { _ali.add(o.velocity); aliN++; }
+        if (dist < BOID_COH_RANGE) { _coh.add(o.position); cohN++; }
       }
 
       _acc.set(0, 0, 0);
 
       if (sepN > 0) {
-        _sep.divideScalar(sepN).normalize().multiplyScalar(BOID_MAX_SPEED)
-          .sub(b.velocity).clampLength(0, maxForce).multiplyScalar(BOID_SEP_WEIGHT);
+        _sep.divideScalar(sepN).normalize().multiplyScalar(maxSpeed)
+          .sub(b.velocity).clampLength(0, maxForce).multiplyScalar(sepWeight);
         _acc.add(_sep);
       }
       if (aliN > 0) {
-        _ali.divideScalar(aliN).normalize().multiplyScalar(BOID_MAX_SPEED)
-          .sub(b.velocity).clampLength(0, maxForce).multiplyScalar(BOID_ALI_WEIGHT);
+        _ali.divideScalar(aliN).normalize().multiplyScalar(maxSpeed)
+          .sub(b.velocity).clampLength(0, maxForce).multiplyScalar(aliWeight);
         _acc.add(_ali);
       }
       if (cohN > 0) {
         _coh.divideScalar(cohN)
-          .sub(b.position).normalize().multiplyScalar(BOID_MAX_SPEED)
-          .sub(b.velocity).clampLength(0, maxForce).multiplyScalar(BOID_COH_WEIGHT);
+          .sub(b.position).normalize().multiplyScalar(maxSpeed)
+          .sub(b.velocity).clampLength(0, maxForce).multiplyScalar(cohWeight);
         _acc.add(_coh);
       }
 
-      // Soft altitude spring — keeps birds roughly at target height.
-      const altErr = b.position.y - flock.targetY;
-      _acc.y -= altErr * BOID_ALT_SPRING * delta;
+      // Random turbulence for low/ground flocks (gives chaotic murmuration feel).
+      if (noiseStrength > 0) {
+        _acc.x += (Math.random() - 0.5) * noiseStrength * delta;
+        _acc.z += (Math.random() - 0.5) * noiseStrength * delta;
+        _acc.y += (Math.random() - 0.5) * noiseStrength * 0.25 * delta;
+      }
 
-      // Horizontal boundary — gentle return force if too far from home.
+      // Soft altitude spring.
+      _acc.y -= (b.position.y - flock.targetY) * BOID_ALT_SPRING * delta;
+
+      // Horizontal boundary return force.
       const hx = b.position.x - flock.homeX;
       const hz = b.position.z - flock.homeZ;
       const hDist = Math.sqrt(hx * hx + hz * hz);
       if (hDist > BOID_BOUNDARY_RADIUS) {
-        const pullStrength = BOID_BOUNDARY_WEIGHT * ((hDist - BOID_BOUNDARY_RADIUS) / BOID_BOUNDARY_RADIUS);
-        _acc.x -= (hx / hDist) * pullStrength;
-        _acc.z -= (hz / hDist) * pullStrength;
+        const pull = BOID_BOUNDARY_WEIGHT * ((hDist - BOID_BOUNDARY_RADIUS) / BOID_BOUNDARY_RADIUS);
+        _acc.x -= (hx / hDist) * pull;
+        _acc.z -= (hz / hDist) * pull;
       }
 
-      b.velocity.add(_acc).clampLength(0, BOID_MAX_SPEED);
+      b.velocity.add(_acc).clampLength(0, maxSpeed);
       b.position.addScaledVector(b.velocity, delta);
     }
   }
