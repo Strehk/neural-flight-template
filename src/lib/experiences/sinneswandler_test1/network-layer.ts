@@ -18,22 +18,21 @@ const AERIAL_SIZE_MAX = 16;
 const GROUND_SIZE_MIN = 3;
 const GROUND_SIZE_MAX = 6;
 const GROUND_CLUSTER_RADIUS = 6.5;
-
-// Aerial flock path: very elongated ellipse so the flock clearly flies in one
-// direction. primaryR >> secondaryR gives a near-linear sweep along the heading.
-const FLIGHT_PRIMARY_R_MIN = 90;
-const FLIGHT_PRIMARY_R_MAX = 160;
-const FLIGHT_SECONDARY_R_MIN = 3;
-const FLIGHT_SECONDARY_R_MAX = 8;
-const FLIGHT_SPEED_MIN = 0.04;
-const FLIGHT_SPEED_MAX = 0.09;
 const AERIAL_ALT_MIN = 18;
 const AERIAL_ALT_MAX = 42;
 
-// Per-bird orbit around the moving flock center.
-const BIRD_ORBIT_R = 4.5;
-const BIRD_ORBIT_SPEED_MIN = 0.7;
-const BIRD_ORBIT_SPEED_MAX = 1.4;
+// Boids physics
+const BOID_MAX_SPEED = 10;          // units/second
+const BOID_MAX_FORCE = 18;          // units/second² (acceleration cap per rule)
+const BOID_SEP_RANGE = 8;
+const BOID_ALI_RANGE = 22;
+const BOID_COH_RANGE = 28;
+const BOID_SEP_WEIGHT = 1.6;
+const BOID_ALI_WEIGHT = 1.0;
+const BOID_COH_WEIGHT = 1.0;
+const BOID_ALT_SPRING = 2.2;        // spring constant pulling boids back to target altitude
+const BOID_BOUNDARY_RADIUS = 85;    // horizontal distance from home before return force kicks in
+const BOID_BOUNDARY_WEIGHT = 2.8;
 
 const NETWORK_BIOMES = new Set<BatBiomeId>(["forest", "grassland", "snow"]);
 
@@ -41,13 +40,24 @@ const COLOR_SOLO = 0xff1a2e;
 const COLOR_CORE = 0xff0022;
 const COLOR_MEMBER = 0xff3344;
 
+interface Boid {
+  position: THREE.Vector3;
+  velocity: THREE.Vector3;
+}
+
+interface AerialFlock {
+  boids: Boid[];
+  homeX: number;
+  homeZ: number;
+  targetY: number;
+  clusterId: number;
+}
+
 interface NetworkNode {
   x: number;
   y: number;
   z: number;
   color: THREE.Color;
-  // Unique per cluster; solo nodes share clusterId = 0 (treated as "same group"
-  // so they still wire freely to each other but not to named clusters).
   clusterId: number;
 }
 
@@ -55,6 +65,12 @@ function cellSeed(gx: number, gz: number): number {
   return gx * 83492791 + gz * 2654435761 + 1949;
 }
 
+// Reusable vectors to avoid allocation in the hot boids loop.
+const _sep = new THREE.Vector3();
+const _ali = new THREE.Vector3();
+const _coh = new THREE.Vector3();
+const _diff = new THREE.Vector3();
+const _acc = new THREE.Vector3();
 
 export class NetworkLayer {
   readonly group = new THREE.Group();
@@ -66,6 +82,7 @@ export class NetworkLayer {
   private readonly nodeColors: THREE.BufferAttribute;
   private readonly lines: THREE.LineSegments;
   private readonly nodes: THREE.Points;
+  private readonly aerialFlocks = new Map<string, AerialFlock>();
   private factor = 0;
 
   constructor(world: BatWorld) {
@@ -73,12 +90,10 @@ export class NetworkLayer {
 
     const lineGeo = new THREE.BufferGeometry();
     this.linePositions = new THREE.BufferAttribute(
-      new Float32Array(MAX_CONNECTIONS * 2 * 3),
-      3,
+      new Float32Array(MAX_CONNECTIONS * 2 * 3), 3,
     ).setUsage(THREE.DynamicDrawUsage);
     this.lineColors = new THREE.BufferAttribute(
-      new Float32Array(MAX_CONNECTIONS * 2 * 3),
-      3,
+      new Float32Array(MAX_CONNECTIONS * 2 * 3), 3,
     ).setUsage(THREE.DynamicDrawUsage);
     lineGeo.setAttribute("position", this.linePositions);
     lineGeo.setAttribute("color", this.lineColors);
@@ -99,12 +114,10 @@ export class NetworkLayer {
 
     const nodeGeo = new THREE.BufferGeometry();
     this.nodePositions = new THREE.BufferAttribute(
-      new Float32Array(MAX_NODES * 3),
-      3,
+      new Float32Array(MAX_NODES * 3), 3,
     ).setUsage(THREE.DynamicDrawUsage);
     this.nodeColors = new THREE.BufferAttribute(
-      new Float32Array(MAX_NODES * 3),
-      3,
+      new Float32Array(MAX_NODES * 3), 3,
     ).setUsage(THREE.DynamicDrawUsage);
     nodeGeo.setAttribute("position", this.nodePositions);
     nodeGeo.setAttribute("color", this.nodeColors);
@@ -135,8 +148,9 @@ export class NetworkLayer {
     this.group.visible = this.factor > 0.01;
   }
 
-  tick(playerPos: THREE.Vector3, elapsed: number): void {
+  tick(playerPos: THREE.Vector3, delta: number, elapsed: number): void {
     if (this.factor <= 0.01) return;
+    this.maintainFlocks(playerPos, delta);
     const nodes = this.collectNodes(playerPos, elapsed);
     this.writeNodes(nodes, elapsed);
     this.writeConnections(nodes, elapsed);
@@ -147,10 +161,183 @@ export class NetworkLayer {
     (this.lines.material as THREE.Material).dispose();
     this.nodes.geometry.dispose();
     (this.nodes.material as THREE.Material).dispose();
+    this.aerialFlocks.clear();
   }
+
+  // ── Flock lifecycle ───────────────────────────────────────────────────────
+
+  private maintainFlocks(playerPos: THREE.Vector3, delta: number): void {
+    const halfCells = Math.ceil(VIEW_DISTANCE / CELL_SIZE);
+    const centerGX = Math.round(playerPos.x / CELL_SIZE);
+    const centerGZ = Math.round(playerPos.z / CELL_SIZE);
+    const activeCellKeys = new Set<string>();
+
+    for (let gx = centerGX - halfCells; gx <= centerGX + halfCells; gx++) {
+      for (let gz = centerGZ - halfCells; gz <= centerGZ + halfCells; gz++) {
+        const seed = cellSeed(gx, gz);
+        if (seededRandom2D(seed, 1) > 0.82) continue;
+        if (seededRandom2D(seed, 10) >= CLUSTER_CHANCE) continue;
+        if (seededRandom2D(seed, 15) >= AERIAL_CLUSTER_CHANCE) continue;
+
+        const jitterX = (seededRandom2D(seed, 2) - 0.5) * CELL_SIZE * 0.72;
+        const jitterZ = (seededRandom2D(seed, 3) - 0.5) * CELL_SIZE * 0.72;
+        const cx = gx * CELL_SIZE + jitterX;
+        const cz = gz * CELL_SIZE + jitterZ;
+        const dx = cx - playerPos.x;
+        const dz = cz - playerPos.z;
+        if (dx * dx + dz * dz > VIEW_DISTANCE * VIEW_DISTANCE) continue;
+
+        const biome = this.world.sampleBiome(cx, cz);
+        if (!NETWORK_BIOMES.has(biome)) continue;
+
+        const key = `${gx},${gz}`;
+        activeCellKeys.add(key);
+        if (!this.aerialFlocks.has(key)) {
+          this.aerialFlocks.set(key, this.createFlock(seed, cx, cz));
+        }
+      }
+    }
+
+    for (const key of this.aerialFlocks.keys()) {
+      if (!activeCellKeys.has(key)) this.aerialFlocks.delete(key);
+    }
+
+    const clampedDelta = Math.min(delta, 0.05); // cap for large frames
+    for (const flock of this.aerialFlocks.values()) {
+      this.stepBoids(flock, clampedDelta);
+    }
+  }
+
+  private createFlock(seed: number, cx: number, cz: number): AerialFlock {
+    const altitude = AERIAL_ALT_MIN + seededRandom2D(seed, 22) * (AERIAL_ALT_MAX - AERIAL_ALT_MIN);
+    const groundY = this.world.sampleHeight(cx, cz);
+    const targetY = groundY + altitude;
+    const heading = seededRandom2D(seed, 17) * Math.PI * 2;
+    const initialSpeed = BOID_MAX_SPEED * 0.65;
+
+    const count = AERIAL_SIZE_MIN +
+      Math.floor(seededRandom2D(seed, 11) * (AERIAL_SIZE_MAX - AERIAL_SIZE_MIN + 1));
+
+    const boids: Boid[] = [];
+    for (let ci = 0; ci < count; ci++) {
+      const spreadAngle = seededRandom2D(seed, 60 + ci) * Math.PI * 2;
+      const spreadR = seededRandom2D(seed, 70 + ci) * 10;
+      const velAngle = heading + (seededRandom2D(seed, 90 + ci) - 0.5) * 0.7;
+      boids.push({
+        position: new THREE.Vector3(
+          cx + Math.cos(spreadAngle) * spreadR,
+          targetY + (seededRandom2D(seed, 80 + ci) - 0.5) * 4,
+          cz + Math.sin(spreadAngle) * spreadR,
+        ),
+        velocity: new THREE.Vector3(
+          Math.cos(velAngle) * initialSpeed,
+          (seededRandom2D(seed, 100 + ci) - 0.5) * 1.5,
+          Math.sin(velAngle) * initialSpeed,
+        ),
+      });
+    }
+
+    return {
+      boids,
+      homeX: cx,
+      homeZ: cz,
+      targetY,
+      clusterId: (seed >>> 0) || 1,
+    };
+  }
+
+  // ── Boids simulation ──────────────────────────────────────────────────────
+
+  private stepBoids(flock: AerialFlock, delta: number): void {
+    const boids = flock.boids;
+    const maxForce = BOID_MAX_FORCE * delta;
+
+    for (let i = 0; i < boids.length; i++) {
+      const b = boids[i];
+      _sep.set(0, 0, 0);
+      _ali.set(0, 0, 0);
+      _coh.set(0, 0, 0);
+      let sepN = 0, aliN = 0, cohN = 0;
+
+      for (let j = 0; j < boids.length; j++) {
+        if (i === j) continue;
+        const o = boids[j];
+        const dist = b.position.distanceTo(o.position);
+
+        if (dist < BOID_SEP_RANGE && dist > 0) {
+          // Push away, weighted by proximity.
+          _diff.subVectors(b.position, o.position).divideScalar(dist);
+          _sep.add(_diff);
+          sepN++;
+        }
+        if (dist < BOID_ALI_RANGE) {
+          _ali.add(o.velocity);
+          aliN++;
+        }
+        if (dist < BOID_COH_RANGE) {
+          _coh.add(o.position);
+          cohN++;
+        }
+      }
+
+      _acc.set(0, 0, 0);
+
+      if (sepN > 0) {
+        _sep.divideScalar(sepN).normalize().multiplyScalar(BOID_MAX_SPEED)
+          .sub(b.velocity).clampLength(0, maxForce).multiplyScalar(BOID_SEP_WEIGHT);
+        _acc.add(_sep);
+      }
+      if (aliN > 0) {
+        _ali.divideScalar(aliN).normalize().multiplyScalar(BOID_MAX_SPEED)
+          .sub(b.velocity).clampLength(0, maxForce).multiplyScalar(BOID_ALI_WEIGHT);
+        _acc.add(_ali);
+      }
+      if (cohN > 0) {
+        _coh.divideScalar(cohN)
+          .sub(b.position).normalize().multiplyScalar(BOID_MAX_SPEED)
+          .sub(b.velocity).clampLength(0, maxForce).multiplyScalar(BOID_COH_WEIGHT);
+        _acc.add(_coh);
+      }
+
+      // Soft altitude spring — keeps birds roughly at target height.
+      const altErr = b.position.y - flock.targetY;
+      _acc.y -= altErr * BOID_ALT_SPRING * delta;
+
+      // Horizontal boundary — gentle return force if too far from home.
+      const hx = b.position.x - flock.homeX;
+      const hz = b.position.z - flock.homeZ;
+      const hDist = Math.sqrt(hx * hx + hz * hz);
+      if (hDist > BOID_BOUNDARY_RADIUS) {
+        const pullStrength = BOID_BOUNDARY_WEIGHT * ((hDist - BOID_BOUNDARY_RADIUS) / BOID_BOUNDARY_RADIUS);
+        _acc.x -= (hx / hDist) * pullStrength;
+        _acc.z -= (hz / hDist) * pullStrength;
+      }
+
+      b.velocity.add(_acc).clampLength(0, BOID_MAX_SPEED);
+      b.position.addScaledVector(b.velocity, delta);
+    }
+  }
+
+  // ── Node collection ───────────────────────────────────────────────────────
 
   private collectNodes(playerPos: THREE.Vector3, elapsed: number): NetworkNode[] {
     const nodes: NetworkNode[] = [];
+
+    // Aerial flocks: read from live boid positions.
+    for (const flock of this.aerialFlocks.values()) {
+      for (let ci = 0; ci < flock.boids.length; ci++) {
+        const b = flock.boids[ci];
+        nodes.push({
+          x: b.position.x,
+          y: b.position.y,
+          z: b.position.z,
+          color: new THREE.Color(ci === 0 ? COLOR_CORE : COLOR_MEMBER),
+          clusterId: flock.clusterId,
+        });
+      }
+    }
+
+    // Ground clusters + solo nodes: seeded positions.
     const halfCells = Math.ceil(VIEW_DISTANCE / CELL_SIZE);
     const centerGX = Math.round(playerPos.x / CELL_SIZE);
     const centerGZ = Math.round(playerPos.z / CELL_SIZE);
@@ -174,92 +361,48 @@ export class NetworkLayer {
         const isCluster = seededRandom2D(seed, 10) < CLUSTER_CHANCE;
 
         if (!isCluster) {
-          // Isolated organism on the ground.
           const wave = Math.sin(elapsed * 0.55 + seededRandom2D(seed, 4) * Math.PI * 2);
           const y = this.world.sampleHeight(cx, cz) + 1.2 + wave * 0.35;
           nodes.push({ x: cx, y, z: cz, color: new THREE.Color(COLOR_SOLO), clusterId: 0 });
           continue;
         }
 
-        const isAerial = seededRandom2D(seed, 15) < AERIAL_CLUSTER_CHANCE;
-        // Use seed as unique cluster ID (always > 0 after the hash).
+        // Skip aerial clusters — handled above via aerialFlocks map.
+        if (seededRandom2D(seed, 15) < AERIAL_CLUSTER_CHANCE) continue;
+
+        // Ground cluster.
         const clusterId = (seed >>> 0) || 1;
+        const clusterSize = GROUND_SIZE_MIN +
+          Math.floor(seededRandom2D(seed, 11) * (GROUND_SIZE_MAX - GROUND_SIZE_MIN + 1));
 
-        if (isAerial) {
-          // ── Aerial flock: flies an ellipse around its cell origin ──
-          const heading = seededRandom2D(seed, 17) * Math.PI * 2;
-          const primaryR =
-            FLIGHT_PRIMARY_R_MIN +
-            seededRandom2D(seed, 18) * (FLIGHT_PRIMARY_R_MAX - FLIGHT_PRIMARY_R_MIN);
-          const secondaryR =
-            FLIGHT_SECONDARY_R_MIN +
-            seededRandom2D(seed, 19) * (FLIGHT_SECONDARY_R_MAX - FLIGHT_SECONDARY_R_MIN);
-          const flightSpeed =
-            FLIGHT_SPEED_MIN +
-            seededRandom2D(seed, 20) * (FLIGHT_SPEED_MAX - FLIGHT_SPEED_MIN);
-          const phase = seededRandom2D(seed, 21) * Math.PI * 2;
-
-          const t = elapsed * flightSpeed + phase;
-          // Rotate ellipse by heading: hx/hz = heading unit vector.
-          const hx = Math.cos(heading);
-          const hz = Math.sin(heading);
-          const fcx = cx + hx * Math.cos(t) * primaryR - hz * Math.sin(t) * secondaryR;
-          const fcz = cz + hz * Math.cos(t) * primaryR + hx * Math.sin(t) * secondaryR;
-          const altitude =
-            AERIAL_ALT_MIN +
-            seededRandom2D(seed, 22) * (AERIAL_ALT_MAX - AERIAL_ALT_MIN);
-          const fcy = this.world.sampleHeight(cx, cz) + altitude;
-
-          const clusterSize =
-            AERIAL_SIZE_MIN +
-            Math.floor(seededRandom2D(seed, 11) * (AERIAL_SIZE_MAX - AERIAL_SIZE_MIN + 1));
-
-          for (let ci = 0; ci < clusterSize; ci++) {
-            const orbitPhase = seededRandom2D(seed, 30 + ci) * Math.PI * 2;
-            const orbitSpeed =
-              BIRD_ORBIT_SPEED_MIN +
-              seededRandom2D(seed, 40 + ci) * (BIRD_ORBIT_SPEED_MAX - BIRD_ORBIT_SPEED_MIN);
-            const orbitAngle = elapsed * orbitSpeed + orbitPhase;
-            const orbitR = ci === 0 ? 0 : seededRandom2D(seed, 50 + ci) * BIRD_ORBIT_R;
-            const nx = fcx + Math.cos(orbitAngle) * orbitR;
-            const nz = fcz + Math.sin(orbitAngle) * orbitR;
-            const ny = fcy + Math.sin(elapsed * 0.88 + ci * 0.83) * 2.2;
-            const color = new THREE.Color(ci === 0 ? COLOR_CORE : COLOR_MEMBER);
-            nodes.push({ x: nx, y: ny, z: nz, color, clusterId });
+        for (let ci = 0; ci < clusterSize; ci++) {
+          let nx = cx, nz = cz;
+          if (ci > 0) {
+            const angle = seededRandom2D(seed, 12 + ci * 2) * Math.PI * 2;
+            const r = seededRandom2D(seed, 13 + ci * 2) * GROUND_CLUSTER_RADIUS;
+            nx = cx + Math.cos(angle) * r;
+            nz = cz + Math.sin(angle) * r;
           }
-        } else {
-          // ── Ground cluster: tight group near terrain ──
-          const clusterSize =
-            GROUND_SIZE_MIN +
-            Math.floor(seededRandom2D(seed, 11) * (GROUND_SIZE_MAX - GROUND_SIZE_MIN + 1));
-
-          for (let ci = 0; ci < clusterSize; ci++) {
-            let nx = cx;
-            let nz = cz;
-            if (ci > 0) {
-              const angle = seededRandom2D(seed, 12 + ci * 2) * Math.PI * 2;
-              const r = seededRandom2D(seed, 13 + ci * 2) * GROUND_CLUSTER_RADIUS;
-              nx = cx + Math.cos(angle) * r;
-              nz = cz + Math.sin(angle) * r;
-            }
-            const wave = Math.sin(elapsed * 0.55 + seededRandom2D(seed, 4 + ci) * Math.PI * 2);
-            const y = this.world.sampleHeight(nx, nz) + 1.2 + wave * 0.35;
-            const color = new THREE.Color(ci === 0 ? COLOR_CORE : COLOR_MEMBER);
-            nodes.push({ x: nx, y, z: nz, color, clusterId });
-          }
+          const wave = Math.sin(elapsed * 0.55 + seededRandom2D(seed, 4 + ci) * Math.PI * 2);
+          const y = this.world.sampleHeight(nx, nz) + 1.2 + wave * 0.35;
+          nodes.push({
+            x: nx, y, z: nz,
+            color: new THREE.Color(ci === 0 ? COLOR_CORE : COLOR_MEMBER),
+            clusterId,
+          });
         }
       }
     }
 
     nodes.sort((a, b) => {
-      const adx = a.x - playerPos.x;
-      const adz = a.z - playerPos.z;
-      const bdx = b.x - playerPos.x;
-      const bdz = b.z - playerPos.z;
+      const adx = a.x - playerPos.x, adz = a.z - playerPos.z;
+      const bdx = b.x - playerPos.x, bdz = b.z - playerPos.z;
       return adx * adx + adz * adz - (bdx * bdx + bdz * bdz);
     });
     return nodes.slice(0, MAX_NODES);
   }
+
+  // ── Geometry write ────────────────────────────────────────────────────────
 
   private writeNodes(nodes: NetworkNode[], elapsed: number): void {
     const pos = this.nodePositions.array as Float32Array;
@@ -290,22 +433,18 @@ export class NetworkLayer {
 
       for (let j = i + 1; j < nodes.length; j++) {
         const b = nodes[j];
-        const ddx = a.x - b.x;
-        const ddy = a.y - b.y;
-        const ddz = a.z - b.z;
-        const distanceSq = ddx * ddx + ddy * ddy + ddz * ddz;
-        if (distanceSq >= CONNECTION_DISTANCE * CONNECTION_DISTANCE) continue;
-
-        // Same named cluster OR both are solo (clusterId = 0) → connect.
         const sameGroup =
           (a.clusterId !== 0 && a.clusterId === b.clusterId) ||
           (a.clusterId === 0 && b.clusterId === 0);
         if (!sameGroup) continue;
 
+        const ddx = a.x - b.x, ddy = a.y - b.y, ddz = a.z - b.z;
+        const distanceSq = ddx * ddx + ddy * ddy + ddz * ddz;
+        if (distanceSq >= CONNECTION_DISTANCE * CONNECTION_DISTANCE) continue;
+
         intra.push({ index: j, distanceSq });
       }
 
-      // Only connect within the same group — no cross-cluster lines.
       intra.sort((x, y) => x.distanceSq - y.distanceSq);
       const maxIntra = Math.min(CONNECTIONS_PER_NODE, intra.length);
       for (let ci = 0; ci < maxIntra && connectionCount < MAX_CONNECTIONS; ci++) {
@@ -320,18 +459,14 @@ export class NetworkLayer {
   }
 
   private emitConnection(
-    pos: Float32Array,
-    col: Float32Array,
-    a: NetworkNode,
-    b: NetworkNode,
-    elapsed: number,
-    i: number,
-    connectionCount: number,
+    pos: Float32Array, col: Float32Array,
+    a: NetworkNode, b: NetworkNode,
+    elapsed: number, i: number, connectionCount: number,
   ): void {
     const base = connectionCount * 6;
     const colorPulse = 0.66 + 0.34 * Math.sin(elapsed * 1.25 + i * 0.41);
-    pos[base] = a.x; pos[base + 1] = a.y; pos[base + 2] = a.z;
-    pos[base + 3] = b.x; pos[base + 4] = b.y; pos[base + 5] = b.z;
+    pos[base] = a.x;     pos[base + 1] = a.y;     pos[base + 2] = a.z;
+    pos[base + 3] = b.x; pos[base + 4] = b.y;     pos[base + 5] = b.z;
     col[base] = a.color.r * colorPulse;
     col[base + 1] = a.color.g * colorPulse;
     col[base + 2] = a.color.b * colorPulse;

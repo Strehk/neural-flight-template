@@ -722,7 +722,7 @@ export function tick(
   const networkFactor = s.senseSwitch.getNetzwerkFactor();
   s.networkLayer.setFactor(networkFactor);
   if (networkFactor > 0.01) {
-    s.networkLayer.tick(s.player.rig.position, ctx.elapsed);
+    s.networkLayer.tick(s.player.rig.position, ctx.delta, ctx.elapsed);
   }
 
   // Moths are 2x larger in echolocation mode.
