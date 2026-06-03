@@ -25,6 +25,7 @@ import type { EchoPulseRenderState } from "./shaders";
 import { BatWorld, type EchoProbeProfile } from "./world";
 import { SenseSwitchManager } from "./sense-switch";
 import { KeyboardInput } from "./keyboard-input";
+import { ControllerInput } from "./controller-input";
 import { IntroSequence } from "./intro-sequence";
 import { ChemosenseLayer } from "./chemosense-layer";
 import {
@@ -97,6 +98,7 @@ export interface BatEcholocationState extends ExperienceState {
   whiteoutOverlayParticles: THREE.Points;
   senseSwitch: SenseSwitchManager;
   keyboardInput: KeyboardInput;
+  controllerInput: ControllerInput;
   chemosenseLayer: ChemosenseLayer;
   networkLayer: NetworkLayer;
   depthPostprocess: DepthPostprocess;
@@ -578,6 +580,7 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
     .addScaledVector(moonDirection, BAT_MOON.distance);
 
   const keyboardInput = new KeyboardInput();
+  const controllerInput = new ControllerInput();
   const senseSwitch = new SenseSwitchManager(
     world.sharedUniforms,
     ctx.scene,
@@ -632,6 +635,7 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
     whiteoutOverlayParticles,
     senseSwitch,
     keyboardInput,
+    controllerInput,
     chemosenseLayer,
     networkLayer,
     depthPostprocess,
@@ -652,11 +656,17 @@ export function tick(
   const s = state as BatEcholocationState;
   s.elapsedTime = ctx.elapsed;
 
+  // Sync controller mode tracker so A/B buttons cycle from the correct position.
+  s.controllerInput.currentMode = s.senseSwitch.currentMode;
+
   s.keyboardInput.applyTo(s.player);
-  if (s.keyboardInput.consumeInvertToggle()) {
+  s.controllerInput.applyTo(s.player); // overrides keyboard when gamepad is connected
+
+  if (s.keyboardInput.consumeInvertToggle() || s.controllerInput.consumeInvertToggle()) {
     s.invertOutput = !s.invertOutput;
   }
-  const pendingMode = s.keyboardInput.consumePendingMode();
+  const pendingMode =
+    s.keyboardInput.consumePendingMode() ?? s.controllerInput.consumePendingMode();
   if (pendingMode) {
     s.intro.playForMode(pendingMode);
     if (pendingMode !== s.senseSwitch.currentMode) {
@@ -830,6 +840,7 @@ export function dispose(state: ExperienceState, scene: THREE.Scene): void {
   s.audio.dispose();
   s.senseSwitch.dispose();
   s.keyboardInput.dispose();
+  s.controllerInput.dispose();
   s.chemosenseLayer.dispose();
   s.networkLayer.dispose();
   s.depthPostprocess.dispose();
