@@ -142,7 +142,7 @@ export class NetworkLayer {
     nodeGeo.setDrawRange(0, 0);
 
     const nodeMat = new THREE.PointsMaterial({
-      size: 1.25,
+      size: 0.625,
       sizeAttenuation: true,
       vertexColors: true,
       transparent: true,
