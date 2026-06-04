@@ -31,9 +31,17 @@ export interface TriggerCommand {
 	timestamp: number;
 }
 
+/** Runtime settings update for the M5Stick bridge */
+export interface M5BridgeSettingsUpdate {
+	type: "m5-settings";
+	settings: Record<string, number | boolean>;
+	timestamp: number;
+}
+
 /** All possible controller → VR scene messages */
 export type ControllerMessage =
 	| OrientationData
 	| SpeedCommand
 	| SettingsUpdate
-	| TriggerCommand;
+	| TriggerCommand
+	| M5BridgeSettingsUpdate;
