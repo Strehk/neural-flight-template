@@ -28,6 +28,7 @@ import {
   type EchoSurfaceType as _EchoSurfaceType,
 } from "$lib/three/world/echo/EchoProbe";
 import type { EchoPulseRenderState, SharedEchoUniforms } from "./shaders";
+import { seededRandom2D } from "$lib/three/random";
 
 // Re-export the echo types so `audio.ts` (and any other consumer) keeps
 // importing them from "./world". The probe + its types live in the
@@ -42,6 +43,23 @@ export interface BatWorldFrameEvents {
   activeMoths: number;
   nearestMothDistance: number | null;
 }
+
+export interface ChemosenseSource {
+  key: string;
+  position: THREE.Vector3;
+  color: number;
+  radius: number;
+  intensity: number;
+  particleCount: number;
+}
+
+// Scent colors used when generating chemosense sources procedurally.
+const CHEMOSENSE_COLORS = [
+  0xff44aa, 0x44ffaa, 0xaaff44, 0xff8844, 0x44aaff,
+  0xffaa44, 0x88ff44, 0xff4488, 0x44ffdd, 0xdd44ff,
+];
+// Cell grid for deterministic source placement — matches chemosense-layer cell size.
+const CHEMOSENSE_CELL_SIZE = 14;
 
 interface WorldChunk {
   key: string;
@@ -469,6 +487,61 @@ export class BatWorld {
 
   sampleBiome(x: number, z: number): BatBiomeId {
     return this.terrainSampler.sampleBiomeId(x, z);
+  }
+
+  sampleChemosenseSources(
+    playerPosition: THREE.Vector3,
+    range: number,
+  ): ChemosenseSource[] {
+    const rangeSq = range * range;
+    const halfCells = Math.ceil(range / CHEMOSENSE_CELL_SIZE) + 1;
+    const centerGX = Math.round(playerPosition.x / CHEMOSENSE_CELL_SIZE);
+    const centerGZ = Math.round(playerPosition.z / CHEMOSENSE_CELL_SIZE);
+    const sources: ChemosenseSource[] = [];
+
+    for (let dgx = -halfCells; dgx <= halfCells; dgx++) {
+      for (let dgz = -halfCells; dgz <= halfCells; dgz++) {
+        const gx = centerGX + dgx;
+        const gz = centerGZ + dgz;
+        const wx = gx * CHEMOSENSE_CELL_SIZE;
+        const wz = gz * CHEMOSENSE_CELL_SIZE;
+        const dx = wx - playerPosition.x;
+        const dz = wz - playerPosition.z;
+        if (dx * dx + dz * dz > rangeSq) continue;
+
+        const seed = gx * 73856093 + gz * 19349663 + 5923;
+        const r1 = seededRandom2D(seed, 1);
+        const r2 = seededRandom2D(seed, 2);
+        const r3 = seededRandom2D(seed, 3);
+        // ~80% of organic cells carry a source
+        if (r1 > 0.8) continue;
+
+        const hx = wx + (r2 - 0.5) * CHEMOSENSE_CELL_SIZE * 0.8;
+        const hz = wz + (r3 - 0.5) * CHEMOSENSE_CELL_SIZE * 0.8;
+        const biome = this.terrainSampler.sampleBiomeId(hx, hz);
+        if (biome !== "forest" && biome !== "grassland") continue;
+
+        const hy = this.terrainSampler.sampleHeight(hx, hz) + 2 + seededRandom2D(seed, 4) * 4;
+        const colorIdx = Math.floor(seededRandom2D(seed, 5) * CHEMOSENSE_COLORS.length);
+        const radius = 4 + seededRandom2D(seed, 6) * 8;
+
+        sources.push({
+          key: `${gx},${gz}`,
+          position: new THREE.Vector3(hx, hy, hz),
+          color: CHEMOSENSE_COLORS[colorIdx],
+          radius,
+          intensity: 1,
+          particleCount: 26,
+        });
+      }
+    }
+
+    sources.sort((a, b) => {
+      const da = a.position.distanceToSquared(playerPosition);
+      const db = b.position.distanceToSquared(playerPosition);
+      return da - db;
+    });
+    return sources;
   }
 
   /**
