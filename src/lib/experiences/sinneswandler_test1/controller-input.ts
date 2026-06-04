@@ -119,11 +119,14 @@ export class ControllerInput {
     controller.setSpeed(false, false);
 
     // ── Orientation (right thumbstick) ────────────────────────────────────
+    // Only override when there is actual thumbstick input so that M5/external
+    // orientation data set via updatePlayer() is not zeroed out every frame.
     const rx = applyDeadzone(right?.axes[2] ?? 0, DEADZONE);
     const ry = applyDeadzone(right?.axes[3] ?? 0, DEADZONE);
-    // Pitch is asymmetric: climbing uses a shallower angle than diving.
-    const pitch = ry < 0 ? ry * PITCH_CLIMB : ry * PITCH_DESCEND;
-    controller.setOrientation(pitch, rx * ROLL_MAX);
+    if (rx !== 0 || ry !== 0) {
+      const pitch = ry < 0 ? ry * PITCH_CLIMB : ry * PITCH_DESCEND;
+      controller.setOrientation(pitch, rx * ROLL_MAX);
+    }
 
     // ── Mode cycling (edge-triggered) ─────────────────────────────────────
     const aPressed = right?.buttons[4]?.pressed ?? false;
