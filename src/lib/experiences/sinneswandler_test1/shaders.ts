@@ -27,6 +27,8 @@ export interface SharedEchoUniforms {
   uEdgeFactor: THREE.IUniform<number>;
   uNoirFactor: THREE.IUniform<number>;
   uInfraredTone: THREE.IUniform<number>;
+  uDepthVisFactor: THREE.IUniform<number>;
+  uDepthInvertFactor: THREE.IUniform<number>;
 }
 
 interface RevealMaterialOptions {
@@ -66,6 +68,8 @@ uniform float uWhiteoutFactor;
 uniform float uEdgeFactor;
 uniform float uNoirFactor;
 uniform float uInfraredTone;
+uniform float uDepthVisFactor;
+uniform float uDepthInvertFactor;
 uniform vec3 uTintColor;
 uniform vec3 uDaylightTintColor;
 uniform float uFillStrength;
@@ -185,6 +189,15 @@ void main() {
 	float echoSuppression = clamp(baseReveal * 9.4 + moonScatter * 0.24 + moonDiffuse * 0.24, 0.0, 0.58);
 	fog *= mix(1.0 - echoSuppression, 1.0, uDaylightFactor);
 	color = mix(color, uFogColor, fog);
+
+	// In-shader depth visualization — VR fallback (post-process can't composite to XR framebuffer)
+	if (uDepthVisFactor > 0.001) {
+		float depthDist = distance(cameraPosition, vWorldPos);
+		float depthNorm = clamp(depthDist / max(uFogFar, 1.0), 0.0, 1.0);
+		float depthVal = mix(1.0 - depthNorm, depthNorm, uDepthInvertFactor);
+		color = mix(color, vec3(depthVal), uDepthVisFactor);
+	}
+
 	gl_FragColor = vec4(color, 1.0);
 }
 `;
@@ -261,6 +274,8 @@ export function createSharedEchoUniforms(): SharedEchoUniforms {
     uEdgeFactor: { value: 0 },
     uNoirFactor: { value: 0 },
     uInfraredTone: { value: 0.76 },
+    uDepthVisFactor: { value: 0 },
+    uDepthInvertFactor: { value: 0 },
   };
 }
 
