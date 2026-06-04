@@ -1,6 +1,10 @@
 import * as THREE from "three";
 import { loadGLTF } from "$lib/three/loader";
-import { getHexTilePositions, HEX_RADIUS } from "./hex-floor";
+import {
+  getHexTilePositions,
+  type HexTilePosition,
+  HEX_RADIUS,
+} from "./hex-floor";
 import type { VisioTechnologicaState } from "./scene";
 
 const HOCHHAUS_URL = new URL("./3d assets/Tile Hochhaus.glb", import.meta.url)
@@ -14,12 +18,34 @@ const ASPHALT_URL = new URL("./3d assets/Tile Asphalt.glb", import.meta.url)
   .href;
 const WIESE_URL = new URL("./3d assets/Tile Wiese.glb", import.meta.url).href;
 
-const EMPTY_TILE_PROBABILITY = 0.5;
 const ROTATED_TILE_PROBABILITY = 0.35;
 const TARGET_TILE_TOP_Y = 0;
 const ZONE_COUNT = 3;
-const ROTATION_ANGLES_DEGREES = [30, 60, 90, 120] as const;
+const ROTATION_ANGLES_DEGREES = [60, 120] as const;
 
+const ZONE_WEIGHTS = {
+  inner: {
+    hochhaus: 0.7,
+    mietskaserne: 0.15,
+    park: 0.05,
+    empty: 0.1,
+  },
+  middle: {
+    hochhaus: 0.15,
+    mietskaserne: 0.55,
+    park: 0.1,
+    empty: 0.2,
+  },
+  outer: {
+    hochhaus: 0.05,
+    mietskaserne: 0.15,
+    park: 0.5,
+    empty: 0.3,
+  },
+} as const;
+
+type ZoneName = keyof typeof ZONE_WEIGHTS;
+type WeightedTileKey = "hochhaus" | "mietskaserne" | "park" | "empty";
 type ZoneTileAssetKey =
   | "hochhaus"
   | "mietskaserne"
@@ -64,6 +90,19 @@ function getZoneIndex(ring: number, radius: number): number {
   return 2;
 }
 
+function getZoneName(ring: number, radius: number): ZoneName {
+  const zoneIndex = getZoneIndex(ring, radius);
+
+  switch (zoneIndex) {
+    case 0:
+      return "inner";
+    case 1:
+      return "middle";
+    default:
+      return "outer";
+  }
+}
+
 function getAssetByKey(
   assets: ZoneTileAsset[],
   key: ZoneTileAssetKey,
@@ -75,32 +114,65 @@ function getAssetByKey(
   return asset;
 }
 
-function getPrimaryAssetForRing(
-  ring: number,
-  radius: number,
+function getFallbackAssetForZone(
+  zoneName: ZoneName,
   assets: ZoneTileAsset[],
 ): ZoneTileAsset {
-  const zoneIndex = getZoneIndex(ring, radius);
-
-  switch (zoneIndex) {
-    case 0:
-      return getAssetByKey(assets, "hochhaus");
-    case 1:
-      return getAssetByKey(assets, "mietskaserne");
-    default:
-      return getAssetByKey(assets, "park");
-  }
+  return zoneName === "outer"
+    ? getAssetByKey(assets, "wiese")
+    : getAssetByKey(assets, "asphalt");
 }
 
-function getFallbackAssetForRing(
-  ring: number,
+function deterministicUnitValue(tile: HexTilePosition, salt: number): number {
+  const hashed = Math.sin(
+    tile.x * 12.9898 + tile.z * 78.233 + tile.ring * 37.719 + salt * 17.123,
+  );
+  return hashed - Math.floor(hashed);
+}
+
+function getWeightedTileKey(
+  tile: HexTilePosition,
+  radius: number,
+): WeightedTileKey {
+  const zoneName = getZoneName(tile.ring, radius);
+  const weights = ZONE_WEIGHTS[zoneName];
+  const entries: Array<[WeightedTileKey, number]> = [
+    ["hochhaus", weights.hochhaus],
+    ["mietskaserne", weights.mietskaserne],
+    ["park", weights.park],
+    ["empty", weights.empty],
+  ];
+  const totalWeight = entries.reduce((sum, [, weight]) => sum + weight, 0);
+
+  if (totalWeight <= 0) {
+    return "empty";
+  }
+
+  const target = deterministicUnitValue(tile, 1) * totalWeight;
+  let cumulative = 0;
+
+  for (const [key, weight] of entries) {
+    cumulative += weight;
+    if (target <= cumulative) {
+      return key;
+    }
+  }
+
+  return entries[entries.length - 1][0];
+}
+
+function getAssetForTile(
+  tile: HexTilePosition,
   radius: number,
   assets: ZoneTileAsset[],
 ): ZoneTileAsset {
-  const zoneIndex = getZoneIndex(ring, radius);
-  return zoneIndex < ZONE_COUNT - 1
-    ? getAssetByKey(assets, "asphalt")
-    : getAssetByKey(assets, "wiese");
+  const weightedKey = getWeightedTileKey(tile, radius);
+
+  if (weightedKey === "empty") {
+    return getFallbackAssetForZone(getZoneName(tile.ring, radius), assets);
+  }
+
+  return getAssetByKey(assets, weightedKey);
 }
 
 function fitObjectToHexTile(object: THREE.Object3D, tileSize: number): number {
@@ -139,27 +211,28 @@ function applyMeshShadowFlags(root: THREE.Object3D): void {
   });
 }
 
-function getRandomTileRotationY(): number {
-  if (Math.random() >= ROTATED_TILE_PROBABILITY) {
+function getTileRotationY(tile: HexTilePosition): number {
+  if (deterministicUnitValue(tile, 2) >= ROTATED_TILE_PROBABILITY) {
     return 0;
   }
 
-  const angleIndex = Math.floor(Math.random() * ROTATION_ANGLES_DEGREES.length);
+  const angleIndex = Math.floor(
+    deterministicUnitValue(tile, 3) * ROTATION_ANGLES_DEGREES.length,
+  );
   return THREE.MathUtils.degToRad(ROTATION_ANGLES_DEGREES[angleIndex]);
 }
 
 function cloneTileAsset(
   asset: ZoneTileAsset,
-  tileX: number,
-  tileZ: number,
+  tile: HexTilePosition,
   tileSize: number,
   tileHeight: number,
 ): THREE.Object3D {
   const clone = asset.root.clone(true);
   const scale = fitObjectToHexTile(clone, tileSize);
   clone.scale.multiplyScalar(scale);
-  clone.rotation.y = getRandomTileRotationY();
-  positionObjectOnTile(clone, tileX, tileZ, tileHeight);
+  clone.rotation.y += getTileRotationY(tile);
+  positionObjectOnTile(clone, tile.x, tile.z, tileHeight);
   applyMeshShadowFlags(clone);
   return clone;
 }
@@ -192,18 +265,8 @@ export function buildZonedTileGroup(
   group.name = "visio-technologica-zoned-tiles";
 
   for (const tile of getHexTilePositions(radius, tileSize, tileGap)) {
-    const useFallbackTile =
-      tile.ring !== 0 && Math.random() < EMPTY_TILE_PROBABILITY;
-    const asset = useFallbackTile
-      ? getFallbackAssetForRing(tile.ring, radius, assets)
-      : getPrimaryAssetForRing(tile.ring, radius, assets);
-    const placedTile = cloneTileAsset(
-      asset,
-      tile.x,
-      tile.z,
-      tileSize,
-      tileHeight,
-    );
+    const asset = getAssetForTile(tile, radius, assets);
+    const placedTile = cloneTileAsset(asset, tile, tileSize, tileHeight);
     group.add(placedTile);
   }
 
