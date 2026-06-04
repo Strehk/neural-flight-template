@@ -16,26 +16,33 @@ import {
 	Wifi,
 } from "lucide-svelte";
 import { onDestroy, onMount } from "svelte";
+import M5MountingPreview from "$lib/components/M5MountingPreview.svelte";
 import PageHeader from "$lib/components/PageHeader.svelte";
 import {
 	M5_BRIDGE,
 	type M5BridgeRuntimeConfig,
 } from "$lib/config/flight";
-import type { M5BridgeSettingsUpdate } from "$lib/types/orientation";
 import { createWebSocketClient } from "$lib/ws/client.svelte";
 import type { M5BridgeStatus } from "$lib/ws/m5-status";
 
 type NumberSettingKey =
 	| "qualityThreshold"
 	| "deadzoneDegrees"
+	| "pitchDeadzoneDegrees"
+	| "rollDeadzoneDegrees"
 	| "smoothingAlpha"
+	| "smoothingAmount"
 	| "pitchScale"
 	| "rollScale"
 	| "maxPitch"
 	| "maxRoll"
 	| "staleTimeoutMs";
 
-type BooleanSettingKey = "invertPitch" | "invertRoll";
+type BooleanSettingKey =
+	| "invertPitch"
+	| "invertRoll"
+	| "mountingPitchUsesRoll"
+	| "mountingRollUsesPitch";
 
 interface NumberControl {
 	key: NumberSettingKey;
@@ -158,11 +165,16 @@ const calibrationSteps: CalibrationStep[] = [
 const defaults: M5BridgeRuntimeConfig = {
 	qualityThreshold: M5_BRIDGE.QUALITY_THRESHOLD,
 	deadzoneDegrees: M5_BRIDGE.DEADZONE_DEGREES,
+	pitchDeadzoneDegrees: M5_BRIDGE.PITCH_DEADZONE_DEGREES,
+	rollDeadzoneDegrees: M5_BRIDGE.ROLL_DEADZONE_DEGREES,
 	smoothingAlpha: M5_BRIDGE.SMOOTHING_ALPHA,
+	smoothingAmount: M5_BRIDGE.SMOOTHING_AMOUNT,
 	pitchScale: M5_BRIDGE.PITCH_SCALE,
 	rollScale: M5_BRIDGE.ROLL_SCALE,
 	invertPitch: M5_BRIDGE.INVERT_PITCH,
 	invertRoll: M5_BRIDGE.INVERT_ROLL,
+	mountingPitchUsesRoll: M5_BRIDGE.MOUNTING_PITCH_USES_ROLL,
+	mountingRollUsesPitch: M5_BRIDGE.MOUNTING_ROLL_USES_PITCH,
 	maxPitch: M5_BRIDGE.PITCH_RANGE[1],
 	maxRoll: M5_BRIDGE.ROLL_RANGE[1],
 	staleTimeoutMs: M5_BRIDGE.STALE_TIMEOUT_MS,
@@ -179,12 +191,28 @@ const defaults: M5BridgeRuntimeConfig = {
 
 const motionControls: NumberControl[] = [
 	{
-		key: "deadzoneDegrees",
-		label: "Dead zone",
+		key: "pitchDeadzoneDegrees",
+		label: "Pitch dead zone",
 		min: 0,
 		max: 10,
 		step: 0.25,
 		unit: "deg",
+	},
+	{
+		key: "rollDeadzoneDegrees",
+		label: "Roll dead zone",
+		min: 0,
+		max: 10,
+		step: 0.25,
+		unit: "deg",
+	},
+	{
+		key: "smoothingAmount",
+		label: "Smoothing",
+		min: 0,
+		max: 0.95,
+		step: 0.05,
+		unit: "",
 	},
 	{
 		key: "smoothingAlpha",
@@ -252,6 +280,11 @@ const axisControls: BooleanControl[] = [
 	{ key: "invertRoll", label: "Invert roll" },
 ];
 
+const mountingControls: BooleanControl[] = [
+	{ key: "mountingPitchUsesRoll", label: "Pitch uses M5 roll" },
+	{ key: "mountingRollUsesPitch", label: "Roll uses M5 pitch" },
+];
+
 const ws = createWebSocketClient();
 
 let settings = $state<M5BridgeRuntimeConfig>({ ...defaults });
@@ -316,28 +349,39 @@ function isLocalHostName(): boolean {
 
 function setNumber(key: NumberSettingKey, value: number): void {
 	settings = { ...settings, [key]: value };
-	sendSettings({ [key]: value });
+	void sendSettings({ [key]: value });
 }
 
 function setBoolean(key: BooleanSettingKey, value: boolean): void {
 	settings = { ...settings, [key]: value };
-	sendSettings({ [key]: value });
+	void sendSettings({ [key]: value });
 }
 
-function sendSettings(update: Record<string, number | boolean>): void {
-	const message: M5BridgeSettingsUpdate = {
-		type: "m5-settings",
-		settings: update,
-		timestamp: Date.now(),
-	};
-
-	ws.send(message);
-	lastSentAt = message.timestamp;
+async function sendSettings(
+	update: Record<string, number | boolean>,
+): Promise<void> {
+	try {
+		const response = await fetch("/api/m5/settings", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(update),
+		});
+		if (!response.ok) {
+			throw new Error(`Settings request failed: ${response.status}`);
+		}
+		const nextSettings = (await response.json()) as M5BridgeRuntimeConfig;
+		applyRuntimeSettings(nextSettings);
+		lastSentAt = Date.now();
+		statusError = null;
+	} catch (error) {
+		statusError =
+			error instanceof Error ? error.message : "Could not apply M5 settings.";
+	}
 }
 
 function resetDefaults(): void {
 	settings = { ...defaults };
-	sendSettings({ ...defaults });
+	void sendSettings({ ...defaults });
 	calibrationValues = null;
 	calibrationStatus = "idle";
 	calibrationMessage = "Calibration reset.";
@@ -365,6 +409,49 @@ async function refreshStatus(): Promise<M5BridgeStatus | null> {
 	}
 }
 
+async function refreshRuntimeSettings(): Promise<void> {
+	try {
+		const response = await fetch("/api/m5/settings");
+		if (!response.ok) {
+			throw new Error(`Settings request failed: ${response.status}`);
+		}
+		const nextSettings = (await response.json()) as M5BridgeRuntimeConfig;
+		applyRuntimeSettings(nextSettings);
+		statusError = null;
+	} catch (error) {
+		statusError =
+			error instanceof Error ? error.message : "Could not read M5 settings.";
+	}
+}
+
+function applyRuntimeSettings(nextSettings: M5BridgeRuntimeConfig): void {
+	settings = { ...nextSettings };
+	if (nextSettings.calibrationEnabled) {
+		calibrationValues = calibrationValuesFromSettings(nextSettings);
+		calibrationStatus = "complete";
+		calibrationMessage = "Runtime calibration loaded.";
+	} else if (calibrationStatus === "complete") {
+		calibrationValues = null;
+		calibrationStatus = "idle";
+		calibrationMessage = "Ready to calibrate the mounted controller.";
+	}
+}
+
+function calibrationValuesFromSettings(
+	nextSettings: M5BridgeRuntimeConfig,
+): CalibrationValues {
+	return {
+		neutralPitch: nextSettings.calibrationNeutralPitch,
+		neutralRoll: nextSettings.calibrationNeutralRoll,
+		upPitch: nextSettings.calibrationUpPitch,
+		downPitch: nextSettings.calibrationDownPitch,
+		rightRoll: nextSettings.calibrationRightRoll,
+		leftRoll: nextSettings.calibrationLeftRoll,
+		pitchAxis: nextSettings.calibrationPitchUsesRoll ? "roll" : "pitch",
+		rollAxis: nextSettings.calibrationRollUsesPitch ? "pitch" : "roll",
+	};
+}
+
 async function startCalibration(): Promise<void> {
 	const status = await refreshStatus();
 	if (!status?.connected) {
@@ -389,6 +476,18 @@ function cancelCalibration(): void {
 	calibrationStatus = "idle";
 	calibrationMessage = "Calibration cancelled.";
 	calibrationRemainingMs = CALIBRATION_STEP_MS;
+}
+
+function useRawM5Readout(): void {
+	clearCalibrationTimer();
+	calibrationValues = null;
+	calibrationStatus = "idle";
+	calibrationMessage = "Using raw M5 readout. Mounting controls still apply.";
+	settings = {
+		...settings,
+		calibrationEnabled: false,
+	};
+	void sendSettings({ calibrationEnabled: false });
 }
 
 function runCalibrationStep(stepStartedAt: number): void {
@@ -480,7 +579,7 @@ function finishCalibration(): void {
 		calibrationPitchUsesRoll: values.pitchAxis === "roll",
 		calibrationRollUsesPitch: values.rollAxis === "pitch",
 	};
-	sendSettings({
+	void sendSettings({
 		calibrationEnabled: true,
 		calibrationNeutralPitch: values.neutralPitch,
 		calibrationNeutralRoll: values.neutralRoll,
@@ -746,6 +845,7 @@ function formatNullableNumber(value: number | null, unit: string): string {
 }
 
 onMount(() => {
+	void refreshRuntimeSettings();
 	void refreshStatus();
 	const interval = window.setInterval(() => {
 		currentTime = Date.now();
@@ -815,6 +915,10 @@ onDestroy(() => {
 					{#if calibrationStatus === "running"}
 						<button class="btn btn-secondary" onclick={cancelCalibration}>Cancel</button>
 					{:else}
+						<button class="btn btn-secondary" onclick={useRawM5Readout}>
+							<RadioTower size={16} />
+							<span>Use raw M5 readout</span>
+						</button>
 						<button class="btn btn-primary" onclick={startCalibration}>
 							<Target size={16} />
 							<span>Start calibration</span>
@@ -861,6 +965,50 @@ onDestroy(() => {
 		<section class="m5-grid">
 			<div class="m5-panel surface-panel">
 				<div class="panel-heading">
+					<RadioTower size={16} />
+					<h2>Mounting</h2>
+				</div>
+
+				<M5MountingPreview
+					pitchUsesRoll={settings.mountingPitchUsesRoll}
+					rollUsesPitch={settings.mountingRollUsesPitch}
+					invertPitch={settings.invertPitch}
+					invertRoll={settings.invertRoll}
+				/>
+
+				<div class="switch-list">
+					{#each mountingControls as control (control.key)}
+						<div class="setting-row switch-row">
+							<span class="setting-label">{control.label}</span>
+							<Switch.Root
+								checked={settings[control.key]}
+								onCheckedChange={(value: boolean) => setBoolean(control.key, value)}
+								class="switch-root"
+							>
+								<Switch.Thumb class="switch-thumb" />
+							</Switch.Root>
+						</div>
+					{/each}
+				</div>
+
+				<div class="switch-list">
+					{#each axisControls as control (control.key)}
+						<div class="setting-row switch-row">
+							<span class="setting-label">{control.label}</span>
+							<Switch.Root
+								checked={settings[control.key]}
+								onCheckedChange={(value: boolean) => setBoolean(control.key, value)}
+								class="switch-root"
+							>
+								<Switch.Thumb class="switch-thumb" />
+							</Switch.Root>
+						</div>
+					{/each}
+				</div>
+			</div>
+
+			<div class="m5-panel surface-panel">
+				<div class="panel-heading">
 					<SlidersHorizontal size={16} />
 					<h2>Motion</h2>
 				</div>
@@ -889,21 +1037,6 @@ onDestroy(() => {
 						</Slider.Root>
 					</label>
 				{/each}
-
-				<div class="switch-list">
-					{#each axisControls as control (control.key)}
-						<div class="setting-row switch-row">
-							<span class="setting-label">{control.label}</span>
-							<Switch.Root
-								checked={settings[control.key]}
-								onCheckedChange={(value: boolean) => setBoolean(control.key, value)}
-								class="switch-root"
-							>
-								<Switch.Thumb class="switch-thumb" />
-							</Switch.Root>
-						</div>
-					{/each}
-				</div>
 			</div>
 
 			<div class="m5-panel surface-panel">

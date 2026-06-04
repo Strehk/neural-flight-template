@@ -160,11 +160,13 @@ function mapM5OrientationToControllerMessage(
 		mappedPitch,
 		-m5BridgeRuntimeConfig.maxPitch,
 		m5BridgeRuntimeConfig.maxPitch,
+		m5BridgeRuntimeConfig.pitchDeadzoneDegrees,
 	);
 	const targetRoll = applyDeadzoneAndClamp(
 		mappedRoll,
 		-m5BridgeRuntimeConfig.maxRoll,
 		m5BridgeRuntimeConfig.maxRoll,
+		m5BridgeRuntimeConfig.rollDeadzoneDegrees,
 	);
 	const pitch = smoothValue(
 		state.smoothedPitch,
@@ -192,7 +194,9 @@ function mapM5OrientationToControllerMessage(
 }
 
 function mapM5Pitch(rawPitch: number, rawRoll: number): number {
-	if (!m5BridgeRuntimeConfig.calibrationEnabled) return rawPitch;
+	if (!m5BridgeRuntimeConfig.calibrationEnabled) {
+		return m5BridgeRuntimeConfig.mountingPitchUsesRoll ? rawRoll : rawPitch;
+	}
 	const rawValue = m5BridgeRuntimeConfig.calibrationPitchUsesRoll
 		? rawRoll
 		: rawPitch;
@@ -208,7 +212,9 @@ function mapM5Pitch(rawPitch: number, rawRoll: number): number {
 }
 
 function mapM5Roll(rawPitch: number, rawRoll: number): number {
-	if (!m5BridgeRuntimeConfig.calibrationEnabled) return rawRoll;
+	if (!m5BridgeRuntimeConfig.calibrationEnabled) {
+		return m5BridgeRuntimeConfig.mountingRollUsesPitch ? rawPitch : rawRoll;
+	}
 	const rawValue = m5BridgeRuntimeConfig.calibrationRollUsesPitch
 		? rawPitch
 		: rawRoll;
@@ -281,8 +287,9 @@ function applyDeadzoneAndClamp(
 	value: number,
 	minimum: number,
 	maximum: number,
+	deadzoneDegrees: number,
 ): number {
-	if (Math.abs(value) < m5BridgeRuntimeConfig.deadzoneDegrees) return 0;
+	if (Math.abs(value) < deadzoneDegrees) return 0;
 	return Math.max(minimum, Math.min(maximum, value));
 }
 

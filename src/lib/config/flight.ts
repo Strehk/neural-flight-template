@@ -33,11 +33,16 @@ export const CONTROLS = {
 export const M5_BRIDGE = {
 	QUALITY_THRESHOLD: 0.5,
 	DEADZONE_DEGREES: 1.5,
+	PITCH_DEADZONE_DEGREES: 1.5,
+	ROLL_DEADZONE_DEGREES: 1.5,
 	SMOOTHING_ALPHA: 1,
+	SMOOTHING_AMOUNT: 0,
 	PITCH_SCALE: 1,
 	ROLL_SCALE: 1,
 	INVERT_PITCH: false,
 	INVERT_ROLL: false,
+	MOUNTING_PITCH_USES_ROLL: false,
+	MOUNTING_ROLL_USES_PITCH: false,
 	PITCH_RANGE: CONTROLS.PITCH_RANGE,
 	ROLL_RANGE: CONTROLS.ROLL_RANGE,
 	STALE_TIMEOUT_MS: 3000,
@@ -46,11 +51,16 @@ export const M5_BRIDGE = {
 export interface M5BridgeRuntimeConfig {
 	qualityThreshold: number;
 	deadzoneDegrees: number;
+	pitchDeadzoneDegrees: number;
+	rollDeadzoneDegrees: number;
 	smoothingAlpha: number;
+	smoothingAmount: number;
 	pitchScale: number;
 	rollScale: number;
 	invertPitch: boolean;
 	invertRoll: boolean;
+	mountingPitchUsesRoll: boolean;
+	mountingRollUsesPitch: boolean;
 	maxPitch: number;
 	maxRoll: number;
 	staleTimeoutMs: number;
@@ -65,15 +75,24 @@ export interface M5BridgeRuntimeConfig {
 	calibrationRollUsesPitch: boolean;
 }
 
+interface M5BridgeConfigGlobal {
+	__neuralFlightM5BridgeRuntimeConfig?: M5BridgeRuntimeConfig;
+}
+
 function createM5BridgeDefaults(): M5BridgeRuntimeConfig {
 	return {
 		qualityThreshold: M5_BRIDGE.QUALITY_THRESHOLD,
 		deadzoneDegrees: M5_BRIDGE.DEADZONE_DEGREES,
+		pitchDeadzoneDegrees: M5_BRIDGE.PITCH_DEADZONE_DEGREES,
+		rollDeadzoneDegrees: M5_BRIDGE.ROLL_DEADZONE_DEGREES,
 		smoothingAlpha: M5_BRIDGE.SMOOTHING_ALPHA,
+		smoothingAmount: M5_BRIDGE.SMOOTHING_AMOUNT,
 		pitchScale: M5_BRIDGE.PITCH_SCALE,
 		rollScale: M5_BRIDGE.ROLL_SCALE,
 		invertPitch: M5_BRIDGE.INVERT_PITCH,
 		invertRoll: M5_BRIDGE.INVERT_ROLL,
+		mountingPitchUsesRoll: M5_BRIDGE.MOUNTING_PITCH_USES_ROLL,
+		mountingRollUsesPitch: M5_BRIDGE.MOUNTING_ROLL_USES_PITCH,
 		maxPitch: M5_BRIDGE.PITCH_RANGE[1],
 		maxRoll: M5_BRIDGE.ROLL_RANGE[1],
 		staleTimeoutMs: M5_BRIDGE.STALE_TIMEOUT_MS,
@@ -89,8 +108,12 @@ function createM5BridgeDefaults(): M5BridgeRuntimeConfig {
 	};
 }
 
-export let m5BridgeRuntimeConfig: M5BridgeRuntimeConfig =
-	createM5BridgeDefaults();
+export const m5BridgeRuntimeConfig: M5BridgeRuntimeConfig =
+	readM5BridgeRuntimeConfig();
+
+export function getM5BridgeRuntimeConfig(): M5BridgeRuntimeConfig {
+	return { ...m5BridgeRuntimeConfig };
+}
 
 export function applyM5BridgeSettings(
 	settings: Record<string, number | boolean>,
@@ -104,12 +127,34 @@ export function applyM5BridgeSettings(
 				break;
 			case "deadzoneDegrees":
 				if (typeof value === "number") {
-					m5BridgeRuntimeConfig.deadzoneDegrees = clamp(value, 0, 15);
+					const deadzone = clamp(value, 0, 15);
+					m5BridgeRuntimeConfig.deadzoneDegrees = deadzone;
+					m5BridgeRuntimeConfig.pitchDeadzoneDegrees = deadzone;
+					m5BridgeRuntimeConfig.rollDeadzoneDegrees = deadzone;
+				}
+				break;
+			case "pitchDeadzoneDegrees":
+				if (typeof value === "number") {
+					m5BridgeRuntimeConfig.pitchDeadzoneDegrees = clamp(value, 0, 15);
+				}
+				break;
+			case "rollDeadzoneDegrees":
+				if (typeof value === "number") {
+					m5BridgeRuntimeConfig.rollDeadzoneDegrees = clamp(value, 0, 15);
 				}
 				break;
 			case "smoothingAlpha":
 				if (typeof value === "number") {
 					m5BridgeRuntimeConfig.smoothingAlpha = clamp(value, 0.05, 1);
+					m5BridgeRuntimeConfig.smoothingAmount =
+						1 - m5BridgeRuntimeConfig.smoothingAlpha;
+				}
+				break;
+			case "smoothingAmount":
+				if (typeof value === "number") {
+					m5BridgeRuntimeConfig.smoothingAmount = clamp(value, 0, 0.95);
+					m5BridgeRuntimeConfig.smoothingAlpha =
+						1 - m5BridgeRuntimeConfig.smoothingAmount;
 				}
 				break;
 			case "pitchScale":
@@ -130,6 +175,16 @@ export function applyM5BridgeSettings(
 			case "invertRoll":
 				if (typeof value === "boolean") {
 					m5BridgeRuntimeConfig.invertRoll = value;
+				}
+				break;
+			case "mountingPitchUsesRoll":
+				if (typeof value === "boolean") {
+					m5BridgeRuntimeConfig.mountingPitchUsesRoll = value;
+				}
+				break;
+			case "mountingRollUsesPitch":
+				if (typeof value === "boolean") {
+					m5BridgeRuntimeConfig.mountingRollUsesPitch = value;
 				}
 				break;
 			case "maxPitch":
@@ -197,7 +252,13 @@ export function applyM5BridgeSettings(
 }
 
 export function resetM5BridgeSettings(): void {
-	m5BridgeRuntimeConfig = createM5BridgeDefaults();
+	Object.assign(m5BridgeRuntimeConfig, createM5BridgeDefaults());
+}
+
+function readM5BridgeRuntimeConfig(): M5BridgeRuntimeConfig {
+	const store = globalThis as typeof globalThis & M5BridgeConfigGlobal;
+	store.__neuralFlightM5BridgeRuntimeConfig ??= createM5BridgeDefaults();
+	return store.__neuralFlightM5BridgeRuntimeConfig;
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {
