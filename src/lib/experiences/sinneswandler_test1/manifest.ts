@@ -1,6 +1,6 @@
 import type { ExperienceManifest, OutputDef, ParameterDef } from "../types";
 import { updatePlayer } from "./player";
-import { dispose, handleTrigger, setup, tick } from "./scene";
+import { dispose, handleTrigger, render, setup, tick } from "./scene";
 import { applySettings } from "./settings";
 import {
   BAT_AUDIO_DEFAULTS,
@@ -355,5 +355,6 @@ export const manifest: ExperienceManifest = {
   applySettings,
   updatePlayer,
   handleTrigger,
+  render,
   dispose,
 };

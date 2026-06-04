@@ -28,7 +28,8 @@ import {
   type SharedEchoUniforms,
 } from "./shaders";
 
-const WATER_COLOR = new THREE.Color("#4f8fa7");
+const WATER_COLOR      = new THREE.Color("#4f8fa7");
+const NOIR_WATER_COLOR = new THREE.Color("#f1f1ea");
 
 /** Settings slice needed by `applyEnvironment`. Structural — `BatWorldSettings` fits. */
 export interface RendererEnvironment {
@@ -136,6 +137,20 @@ export class Renderers {
   /** Forward echo-pulse render state to the shared uniforms. */
   renderEcho(pulses: EchoPulseRenderState[], elapsed: number): void {
     syncEchoUniforms(this.sharedUniforms, pulses, elapsed);
+  }
+
+  /** Update pond color/opacity based on current vision-mode blend factors. */
+  setMonochromeFactors(
+    whiteoutFactor: number,
+    edgeFactor: number,
+    shadowFactor: number,
+  ): void {
+    const sat = (v: number) => Math.min(1, Math.max(0, v));
+    const monochrome = sat(Math.max(whiteoutFactor, edgeFactor, shadowFactor));
+    this.pondMaterial.color.copy(WATER_COLOR).lerp(NOIR_WATER_COLOR, monochrome);
+    const targetOpacity =
+      whiteoutFactor > 0.01 ? 0.18 : shadowFactor > 0.01 ? 0.62 : 0.42;
+    this.pondMaterial.opacity = THREE.MathUtils.lerp(0.76, targetOpacity, monochrome);
   }
 
   /** Dispose every owned material. Geometries are owned by the caller. */

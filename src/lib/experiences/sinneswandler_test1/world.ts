@@ -454,6 +454,14 @@ export class BatWorld {
     this.mothSwarm.setScale(factor);
   }
 
+  setMonochromeFactors(
+    whiteoutFactor: number,
+    edgeFactor: number,
+    shadowFactor: number,
+  ): void {
+    this.renderers.setMonochromeFactors(whiteoutFactor, edgeFactor, shadowFactor);
+  }
+
   sampleHeight(x: number, z: number): number {
     // Player-altitude path → uncached so altitude is smooth across cell seams.
     return this.terrainSampler.sampleHeight(x, z);

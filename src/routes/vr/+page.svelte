@@ -104,7 +104,17 @@ onMount(() => {
 					score = result.outputs.score as number;
 				}
 
-				renderer.render(scene, renderCamera);
+				if (exp.manifest.render) {
+					exp.manifest.render(exp.state, {
+						scene,
+						renderer,
+						camera: renderCamera,
+						delta,
+						elapsed: clock.elapsedTime,
+					});
+				} else {
+					renderer.render(scene, renderCamera);
+				}
 			});
 		},
 	);

@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { BatAudioSettings } from "./config";
+import { BAT_SOUND, type BatAudioSettings } from "./config";
 import type { EchoProbeHit, EchoProbeProfile, EchoSurfaceType } from "./world";
 
 type AudioContextCtor = typeof AudioContext;
@@ -75,6 +75,10 @@ function createNoiseBuffer(context: AudioContext): AudioBuffer {
 
 function clampAudio(value: number, min: number, max: number): number {
   return THREE.MathUtils.clamp(value, min, max);
+}
+
+function isAudioContextRunning(context: AudioContext): boolean {
+  return context.state === "running";
 }
 
 function getTransientDescriptor(
@@ -823,9 +827,18 @@ export class EchoAudioManager {
   private readonly outputGain: GainNode | null;
   private readonly noiseBuffer: AudioBuffer | null;
   private readonly voices = new Set<EchoPulseVoice>();
+  private backgroundRequested = false;
+  private backgroundBuffer: AudioBuffer | null = null;
+  private transitionBuffer: AudioBuffer | null = null;
+  private backgroundLoad: Promise<AudioBuffer | null> | null = null;
+  private transitionLoad: Promise<AudioBuffer | null> | null = null;
+  private backgroundSource: AudioBufferSourceNode | null = null;
+  private backgroundGain: GainNode | null = null;
   private disposed = false;
   private readonly handleUnlock = (): void => {
-    void this.resume();
+    void this.resume().then(() => {
+      if (this.backgroundRequested) this.startBackgroundMusic();
+    });
   };
 
   constructor(private settings: BatAudioSettings) {
@@ -855,6 +868,15 @@ export class EchoAudioManager {
     this.compressor.connect(this.outputGain);
     this.outputGain.connect(this.context.destination);
     this.installUnlockHandlers();
+  }
+
+  startBackgroundMusic(): void {
+    this.backgroundRequested = true;
+    void this.ensureBackgroundMusic();
+  }
+
+  playTransition(): void {
+    void this.playTransitionSound();
   }
 
   update(): void {
@@ -913,10 +935,98 @@ export class EchoAudioManager {
     }
     this.voices.clear();
 
+    try {
+      this.backgroundSource?.stop();
+    } catch {
+      // Source may already have stopped.
+    }
+    this.backgroundSource?.disconnect();
+    this.backgroundGain?.disconnect();
+    this.backgroundSource = null;
+    this.backgroundGain = null;
+
     this.master?.disconnect();
     this.compressor?.disconnect();
     this.outputGain?.disconnect();
     void this.context?.close();
+  }
+
+  private async ensureBackgroundMusic(): Promise<void> {
+    if (this.disposed || !this.context || !this.master || this.backgroundSource) {
+      return;
+    }
+
+    if (!isAudioContextRunning(this.context)) {
+      await this.resume();
+      if (!isAudioContextRunning(this.context)) return;
+    }
+
+    const buffer = await this.loadBackgroundBuffer();
+    if (this.disposed || !this.context || !this.master || !buffer || this.backgroundSource) {
+      return;
+    }
+
+    const source = this.context.createBufferSource();
+    const gain = this.context.createGain();
+    source.buffer = buffer;
+    source.loop = true;
+    gain.gain.value = BAT_SOUND.backgroundVolume;
+    source.connect(gain);
+    gain.connect(this.master);
+    source.start();
+    this.backgroundSource = source;
+    this.backgroundGain = gain;
+  }
+
+  private async playTransitionSound(): Promise<void> {
+    if (this.disposed || !this.context || !this.master) return;
+
+    if (!isAudioContextRunning(this.context)) {
+      await this.resume();
+      if (!isAudioContextRunning(this.context)) return;
+    }
+
+    const buffer = await this.loadTransitionBuffer();
+    if (this.disposed || !this.context || !this.master || !buffer) return;
+
+    const source = this.context.createBufferSource();
+    const gain = this.context.createGain();
+    source.buffer = buffer;
+    gain.gain.value = BAT_SOUND.transitionVolume;
+    source.connect(gain);
+    gain.connect(this.master);
+    source.onended = () => {
+      source.disconnect();
+      gain.disconnect();
+    };
+    source.start();
+  }
+
+  private async loadBackgroundBuffer(): Promise<AudioBuffer | null> {
+    if (this.backgroundBuffer) return this.backgroundBuffer;
+    this.backgroundLoad ??= this.loadAudioBuffer(BAT_SOUND.backgroundUrl);
+    this.backgroundBuffer = await this.backgroundLoad;
+    return this.backgroundBuffer;
+  }
+
+  private async loadTransitionBuffer(): Promise<AudioBuffer | null> {
+    if (this.transitionBuffer) return this.transitionBuffer;
+    this.transitionLoad ??= this.loadAudioBuffer(BAT_SOUND.transitionUrl);
+    this.transitionBuffer = await this.transitionLoad;
+    return this.transitionBuffer;
+  }
+
+  private async loadAudioBuffer(url: string): Promise<AudioBuffer | null> {
+    if (!this.context) return null;
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) return null;
+      const data = await response.arrayBuffer();
+      return await this.context.decodeAudioData(data);
+    } catch {
+      return null;
+    }
   }
 
   private scheduleVoice(

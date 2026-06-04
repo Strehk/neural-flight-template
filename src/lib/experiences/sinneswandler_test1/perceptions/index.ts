@@ -57,15 +57,13 @@ function buildPerception(id: VisionModeId, layerMask: number): Perception {
   };
 }
 
-/** Three perceptions, in `MODE_SEQUENCE` order. */
+/** Perceptions for all 7 Sinneswandler vision modes. */
 export const SINNESWANDLER_PERCEPTIONS: readonly Perception[] = [
-  // Echolocation + daylight render terrain + decorations + moths only —
-  // the base layer is enough.
-  buildPerception("echolocation", BASE_MASK),
-  buildPerception("daylight", BASE_MASK),
-  // Chemosense additionally shows its scent-particle layer. During a
-  // cross-fade the router OR-s the outgoing mask in, so the layer
-  // fades visually via opacity AND becomes mask-invisible after the
-  // fade completes.
-  buildPerception("chemosense", makeMask("base", "chemosense")),
+  buildPerception("luft", BASE_MASK),
+  buildPerception("echoLocation", BASE_MASK),
+  buildPerception("infrarot", BASE_MASK),
+  buildPerception("duft", makeMask("base", "chemosense")),
+  buildPerception("netzwerk", BASE_MASK),
+  buildPerception("depthDebug", BASE_MASK),
+  buildPerception("normal", BASE_MASK),
 ];
