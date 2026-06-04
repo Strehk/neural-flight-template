@@ -10,6 +10,8 @@
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"check:world": "bun scripts/check-world-determinism.ts",
+		"check:streaming": "bun scripts/check-streaming-hysteresis.ts",
 		"hotspot:start": "bash scripts/hotspot/hotspot.sh start",
 		"hotspot:stop": "bash scripts/hotspot/hotspot.sh stop",
 		"hotspot:setup": "bash scripts/hotspot/hotspot.sh setup"

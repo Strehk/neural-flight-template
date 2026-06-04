@@ -136,6 +136,14 @@ export interface SetupContext {
 	renderer: THREE.WebGLRenderer;
 }
 
+export interface RenderContext {
+	scene: THREE.Scene;
+	renderer: THREE.WebGLRenderer;
+	camera: THREE.PerspectiveCamera;
+	delta: number;
+	elapsed: number;
+}
+
 export interface TickContext {
 	delta: number;
 	elapsed: number;
@@ -213,4 +221,7 @@ export interface ExperienceManifest {
 
 	/** Called when experience unloads. Dispose geometries, materials, textures. */
 	dispose: (state: ExperienceState, scene: THREE.Scene) => void;
+
+	/** Optional custom render hook for experience-specific post-processing (e.g. depth compositing). */
+	render?: (state: ExperienceState, ctx: RenderContext) => void;
 }
