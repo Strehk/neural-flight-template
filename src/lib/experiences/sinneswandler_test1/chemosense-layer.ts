@@ -8,7 +8,7 @@ const MAX_PARTICLES = MAX_SOURCES * MAX_PARTICLES_PER_SOURCE;
 const COLLECT_RADIUS = 5.5;
 const RESPAWN_COOLDOWN = 8;
 const HOTSPOT_VIEW_DIST = 420;
-const PARTICLE_SIZE = 5.4;
+const PARTICLE_SIZE = 2.7;
 
 interface ActiveSource {
   source: ChemosenseSource;
