@@ -12,19 +12,68 @@ function getHexPlacementRadius(tileSize: number, tileGap: number): number {
   return tileSize + tileGap / Math.sqrt(3);
 }
 
-function offsetRowToWorld(
-  column: number,
-  row: number,
+export interface HexTilePosition {
+  x: number;
+  z: number;
+  distanceToCenter: number;
+  ring: number;
+}
+
+function axialToWorld(
+  q: number,
+  r: number,
   hexRadius: number,
 ): { x: number; z: number } {
-  const horizontalSpacing = Math.sqrt(3) * hexRadius;
-  const verticalSpacing = 1.5 * hexRadius;
-  const rowOffset = (row & 1) === 0 ? 0 : horizontalSpacing / 2;
-
   return {
-    x: column * horizontalSpacing + rowOffset,
-    z: row * verticalSpacing,
+    x: hexRadius * 1.5 * q,
+    z: hexRadius * Math.sqrt(3) * (r + q / 2),
   };
+}
+
+function getHexRing(q: number, r: number): number {
+  const s = -q - r;
+  return Math.max(Math.abs(q), Math.abs(r), Math.abs(s));
+}
+
+function createHexTilePositions(
+  radius: number,
+  hexRadius: number,
+): HexTilePosition[] {
+  const positions: HexTilePosition[] = [];
+
+  for (let q = -radius; q <= radius; q++) {
+    const rMin = Math.max(-radius, -q - radius);
+    const rMax = Math.min(radius, -q + radius);
+
+    for (let r = rMin; r <= rMax; r++) {
+      const world = axialToWorld(q, r, hexRadius);
+      positions.push({
+        x: world.x,
+        z: world.z,
+        distanceToCenter: Math.hypot(world.x, world.z),
+        ring: getHexRing(q, r),
+      });
+    }
+  }
+
+  positions.sort((a, b) => {
+    if (a.ring !== b.ring) {
+      return a.ring - b.ring;
+    }
+
+    return a.distanceToCenter - b.distanceToCenter;
+  });
+
+  return positions;
+}
+
+export function getHexTilePositions(
+  radius: number,
+  tileSize: number,
+  tileGap: number,
+): HexTilePosition[] {
+  const placementRadius = getHexPlacementRadius(tileSize, tileGap);
+  return createHexTilePositions(radius, placementRadius);
 }
 
 export function createHexFloor(
@@ -34,14 +83,7 @@ export function createHexFloor(
   tileHeight: number,
   material: THREE.MeshStandardMaterial,
 ): THREE.InstancedMesh {
-  const placementRadius = getHexPlacementRadius(tileSize, tileGap);
-  const positions: Array<{ x: number; z: number }> = [];
-
-  for (let row = -radius; row <= radius; row++) {
-    for (let column = -radius; column <= radius; column++) {
-      positions.push(offsetRowToWorld(column, row, placementRadius));
-    }
-  }
+  const positions = getHexTilePositions(radius, tileSize, tileGap);
 
   const geometry = new THREE.CylinderGeometry(
     tileSize,

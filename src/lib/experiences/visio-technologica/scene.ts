@@ -2,6 +2,12 @@ import * as THREE from "three";
 import { createSky } from "$lib/three/sky";
 import type { ExperienceState, SetupContext, TickContext } from "../types";
 import { createHexFloor, disposeHexFloor, HEX_RADIUS } from "./hex-floor";
+import {
+  createZonedTiles,
+  disposeZoneTileAssets,
+  disposeZonedTileGroup,
+  type ZoneTileAsset,
+} from "./zoned-tiles";
 
 const DEFAULT_TILE_SIZE = 1.35;
 const DEFAULT_TILE_GAP = 0.12;
@@ -19,6 +25,8 @@ export interface VisioTechnologicaState extends ExperienceState {
   camera: THREE.PerspectiveCamera;
   sky: THREE.Mesh;
   tiles: THREE.InstancedMesh;
+  zonedTiles: THREE.Group;
+  zoneTileAssets: ZoneTileAsset[];
   tileMaterial: THREE.MeshStandardMaterial;
   tileSize: number;
   tileGap: number;
@@ -61,10 +69,20 @@ export async function setup(
   );
   ctx.scene.add(tiles);
 
+  const { assets: zoneTileAssets, group: zonedTiles } = await createZonedTiles(
+    HEX_RADIUS,
+    DEFAULT_TILE_SIZE,
+    DEFAULT_TILE_GAP,
+    DEFAULT_TILE_HEIGHT,
+  );
+  ctx.scene.add(zonedTiles);
+
   return {
     camera: ctx.camera,
     sky,
     tiles,
+    zonedTiles,
+    zoneTileAssets,
     tileMaterial,
     tileSize: DEFAULT_TILE_SIZE,
     tileGap: DEFAULT_TILE_GAP,
@@ -106,6 +124,8 @@ export function dispose(state: ExperienceState, scene: THREE.Scene): void {
   const s = state as VisioTechnologicaState;
 
   disposeHexFloor(s.tiles, scene);
+  disposeZonedTileGroup(s.zonedTiles, scene);
+  disposeZoneTileAssets(s.zoneTileAssets);
   s.tileMaterial.dispose();
 
   s.sky.geometry.dispose();
