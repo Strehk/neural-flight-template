@@ -140,6 +140,13 @@ export function createDepthPostprocess(
       factor: number,
       inverted: boolean,
     ): void {
+      // Custom render targets don't composite to the XR framebuffer correctly.
+      // Fall back to a direct render and skip the depth overlay in VR.
+      if (renderer.xr.isPresenting) {
+        renderer.render(scene, camera);
+        return;
+      }
+
       renderer.getDrawingBufferSize(size);
       const width = Math.max(1, Math.floor(size.x));
       const height = Math.max(1, Math.floor(size.y));
@@ -167,6 +174,12 @@ export function createDepthPostprocess(
       }
     },
     renderInverted(drawScene: () => void): void {
+      // Same XR limitation — skip the invert pass in VR.
+      if (renderer.xr.isPresenting) {
+        drawScene();
+        return;
+      }
+
       renderer.getDrawingBufferSize(size);
       const width = Math.max(1, Math.floor(size.x));
       const height = Math.max(1, Math.floor(size.y));

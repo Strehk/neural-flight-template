@@ -581,6 +581,7 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
 
   const keyboardInput = new KeyboardInput();
   const controllerInput = new ControllerInput();
+  controllerInput.setRenderer(ctx.renderer);
   const senseSwitch = new SenseSwitchManager(
     world.sharedUniforms,
     ctx.scene,

@@ -1,3 +1,4 @@
+import * as THREE from "three";
 import type { BatFlightController } from "./flight-controller";
 import { MODE_SEQUENCE, type VisionModeId } from "./vision-modes";
 
@@ -14,10 +15,26 @@ function applyDeadzone(v: number, dz: number): number {
 }
 
 /**
- * Identify left/right gamepads. Meta Quest controllers embed "left"/"right"
- * in their ID strings. Falls back to index order for unknown controllers.
+ * Find left/right gamepads from the active WebXR session (primary) or
+ * navigator.getGamepads() (desktop fallback).
  */
-function findGamepads(): { left: Gamepad | null; right: Gamepad | null } {
+function findGamepads(
+  renderer: THREE.WebGLRenderer | null,
+): { left: Gamepad | null; right: Gamepad | null } {
+  // WebXR path — use inputSources which are always fresh inside a session
+  const session = renderer?.xr?.getSession?.() ?? null;
+  if (session) {
+    let left: Gamepad | null = null;
+    let right: Gamepad | null = null;
+    for (const source of session.inputSources) {
+      if (!source.gamepad) continue;
+      if (source.handedness === "right") right = source.gamepad;
+      else if (source.handedness === "left") left = source.gamepad;
+    }
+    if (left || right) return { left, right };
+  }
+
+  // Desktop fallback — parse handedness from controller ID string
   let left: Gamepad | null = null;
   let right: Gamepad | null = null;
   const all: Gamepad[] = [];
@@ -30,7 +47,6 @@ function findGamepads(): { left: Gamepad | null; right: Gamepad | null } {
     else if (id.includes("left"))  left  = gp;
   }
 
-  // Fallback: no handedness in ID — assume index 0=left, 1=right
   if (!right && !left) {
     left  = all[0] ?? null;
     right = all[1] ?? all[0] ?? null;
@@ -61,12 +77,17 @@ export class ControllerInput {
   /** Keep in sync with SenseSwitchManager.currentMode each tick. */
   currentMode: VisionModeId = "luft";
 
+  private renderer: THREE.WebGLRenderer | null = null;
   private pendingMode: VisionModeId | null = null;
   private pendingInvert = false;
 
   private prevA     = false;
   private prevB     = false;
   private prevThumb = false;
+
+  setRenderer(renderer: THREE.WebGLRenderer): void {
+    this.renderer = renderer;
+  }
 
   consumePendingMode(): VisionModeId | null {
     const m = this.pendingMode;
@@ -87,7 +108,7 @@ export class ControllerInput {
    * present it fully overrides keyboard orientation and speed.
    */
   applyTo(controller: BatFlightController): void {
-    const { left, right } = findGamepads();
+    const { left, right } = findGamepads(this.renderer);
     if (!left && !right) return;
 
     // ── Speed / boost ─────────────────────────────────────────────────────
