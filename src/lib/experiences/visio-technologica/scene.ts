@@ -10,7 +10,7 @@ import {
 } from "./zoned-tiles";
 
 const DEFAULT_TILE_SIZE = 1.35;
-const DEFAULT_TILE_GAP = 0.12;
+const DEFAULT_TILE_GAP = 0;
 const DEFAULT_TILE_HEIGHT = 0.18;
 const DEFAULT_FLOOR_COLOR = "#7a7a7a";
 const DEFAULT_DRIFT_SPEED = 3.5;
@@ -67,7 +67,6 @@ export async function setup(
     DEFAULT_TILE_HEIGHT,
     tileMaterial,
   );
-  ctx.scene.add(tiles);
 
   const { assets: zoneTileAssets, group: zonedTiles } = await createZonedTiles(
     HEX_RADIUS,

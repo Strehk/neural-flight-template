@@ -130,5 +130,4 @@ export function rebuildHexFloor(
     state.tileHeight,
     state.tileMaterial,
   );
-  scene.add(state.tiles);
 }
