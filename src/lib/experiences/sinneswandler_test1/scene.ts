@@ -790,12 +790,14 @@ export function render(state: ExperienceState, ctx: RenderContext): void {
   const s = state as BatEcholocationState;
   const depthFactor = s.senseSwitch.getDepthFactor();
   const depthInvert = s.senseSwitch.getDepthInvertFactor();
+  const depthFloor = s.senseSwitch.getDepthFloorFactor();
   const isVR = ctx.renderer.xr.isPresenting;
 
   // In VR, bake depth into the world shader — post-process can't composite to XR framebuffer.
   // On desktop, the post-process handles depth so the shader factor stays 0.
   s.world.sharedUniforms.uDepthVisFactor.value = isVR ? depthFactor : 0;
   s.world.sharedUniforms.uDepthInvertFactor.value = isVR ? depthInvert : 0;
+  s.world.sharedUniforms.uDepthFloor.value = depthFloor;
 
   const renderLayers = (): void => {
     if (depthFactor > 0.001) {
@@ -804,6 +806,8 @@ export function render(state: ExperienceState, ctx: RenderContext): void {
         ctx.camera,
         depthFactor,
         depthInvert > 0.5,
+        depthFloor,
+        s.world.sharedUniforms.uFogFar.value,
       );
     } else {
       ctx.renderer.render(ctx.scene, ctx.camera);

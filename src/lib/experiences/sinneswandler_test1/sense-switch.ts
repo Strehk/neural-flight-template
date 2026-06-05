@@ -74,17 +74,34 @@ function smoothstep(t: number): number {
 
 const SUBTLE_DEPTH = 0.45;
 
+// Echo location near end is dark grey rather than pure black, so the closest
+// geometry stays faintly readable inside the dark bubble.
+const ECHO_NEAR_FLOOR = 0.12;
+
 function modeDepthFactor(mode: VisionModeId): number {
   if (mode === "echoLocation" || mode === "depthDebug") return 1;
   if (mode === "infrarot" || mode === "duft" || mode === "netzwerk") return SUBTLE_DEPTH;
   return 0;
 }
 
-// Modes 3-5 use inverted depth (near=dark) so near geometry is visibly darker
-// against the bright white scene — non-inverted near=white would be invisible.
+// Echo location and modes 3-5 use inverted depth (near=dark, far=light) so the
+// world is dark where you are and brightens toward the edge of the view sphere,
+// blending into the light surround — non-inverted near=white would be invisible.
 function modeDepthInvert(mode: VisionModeId): number {
   if (mode === "depthDebug") return 1;
-  if (mode === "infrarot" || mode === "duft" || mode === "netzwerk") return 1;
+  if (
+    mode === "echoLocation" ||
+    mode === "infrarot" ||
+    mode === "duft" ||
+    mode === "netzwerk"
+  ) return 1;
+  return 0;
+}
+
+// Lower bound for the inverted depth grayscale, so the near end is dark grey
+// instead of pure black. Only echo location lifts off black; other modes keep 0.
+function modeDepthFloor(mode: VisionModeId): number {
+  if (mode === "echoLocation") return ECHO_NEAR_FLOOR;
   return 0;
 }
 
@@ -195,6 +212,17 @@ export class SenseSwitchManager {
     }
     const fromVal = modeDepthInvert(this.transition.fromMode);
     const toVal   = modeDepthInvert(this.transition.toMode);
+    const t = smoothstep(this.transition.progress);
+    return fromVal + (toVal - fromVal) * t;
+  }
+
+  /** Lower bound of the inverted depth grayscale (lifts the near end off black). */
+  getDepthFloorFactor(): number {
+    if (!this.transition) {
+      return modeDepthFloor(this.currentMode);
+    }
+    const fromVal = modeDepthFloor(this.transition.fromMode);
+    const toVal   = modeDepthFloor(this.transition.toMode);
     const t = smoothstep(this.transition.progress);
     return fromVal + (toVal - fromVal) * t;
   }

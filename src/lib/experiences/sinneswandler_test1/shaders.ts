@@ -29,6 +29,7 @@ export interface SharedEchoUniforms {
   uInfraredTone: THREE.IUniform<number>;
   uDepthVisFactor: THREE.IUniform<number>;
   uDepthInvertFactor: THREE.IUniform<number>;
+  uDepthFloor: THREE.IUniform<number>;
 }
 
 interface RevealMaterialOptions {
@@ -50,6 +51,11 @@ interface RevealMaterialOptions {
 const COMMON_FRAGMENT = /* glsl */ `
 precision highp float;
 #define MAX_ECHO_PULSES ${BAT_MAX_PULSES}
+// >1 holds the dark core and ramps sharply to the bright edge (more pronounced gradient).
+#define DEPTH_CONTRAST 2.2
+// Palette size for the depth view — quantize the grey ramp to this many flat bands
+// (low = chunky papercut layers with crisp contour edges).
+#define DEPTH_LEVELS 12.0
 
 uniform float uTime;
 uniform int uPulseCount;
@@ -70,6 +76,7 @@ uniform float uNoirFactor;
 uniform float uInfraredTone;
 uniform float uDepthVisFactor;
 uniform float uDepthInvertFactor;
+uniform float uDepthFloor;
 uniform vec3 uTintColor;
 uniform vec3 uDaylightTintColor;
 uniform float uFillStrength;
@@ -119,7 +126,6 @@ float fogAmount(vec3 worldPos) {
 	float distToCamera = distance(cameraPosition, worldPos);
 	return smoothstep(uFogNear, uFogFar, distToCamera);
 }
-
 void main() {
 	float reveal = pulseReveal(vWorldPos);
 	float edge = edgeMask(vBarycentric, uWireThickness * (0.92 + reveal * 0.22));
@@ -194,7 +200,14 @@ void main() {
 	if (uDepthVisFactor > 0.001) {
 		float depthDist = distance(cameraPosition, vWorldPos);
 		float depthNorm = clamp(depthDist / max(uFogFar, 1.0), 0.0, 1.0);
+		depthNorm = pow(depthNorm, DEPTH_CONTRAST);
 		float depthVal = mix(1.0 - depthNorm, depthNorm, uDepthInvertFactor);
+		// Lift the dark (near) end off pure black when inverted, so close geometry
+		// reads as dark grey rather than a void. No-op when uDepthFloor is 0.
+		depthVal = mix(depthVal, mix(uDepthFloor, 1.0, depthVal), uDepthInvertFactor);
+		// Hard-quantize to DEPTH_LEVELS flat bands — crisp contour edges between solid
+		// shades give the layered papercut look (no dithering, so boundaries stay sharp).
+		depthVal = floor(depthVal * (DEPTH_LEVELS - 1.0) + 0.5) / (DEPTH_LEVELS - 1.0);
 		color = mix(color, vec3(depthVal), uDepthVisFactor);
 	}
 
@@ -276,6 +289,7 @@ export function createSharedEchoUniforms(): SharedEchoUniforms {
     uInfraredTone: { value: 0.76 },
     uDepthVisFactor: { value: 0 },
     uDepthInvertFactor: { value: 0 },
+    uDepthFloor: { value: 0 },
   };
 }
 

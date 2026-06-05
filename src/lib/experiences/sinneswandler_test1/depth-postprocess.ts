@@ -6,6 +6,8 @@ export interface DepthPostprocess {
     camera: THREE.PerspectiveCamera,
     factor: number,
     inverted: boolean,
+    floor: number,
+    sphereRadius: number,
   ) => void;
   renderInverted: (drawScene: () => void) => void;
   dispose: () => void;
@@ -28,12 +30,14 @@ uniform float cameraNear;
 uniform float cameraFar;
 uniform float uDepthFactor;
 uniform float uInvertDepth;
-
-float readDepth(sampler2D depthSampler, vec2 coord) {
-  float fragCoordZ = texture2D(depthSampler, coord).x;
-  float viewZ = (cameraNear * cameraFar) / ((cameraFar - cameraNear) * fragCoordZ - cameraFar);
-  return (viewZ + cameraNear) / (cameraNear - cameraFar);
-}
+uniform float uDepthFloor;
+uniform float uSphereRadius;
+uniform mat4 uProjInverse;
+// >1 holds the dark core and ramps sharply to the bright edge (more pronounced gradient).
+#define DEPTH_CONTRAST 2.2
+// Palette size for the depth view — quantize the grey ramp to this many flat bands
+// (low = chunky papercut layers with crisp contour edges).
+#define DEPTH_LEVELS 12.0
 
 void main() {
   vec3 diffuse = texture2D(tDiffuse, vUv).rgb;
@@ -44,8 +48,21 @@ void main() {
     return; 
   }
 
-  float depth = readDepth(tDepth, vUv);
-  depthColor = mix(1.0 - vec3(depth), vec3(depth), uInvertDepth);
+  // Reconstruct view-space position from depth; its length is the true euclidean
+  // distance from the camera (the origin in view space), so altitude/Y counts too —
+  // fly up and the ground is farther, so it lightens. Matches the VR path.
+  vec4 ndc = vec4(vUv * 2.0 - 1.0, rawDepth * 2.0 - 1.0, 1.0);
+  vec4 viewPos = uProjInverse * ndc;
+  viewPos /= viewPos.w;
+  float dist = length(viewPos.xyz);
+  float depthNorm = clamp(dist / max(uSphereRadius, 1.0), 0.0, 1.0);
+  depthNorm = pow(depthNorm, DEPTH_CONTRAST);
+  depthColor = mix(1.0 - vec3(depthNorm), vec3(depthNorm), uInvertDepth);
+  // Lift the near (dark) end off pure black when inverted. No-op when floor is 0.
+  depthColor = mix(depthColor, mix(vec3(uDepthFloor), vec3(1.0), depthColor), uInvertDepth);
+  // Hard-quantize to DEPTH_LEVELS flat bands — crisp contour edges between solid
+  // shades give the layered papercut look (no dithering, so boundaries stay sharp).
+  depthColor = floor(depthColor * (DEPTH_LEVELS - 1.0) + 0.5) / (DEPTH_LEVELS - 1.0);
   gl_FragColor = vec4(mix(diffuse, depthColor, uDepthFactor), 1.0);
 }
 `;
@@ -90,6 +107,9 @@ export function createDepthPostprocess(
       cameraFar: { value: 1000 },
       uDepthFactor: { value: 1 },
       uInvertDepth: { value: 1 },
+      uDepthFloor: { value: 0 },
+      uSphereRadius: { value: 120 },
+      uProjInverse: { value: new THREE.Matrix4() },
       tDiffuse: { value: target.texture },
       tDepth: { value: target.depthTexture },
     },
@@ -139,6 +159,8 @@ export function createDepthPostprocess(
       camera: THREE.PerspectiveCamera,
       factor: number,
       inverted: boolean,
+      floor: number,
+      sphereRadius: number,
     ): void {
       // Custom render targets don't composite to the XR framebuffer correctly.
       // Fall back to a direct render and skip the depth overlay in VR.
@@ -158,6 +180,9 @@ export function createDepthPostprocess(
       material.uniforms.cameraFar.value = camera.far;
       material.uniforms.uDepthFactor.value = THREE.MathUtils.clamp(factor, 0, 1);
       material.uniforms.uInvertDepth.value = inverted ? 1 : 0;
+      material.uniforms.uDepthFloor.value = floor;
+      material.uniforms.uSphereRadius.value = sphereRadius;
+      material.uniforms.uProjInverse.value.copy(camera.projectionMatrixInverse);
       material.uniforms.tDiffuse.value = target.texture;
       material.uniforms.tDepth.value = target.depthTexture;
 
