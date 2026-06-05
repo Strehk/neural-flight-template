@@ -126,6 +126,16 @@ float fogAmount(vec3 worldPos) {
 	float distToCamera = distance(cameraPosition, worldPos);
 	return smoothstep(uFogNear, uFogFar, distToCamera);
 }
+
+// Quantize to DEPTH_LEVELS flat bands, but smooth each contour boundary across
+// ~1px using screen-space derivatives so the band edges don't stair-step. Bands
+// stay flat where depth changes slowly; at steep depth jumps the edge softens.
+float bandedDepth(float v) {
+	float s = v * (DEPTH_LEVELS - 1.0) + 0.5;
+	float w = max(fwidth(s), 1e-4);
+	return (floor(s) + smoothstep(1.0 - w, 1.0, fract(s))) / (DEPTH_LEVELS - 1.0);
+}
+
 void main() {
 	float reveal = pulseReveal(vWorldPos);
 	float edge = edgeMask(vBarycentric, uWireThickness * (0.92 + reveal * 0.22));
@@ -205,9 +215,8 @@ void main() {
 		// Lift the dark (near) end off pure black when inverted, so close geometry
 		// reads as dark grey rather than a void. No-op when uDepthFloor is 0.
 		depthVal = mix(depthVal, mix(uDepthFloor, 1.0, depthVal), uDepthInvertFactor);
-		// Hard-quantize to DEPTH_LEVELS flat bands — crisp contour edges between solid
-		// shades give the layered papercut look (no dithering, so boundaries stay sharp).
-		depthVal = floor(depthVal * (DEPTH_LEVELS - 1.0) + 0.5) / (DEPTH_LEVELS - 1.0);
+		// Quantize into flat papercut bands with edge-antialiased contour boundaries.
+		depthVal = bandedDepth(depthVal);
 		color = mix(color, vec3(depthVal), uDepthVisFactor);
 	}
 
