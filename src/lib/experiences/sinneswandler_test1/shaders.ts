@@ -56,6 +56,9 @@ precision highp float;
 // Palette size for the depth view — quantize the grey ramp to this many flat bands
 // (low = chunky papercut layers with crisp contour edges).
 #define DEPTH_LEVELS 12.0
+// Distance (as a fraction of the sphere radius) where terrain starts dissolving into
+// the background, so the bubble edge and the chunks streaming in past it stay hidden.
+#define DEPTH_EDGE_FADE 0.8
 
 uniform float uTime;
 uniform int uPulseCount;
@@ -217,7 +220,11 @@ void main() {
 		depthVal = mix(depthVal, mix(uDepthFloor, 1.0, depthVal), uDepthInvertFactor);
 		// Quantize into flat papercut bands with edge-antialiased contour boundaries.
 		depthVal = bandedDepth(depthVal);
-		color = mix(color, vec3(depthVal), uDepthVisFactor);
+		// Dissolve the papercut into the background as it nears the sphere edge, so
+		// terrain beyond the bubble (and chunks streaming in past it) blends into the
+		// sky and disappears instead of standing out as a flat distant plate.
+		vec3 depthRGB = mix(vec3(depthVal), uFogColor, smoothstep(uFogFar * DEPTH_EDGE_FADE, uFogFar, depthDist));
+		color = mix(color, depthRGB, uDepthVisFactor);
 	}
 
 	gl_FragColor = vec4(color, 1.0);
