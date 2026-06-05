@@ -768,6 +768,7 @@ export function render(state: ExperienceState, ctx: RenderContext): void {
   const depthFactor = s.senseSwitch.getDepthFactor();
   const depthInvert = s.senseSwitch.getDepthInvertFactor();
   const depthFloor = s.senseSwitch.getDepthFloorFactor();
+  const depthRadius = s.senseSwitch.getDepthRadius();
 
   // Bake the depth visualization into the world shader on both desktop and VR, and
   // render straight to the canvas so terrain silhouettes get its MSAA. The offscreen
@@ -775,6 +776,7 @@ export function render(state: ExperienceState, ctx: RenderContext): void {
   s.world.sharedUniforms.uDepthVisFactor.value = depthFactor;
   s.world.sharedUniforms.uDepthInvertFactor.value = depthInvert;
   s.world.sharedUniforms.uDepthFloor.value = depthFloor;
+  s.world.sharedUniforms.uDepthRadius.value = depthRadius;
 
   const renderLayers = (): void => {
     ctx.renderer.render(ctx.scene, ctx.camera);

@@ -107,6 +107,18 @@ function modeDepthFloor(mode: VisionModeId): number {
   return 0;
 }
 
+// Radius over which the depth bands are normalized — sets the papercut layer density,
+// kept separate from each mode's fogFar (fog/cutoff). Echo uses its full bubble; the
+// wide-fog senses cap it well below their fogFar so the layers stay visible instead of
+// washing out across the much larger view.
+const LAYERED_DEPTH_RADIUS = 240;
+function modeDepthRadius(mode: VisionModeId): number {
+  if (mode === "infrarot" || mode === "duft" || mode === "netzwerk") {
+    return LAYERED_DEPTH_RADIUS;
+  }
+  return VISION_MODES[mode].fogFar;
+}
+
 function modeRank(mode: VisionModeId): number {
   const index = MODE_SEQUENCE.indexOf(mode);
   return index >= 0 ? index : -1;
@@ -225,6 +237,17 @@ export class SenseSwitchManager {
     }
     const fromVal = modeDepthFloor(this.transition.fromMode);
     const toVal   = modeDepthFloor(this.transition.toMode);
+    const t = smoothstep(this.transition.progress);
+    return fromVal + (toVal - fromVal) * t;
+  }
+
+  /** Distance over which the depth bands are normalized (papercut layer density). */
+  getDepthRadius(): number {
+    if (!this.transition) {
+      return modeDepthRadius(this.currentMode);
+    }
+    const fromVal = modeDepthRadius(this.transition.fromMode);
+    const toVal   = modeDepthRadius(this.transition.toMode);
     const t = smoothstep(this.transition.progress);
     return fromVal + (toVal - fromVal) * t;
   }

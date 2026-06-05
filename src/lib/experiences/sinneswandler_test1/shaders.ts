@@ -30,6 +30,7 @@ export interface SharedEchoUniforms {
   uDepthVisFactor: THREE.IUniform<number>;
   uDepthInvertFactor: THREE.IUniform<number>;
   uDepthFloor: THREE.IUniform<number>;
+  uDepthRadius: THREE.IUniform<number>;
 }
 
 interface RevealMaterialOptions {
@@ -80,6 +81,7 @@ uniform float uInfraredTone;
 uniform float uDepthVisFactor;
 uniform float uDepthInvertFactor;
 uniform float uDepthFloor;
+uniform float uDepthRadius;
 uniform vec3 uTintColor;
 uniform vec3 uDaylightTintColor;
 uniform float uFillStrength;
@@ -218,7 +220,9 @@ void main() {
 	// In-shader depth visualization — VR fallback (post-process can't composite to XR framebuffer)
 	if (uDepthVisFactor > 0.001) {
 		float depthDist = distance(cameraPosition, vWorldPos);
-		float depthNorm = clamp(depthDist / max(uFogFar, 1.0), 0.0, 1.0);
+		// Normalize bands over uDepthRadius (the layer scale), kept separate from uFogFar
+		// (fog/cutoff) so the papercut layers stay dense even when the view radius is wide.
+		float depthNorm = clamp(depthDist / max(uDepthRadius, 1.0), 0.0, 1.0);
 		depthNorm = pow(depthNorm, DEPTH_CONTRAST);
 		float depthVal = mix(1.0 - depthNorm, depthNorm, uDepthInvertFactor);
 		// Lift the dark (near) end off pure black when inverted, so close geometry
@@ -312,6 +316,7 @@ export function createSharedEchoUniforms(): SharedEchoUniforms {
     uDepthVisFactor: { value: 0 },
     uDepthInvertFactor: { value: 0 },
     uDepthFloor: { value: 0 },
+    uDepthRadius: { value: 120 },
   };
 }
 
