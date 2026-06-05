@@ -8,9 +8,9 @@ import {
 import { BAT_ECHO_PROBE_DEFAULTS, BAT_STREAMING_DEFAULTS, BAT_WORLD_CONFIG_DEFAULTS } from "./world-config";
 import { ChunkScheduler } from "$lib/three/world/ChunkScheduler";
 import type { AcousticField } from "$lib/three/world/AcousticFieldBaker";
-import {
-  type TerrainDayPalette,
-  type TerrainEchoPalette,
+import type {
+  TerrainDayPalette,
+  TerrainEchoPalette,
 } from "./derived-field-sampler";
 import { TerrainSampler, type TerrainSample } from "./terrain-sampler";
 import { addBarycentricAttribute } from "$lib/three/world/geometry-helpers";
@@ -90,7 +90,6 @@ const DESERT_DAY       = new THREE.Color("#d8b66f"); // warm sand
 const BARRENS_DAY      = new THREE.Color("#c0a055"); // warm sandy
 const HIGH_MOUNTAIN_GRAY = new THREE.Color("#8a8f92");
 const MID_MOUNTAIN_GRAY  = new THREE.Color("#70777a");
-const WATER_COLOR        = new THREE.Color("#4f8fa7");
 
 /**
  * Echo-mode terrain colour palette — wires sinneswandler's THREE.Color
@@ -107,7 +106,6 @@ const TERRAIN_ECHO_PALETTE: TerrainEchoPalette = {
   barrens: BARRENS_COLOR,
   midMountainGray: MID_MOUNTAIN_GRAY,
   highMountainGray: HIGH_MOUNTAIN_GRAY,
-  water: WATER_COLOR,
 };
 
 /**
@@ -126,7 +124,6 @@ const TERRAIN_DAY_PALETTE: TerrainDayPalette = {
   barrens: BARRENS_DAY,
   midMountainGray: MID_MOUNTAIN_GRAY,
   highMountainGray: HIGH_MOUNTAIN_GRAY,
-  water: WATER_COLOR,
 };
 
 export class BatWorld {
@@ -154,7 +151,6 @@ export class BatWorld {
   readonly flowerGeometry: THREE.BufferGeometry;
   readonly forestPropGeometry: THREE.BufferGeometry;
   readonly snowPlantGeometry: THREE.BufferGeometry;
-  readonly pondGeometry: THREE.BufferGeometry;
   readonly mothGeometry: THREE.BufferGeometry;
   /** MothSwarm owns moth simulation + the InstancedMesh now (step 9a). */
   private readonly mothSwarm: MothSwarm;
@@ -361,9 +357,6 @@ export class BatWorld {
     this.snowPlantGeometry = addBarycentricAttribute(srcSnowPlant);
     srcSnowPlant.dispose();
 
-    this.pondGeometry = new THREE.CircleGeometry(1, 24);
-    this.pondGeometry.rotateX(-Math.PI / 2);
-
     const sourceMothGeometry =
       options?.mothGeometry ?? new THREE.OctahedronGeometry(0.58, 0);
     this.mothGeometry = addBarycentricAttribute(sourceMothGeometry);
@@ -380,7 +373,7 @@ export class BatWorld {
     });
     this.group.add(this.mothSwarm.mothMesh);
 
-    // DecorationPlacer owns all 17 instanced-mesh population loops + the
+    // DecorationPlacer owns all 16 instanced-mesh population loops + the
     // per-biome scatter weights (refactor step 8b). Construct last —
     // every geometry + material it needs has been assigned above.
     this.decorationPlacer = new DecorationPlacer({
@@ -407,14 +400,12 @@ export class BatWorld {
         flower:     this.flowerGeometry,
         forestProp: this.forestPropGeometry,
         snowPlant:  this.snowPlantGeometry,
-        pond:       this.pondGeometry,
       },
       materials: {
         crown: this.renderers.crownMaterial,
         trunk: this.renderers.trunkMaterial,
         rock:  this.renderers.rockMaterial,
         grass: this.renderers.grassMaterial,
-        pond:  this.renderers.pondMaterial,
       },
       terrainSampler: this.terrainSampler,
       noiseStack: this.terrainSampler.noiseStack,
@@ -472,14 +463,6 @@ export class BatWorld {
     this.mothSwarm.setScale(factor);
   }
 
-  setMonochromeFactors(
-    whiteoutFactor: number,
-    edgeFactor: number,
-    shadowFactor: number,
-  ): void {
-    this.renderers.setMonochromeFactors(whiteoutFactor, edgeFactor, shadowFactor);
-  }
-
   sampleHeight(x: number, z: number): number {
     // Player-altitude path → uncached so altitude is smooth across cell seams.
     return this.terrainSampler.sampleHeight(x, z);
@@ -487,6 +470,10 @@ export class BatWorld {
 
   sampleBiome(x: number, z: number): BatBiomeId {
     return this.terrainSampler.sampleBiomeId(x, z);
+  }
+
+  sampleBiomeWeights(x: number, z: number) {
+    return this.terrainSampler.sampleBiomeWeights(x, z);
   }
 
   sampleChemosenseSources(
@@ -614,7 +601,6 @@ export class BatWorld {
     this.flowerGeometry.dispose();
     this.forestPropGeometry.dispose();
     this.snowPlantGeometry.dispose();
-    this.pondGeometry.dispose();
     this.mothGeometry.dispose();
   }
 
@@ -722,4 +708,3 @@ export class BatWorld {
    * directly now (refactor steps 4 / 6 / 8b / 9a).
    */
 }
-

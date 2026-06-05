@@ -29,7 +29,7 @@ import {
   type WorldConfig,
 } from "./world-config";
 import type { BatBiomeId } from "./config";
-import { sampleBiome } from "./biome-sampler";
+import { sampleBiome, type BiomeWeights } from "./biome-sampler";
 import { sampleHeight } from "./height-sampler";
 import {
   sampleDerivedFields,
@@ -140,6 +140,19 @@ export class TerrainSampler {
   /** Biome lookup. Goes through the cache — biome rarely needs sub-cell precision. */
   sampleBiomeId(x: number, z: number): BatBiomeId {
     return this.sample(x, z).dominantBiome;
+  }
+
+  /** Normalised biome blend weights at (x, z) — use for smooth atmospheric transitions. */
+  sampleBiomeWeights(x: number, z: number): BiomeWeights {
+    const s = this.sample(x, z);
+    return {
+      forestWeight: s.forestWeight,
+      grasslandWeight: s.grasslandWeight,
+      mountainWeight: s.mountainWeight,
+      snowWeight: s.snowWeight,
+      desertWeight: s.desertWeight,
+      barrensWeight: s.barrensWeight,
+    };
   }
 
   /**

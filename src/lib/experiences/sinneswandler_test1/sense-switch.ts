@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { BatBiomeId } from "./config";
+import type { BiomeWeights } from "./biome-sampler";
 import type { SharedEchoUniforms } from "./shaders";
 import { VISION_MODES, BIOME_VISION_MODES, MODE_SEQUENCE, nextMode, type VisionModeId, type VisionMode } from "./vision-modes";
 
@@ -14,8 +15,9 @@ const BIOME_FOG_TINTS: Record<BatBiomeId, { echo: number; day: number }> = {
   desert:   { echo: 0x120b02, day: 0xf0cf86 },
   barrens:   { echo: 0x100c04, day: 0xddd0a0 },
 };
-const ATMO_TINT_MAX = 0.18;  // how strongly the biome tints the fog (0–1)
-const ATMO_LERP_SPEED = 0.7; // per-second lerp rate toward target tint
+const ATMO_TINT_DAY  = 0.60; // strong tint in luft/normal so biome is obvious
+const ATMO_TINT_ECHO = 0.18; // subtle tint in dark/echo modes
+const ATMO_LERP_SPEED = 1.4; // per-second lerp rate toward target tint
 
 const TRANSITION_DURATION = 2.5;
 
@@ -264,25 +266,38 @@ export class SenseSwitchManager {
   }
 
   /**
-   * Call each tick with the dominant biome 150-200 m ahead of the player.
-   * Subtly tints the fog toward the biome's characteristic color so the player
-   * can sense an upcoming biome shift before they enter it.
+   * Call each tick with the biome blend weights at the player's current position.
+   * Mixes each biome's characteristic fog tint proportionally so the atmosphere
+   * transitions smoothly as the player crosses biome boundaries.
    * No-op during mode transitions (the transition system controls fog then).
    */
-  updateAtmosphere(aheadBiome: BatBiomeId, delta: number): void {
+  updateAtmosphere(weights: BiomeWeights, delta: number): void {
     if (this.transition) return;
-    if (
-      this.currentMode === "luft" ||
-      this.currentMode === "echoLocation" ||
-      this.currentMode === "infrarot" ||
-      this.currentMode === "duft" ||
-      this.currentMode === "netzwerk" ||
-      this.currentMode === "depthDebug"
-    ) return;
-    const tintInfo = BIOME_FOG_TINTS[aheadBiome];
-    const tintHex = tintInfo.echo;
-    _c1.set(tintHex);
-    const targetFog = _c1.clone().lerp(this.baseFogColor, 1 - ATMO_TINT_MAX);
+
+    const useDay = this.currentMode === "luft" || this.currentMode === "normal";
+    const biomeOrder: BatBiomeId[] = ["forest", "grassland", "mountains", "snow", "desert", "barrens"];
+    const biomeWeightValues = [
+      weights.forestWeight,
+      weights.grasslandWeight,
+      weights.mountainWeight,
+      weights.snowWeight,
+      weights.desertWeight,
+      weights.barrensWeight,
+    ];
+
+    // Weighted-average fog tint across all contributing biomes.
+    _c1.set(0, 0, 0);
+    for (let i = 0; i < biomeOrder.length; i++) {
+      const w = biomeWeightValues[i];
+      if (w < 0.001) continue;
+      _c2.set(useDay ? BIOME_FOG_TINTS[biomeOrder[i]].day : BIOME_FOG_TINTS[biomeOrder[i]].echo);
+      _c1.r += _c2.r * w;
+      _c1.g += _c2.g * w;
+      _c1.b += _c2.b * w;
+    }
+
+    const tintMax = useDay ? ATMO_TINT_DAY : ATMO_TINT_ECHO;
+    const targetFog = _c1.clone().lerp(this.baseFogColor, 1 - tintMax);
     this.sharedUniforms.uFogColor.value.lerp(targetFog, delta * ATMO_LERP_SPEED);
     if (this.scene.fog instanceof THREE.Fog) {
       this.scene.fog.color.copy(this.sharedUniforms.uFogColor.value);

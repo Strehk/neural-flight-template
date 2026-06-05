@@ -4,10 +4,8 @@ import type { TriggerCommand } from "$lib/types/orientation";
 import type { ExperienceState, SetupContext, TickContext, RenderContext } from "../types";
 import { EchoAudioManager } from "./audio";
 import {
-  BAT_BIOME_ORDER,
   BAT_AUDIO_DEFAULTS,
   BAT_CAMERA,
-  type BatBiomeId,
   type BatAudioSettings,
   type BatEchoSettings,
   BAT_ECHO_DEFAULTS,
@@ -32,8 +30,8 @@ import { createDepthPostprocess, type DepthPostprocess } from "./depth-postproce
 import { NetworkLayer } from "./network-layer";
 import type { VisionModeId } from "./vision-modes";
 import { loadWorldModels } from "./world-models";
+import { currentBiomeStore } from "./biome-store";
 
-const _sceneFwd = new THREE.Vector3();
 const WHITEOUT_PARTICLE_COUNT = 280;
 const WHITEOUT_PARTICLE_RADIUS = 165;
 const WHITEOUT_PARTICLE_MIN_DISTANCE = 16;
@@ -117,14 +115,6 @@ function createRenderPulseState(
     trail: pulse.trailLength,
     intensity: pulse.intensity,
   };
-}
-
-function cycleBiome(current: BatBiomeId, delta: number): BatBiomeId {
-  const index = BAT_BIOME_ORDER.indexOf(current);
-  const safeIndex = index >= 0 ? index : 0;
-  const nextIndex =
-    (safeIndex + delta + BAT_BIOME_ORDER.length) % BAT_BIOME_ORDER.length;
-  return BAT_BIOME_ORDER[nextIndex];
 }
 
 function createMoonGlowTexture(): THREE.CanvasTexture {
@@ -680,15 +670,7 @@ export function tick(
     s.delayedSenseMode = null;
   }
 
-  const pendingBiomeDelta = s.keyboardInput.consumePendingBiomeDelta();
-  if (pendingBiomeDelta !== 0) {
-    const currentBiome =
-      s.world.getBiomeOverride() ??
-      s.world.sampleBiome(s.player.rig.position.x, s.player.rig.position.z);
-    const nextBiome = cycleBiome(currentBiome, pendingBiomeDelta);
-    s.world.setBiomeOverride(nextBiome);
-    s.senseSwitch.checkBiome(nextBiome, ctx.elapsed);
-  }
+  s.keyboardInput.consumePendingBiomeDelta();
 
   s.senseSwitch.tick(s.player.rig.position, ctx.delta, ctx.elapsed);
   s.player.tick(ctx.delta, (x, z) => s.world.sampleHeight(x, z));
@@ -701,17 +683,13 @@ export function tick(
     );
 
   const worldFrame = s.world.prepare(s.player.rig.position);
-  const currentBiome = s.world.sampleBiome(s.player.rig.position.x, s.player.rig.position.z);
 
-  // Sample 200 m ahead for atmospheric biome tinting.
-  _sceneFwd.set(0, 0, -1).applyEuler(s.player.rig.rotation);
-  _sceneFwd.y = 0;
-  if (_sceneFwd.lengthSq() > 0.0001) _sceneFwd.normalize();
-  const aheadBiome = s.world.sampleBiome(
-    s.player.rig.position.x + _sceneFwd.x * 200,
-    s.player.rig.position.z + _sceneFwd.z * 200,
+  const biomeWeights = s.world.sampleBiomeWeights(
+    s.player.rig.position.x,
+    s.player.rig.position.z,
   );
-  s.senseSwitch.updateAtmosphere(aheadBiome, ctx.delta);
+  currentBiomeStore.set(s.world.sampleBiome(s.player.rig.position.x, s.player.rig.position.z));
+  s.senseSwitch.updateAtmosphere(biomeWeights, ctx.delta);
 
   // Chemosense layer: show/hide particle clouds with mode blend.
   const chemoFactor = s.senseSwitch.getDuftFactor();
@@ -733,7 +711,6 @@ export function tick(
   const whiteoutFactor = s.senseSwitch.getLuftFactor();
   const edgeFactor = s.senseSwitch.getEchoLocationFactor();
   const shadowFactor = s.senseSwitch.getInfrarotFactor();
-  s.world.setMonochromeFactors(whiteoutFactor, edgeFactor, shadowFactor);
   const driftParticleFactor = Math.max(
     whiteoutFactor,
     edgeFactor,
