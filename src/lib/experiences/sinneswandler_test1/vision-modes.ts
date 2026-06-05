@@ -136,5 +136,5 @@ export function nextMode(current: VisionModeId): VisionModeId {
   return MODE_SEQUENCE[(idx + 1) % MODE_SEQUENCE.length];
 }
 
-/** Biome mode overrides are disabled; these modes are selected manually. */
+/** Biome mode overrides are disabled; vision modes are switched manually via number keys. */
 export const BIOME_VISION_MODES: Partial<Record<BatBiomeId, VisionModeId>> = {};

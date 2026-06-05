@@ -21,6 +21,15 @@ import { fbm, type NoiseStack } from "$lib/three/world/NoiseStack";
 import { remapNoise, saturate } from "$lib/three/world/math";
 import type { BatBiomeId } from "./config";
 
+export interface BiomeWeights {
+  forestWeight: number;
+  grasslandWeight: number;
+  mountainWeight: number;
+  snowWeight: number;
+  desertWeight: number;
+  barrensWeight: number;
+}
+
 export interface BiomeContext {
   /** Warped coordinates (warp applied to the input x/z). */
   wx: number;
@@ -51,6 +60,78 @@ export interface BiomeContext {
   dominantBiome: BatBiomeId;
 }
 
+// ── Voronoi biome placement ───────────────────────────────────────────────
+// Divides the world into jittered cells, each assigned one of the six biomes
+// via a deterministic hash of (cell, masterSeed). This guarantees that every
+// biome appears within a predictable distance from any point.
+//
+// Cell size 280 wu → ~25 s at cruise speed 11 m/s before reaching a new cell.
+// BLEND_WIDTH 55 wu → smooth 55-unit crossfade at every biome boundary.
+const VORONOI_CELL   = 280;
+const VORONOI_BLEND  = 120; // wider blend → softer biome edges, no sharp mountain walls
+const VORONOI_WEIGHT = 0.92; // how strongly Voronoi overrides the noise scores
+
+const BIOME_LIST: BatBiomeId[] = [
+  "forest", "grassland", "mountains", "desert", "snow", "barrens",
+];
+
+function vHash(a: number, b: number, seed: number): number {
+  let h = (seed ^ 0x811c9dc5) >>> 0;
+  h = (Math.imul(h ^ (a & 0xffff),     0x01000193)) >>> 0;
+  h = (Math.imul(h ^ ((a >>> 16)),      0x01000193)) >>> 0;
+  h = (Math.imul(h ^ (b & 0xffff),     0x01000193)) >>> 0;
+  h = (Math.imul(h ^ ((b >>> 16)),      0x01000193)) >>> 0;
+  h ^= h >>> 16;
+  return h >>> 0;
+}
+
+function vCellBiome(cx: number, cz: number, seed: number): BatBiomeId {
+  return BIOME_LIST[vHash(cx, cz, seed) % 6];
+}
+
+function vCellCenter(cx: number, cz: number, seed: number): [number, number] {
+  const jx = (vHash(cx, cz, seed ^ 0xaaaa) % 1000) / 1000 - 0.5;
+  const jz = (vHash(cx, cz, seed ^ 0xbbbb) % 1000) / 1000 - 0.5;
+  return [
+    (cx + 0.5 + jx * 0.6) * VORONOI_CELL,
+    (cz + 0.5 + jz * 0.6) * VORONOI_CELL,
+  ];
+}
+
+function sampleVoronoi(
+  x: number,
+  z: number,
+  seed: number,
+): { w: Partial<Record<BatBiomeId, number>>; dominant: BatBiomeId } {
+  const cx0 = Math.floor(x / VORONOI_CELL);
+  const cz0 = Math.floor(z / VORONOI_CELL);
+
+  let d1 = Infinity, d2 = Infinity;
+  let b1: BatBiomeId = "grassland", b2: BatBiomeId = "grassland";
+
+  for (let dcx = -2; dcx <= 2; dcx++) {
+    for (let dcz = -2; dcz <= 2; dcz++) {
+      const cx = cx0 + dcx, cz = cz0 + dcz;
+      const [px, pz] = vCellCenter(cx, cz, seed);
+      const d = Math.hypot(x - px, z - pz);
+      if (d < d1) { d2 = d1; b2 = b1; d1 = d; b1 = vCellBiome(cx, cz, seed); }
+      else if (d < d2) { d2 = d; b2 = vCellBiome(cx, cz, seed); }
+    }
+  }
+
+  const gap = d2 - d1;
+  const t = Math.min(1, gap / VORONOI_BLEND);
+  const smooth = t * t * (3 - 2 * t);
+
+  const w: Partial<Record<BatBiomeId, number>> = {};
+  w[b1] = smooth;
+  w[b2] = (w[b2] ?? 0) + (1 - smooth);
+  return { w, dominant: b1 };
+}
+
+// Noise still provides local height variation within cells — keep scale at 1×.
+const BIOME_DISTRIBUTION_SCALE = 1;
+
 /**
  * Apply the biome scoring formulas verbatim from world.ts:2461–2521,
  * including the `biomeOverride` short-circuit that forces all scores to
@@ -63,7 +144,7 @@ export function sampleBiome(
   biomeScale: number,
   biomeOverride: BatBiomeId | null = null,
 ): BiomeContext {
-  const scale = biomeScale;
+  const scale = biomeScale * BIOME_DISTRIBUTION_SCALE;
   const warp = noise.warpAmount;
 
   // Coordinate warp (single-octave samples on the warp noises).
@@ -176,12 +257,23 @@ export function sampleBiome(
     desertScore +
     barrensScore +
     1e-5;
-  const forestWeight = forestScore / total;
-  const grasslandWeight = grasslandScore / total;
-  const mountainWeight = mountainScore / total;
-  const snowWeight = snowScore / total;
-  const desertWeight = desertScore / total;
-  const barrensWeight = barrensScore / total;
+  const forestWeightNoise = forestScore / total;
+  const grasslandWeightNoise = grasslandScore / total;
+  const mountainWeightNoise = mountainScore / total;
+  const snowWeightNoise = snowScore / total;
+  const desertWeightNoise = desertScore / total;
+  const barrensWeightNoise = barrensScore / total;
+
+  // Voronoi override — blend Voronoi cell weights (92%) with noise weights (8%)
+  // so every biome appears within predictable distance from any point.
+  const voronoi = sampleVoronoi(x, z, noise.masterSeed);
+  const vs = VORONOI_WEIGHT;
+  const forestWeight    = (voronoi.w.forest    ?? 0) * vs + forestWeightNoise    * (1 - vs);
+  const grasslandWeight = (voronoi.w.grassland ?? 0) * vs + grasslandWeightNoise * (1 - vs);
+  const mountainWeight  = (voronoi.w.mountains ?? 0) * vs + mountainWeightNoise  * (1 - vs);
+  const snowWeight      = (voronoi.w.snow      ?? 0) * vs + snowWeightNoise      * (1 - vs);
+  const desertWeight    = (voronoi.w.desert    ?? 0) * vs + desertWeightNoise    * (1 - vs);
+  const barrensWeight   = (voronoi.w.barrens   ?? 0) * vs + barrensWeightNoise   * (1 - vs);
 
   return {
     wx,
@@ -200,14 +292,7 @@ export function sampleBiome(
     snowWeight,
     desertWeight,
     barrensWeight,
-    dominantBiome: dominantBiome({
-      forestWeight,
-      grasslandWeight,
-      mountainWeight,
-      snowWeight,
-      desertWeight,
-      barrensWeight,
-    }),
+    dominantBiome: voronoi.dominant,
   };
 }
 

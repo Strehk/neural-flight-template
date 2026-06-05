@@ -119,7 +119,6 @@ export interface TerrainEchoPalette {
   barrens: RGBLike;
   midMountainGray: RGBLike;
   highMountainGray: RGBLike;
-  water: RGBLike;
 }
 
 /**
@@ -138,7 +137,6 @@ export interface TerrainDayPalette {
   barrens: RGBLike;
   midMountainGray: RGBLike;
   highMountainGray: RGBLike;
-  water: RGBLike;
 }
 
 /** In-place RGB lerp toward `target` by `t`. Equivalent to THREE.Color.lerp. */
@@ -154,8 +152,8 @@ function lerpRGB(out: RGBLike, target: RGBLike, t: number): void {
  * `outColor`. Same mutating contract as `applyTerrainEchoColor`.
  *
  * Note: this blend uses slightly *different* weights from the echo
- * blend — stronger snow/cliff/altitude tinting, weaker pond tint —
- * matching the legacy formulas verbatim.
+ * blend — stronger snow/cliff/altitude tinting — matching the legacy
+ * formulas verbatim.
  */
 export function applyTerrainDayColor(
   outColor: RGBLike,
@@ -172,7 +170,6 @@ export function applyTerrainDayColor(
     cliffiness,
     altitudeFactor,
     midAltitudeFactor,
-    pondWeight,
   } = ctx;
 
   outColor.r =
@@ -216,9 +213,6 @@ export function applyTerrainDayColor(
   if (desertWeight > 0.42) {
     lerpRGB(outColor, palette.desert, desertWeight * 0.12);
   }
-  if (pondWeight > 0.08) {
-    lerpRGB(outColor, palette.water, pondWeight * 0.42);
-  }
 }
 
 /**
@@ -241,7 +235,6 @@ export function applyTerrainEchoColor(
     cliffiness,
     altitudeFactor,
     midAltitudeFactor,
-    pondWeight,
   } = ctx;
 
   outColor.r =
@@ -284,8 +277,5 @@ export function applyTerrainEchoColor(
   }
   if (desertWeight > 0.42) {
     lerpRGB(outColor, palette.desert, desertWeight * 0.12);
-  }
-  if (pondWeight > 0.08) {
-    lerpRGB(outColor, palette.water, pondWeight * 0.48);
   }
 }
