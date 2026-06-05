@@ -4,7 +4,7 @@
  * 17 placement passes byte-for-byte, but writes into `Float32Array`s
  * instead of mutating `THREE.InstancedMesh` / `THREE.Object3D` / `THREE.Color`.
  *
- * The 17 entries can be fed directly into an InstancedMesh's
+ * The 16 entries can be fed directly into an InstancedMesh's
  * `instanceMatrix.array` / `instanceColor.array` on the main thread.
  * Because there are no THREE imports, this module is also the worker
  * entry point for decoration generation.
@@ -36,8 +36,7 @@ export type DecorationName =
   | "grass"
   | "bushes"
   | "flowers"
-  | "forestProps"
-  | "ponds";
+  | "forestProps";
 
 export interface DecorationBucket {
   /** Allocated capacity (Float32Array sized for `capacity` instances). */
@@ -95,10 +94,6 @@ const SNOW_COLOR:          RGBLike = rgbHex(0xf2, 0xf7, 0xff);
 const DESERT_DAY:          RGBLike = rgbHex(0xd8, 0xb6, 0x6f);
 const HIGH_MOUNTAIN_GRAY:  RGBLike = rgbHex(0x8a, 0x8f, 0x92);
 
-// Pond grid radius bounds — mirror DerivedFieldConfig.pondRadiusMin/Max.
-const POND_RADIUS_MIN = 7;
-const POND_RADIUS_MAX = 16;
-
 function rgbHex(r: number, g: number, b: number): RGBLike {
   return { r: r / 255, g: g / 255, b: b / 255 };
 }
@@ -114,10 +109,6 @@ function copyRGB(out: RGBLike, src: RGBLike): void {
   out.r = src.r;
   out.g = src.g;
   out.b = src.b;
-}
-
-function mathLerp(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
 }
 
 /**
@@ -221,7 +212,6 @@ export function computeDecorationData(
   const rockCapacity        = Math.max(10,  Math.round(14 + settings.mountainHeight * 0.22));
   const snowRockCapacity    = Math.max(8,   Math.round(10 + settings.mountainHeight * 0.16));
   const mossRockCapacity    = Math.max(8,   Math.round(7  + settings.treeDensity   * 0.72));
-  const pondCapacity        = 5;
 
   const data: DecorationData = {
     pineTrees:    emptyBucket(pineCapacity, true),
@@ -240,7 +230,6 @@ export function computeDecorationData(
     bushes:       emptyBucket(bushCapacity, true),
     flowers:      emptyBucket(flowerCapacity, true),
     forestProps:  emptyBucket(forestPropCapacity, true),
-    ponds:        emptyBucket(pondCapacity, false),
   };
 
   // Scratch RGB reused across every decoration body.
@@ -277,7 +266,6 @@ export function computeDecorationData(
         point.forestWeight * 0.22 -
         point.grasslandWeight * 0.62 -
         point.clearingWeight * 1.42 -
-        point.pondWeight * 1.24 -
         point.mountainWeight * 0.68 -
         point.alpineFactor * 1.16 -
         point.snowWeight * 1.18 -
@@ -315,7 +303,6 @@ export function computeDecorationData(
         point.forestWeight * 0.18 -
         point.grasslandWeight * 0.72 -
         point.clearingWeight * 1.28 -
-        point.pondWeight * 1.12 -
         point.mountainWeight * 0.56 -
         point.alpineFactor -
         point.snowWeight * 1.12 -
@@ -355,7 +342,6 @@ export function computeDecorationData(
         point.vegetationFactor -
         point.grasslandWeight * 0.66 -
         point.clearingWeight * 0.96 -
-        point.pondWeight * 1.16 -
         point.mountainWeight * 0.62 -
         point.alpineFactor * 1.02 -
         point.snowWeight * 1.08 -
@@ -390,8 +376,7 @@ export function computeDecorationData(
     const sectionFavor = smoothPeak(section, 0.84, 0.17);
     const willowChance = saturate(
       (point.forestWeight * (0.58 + sectionFavor * 1.7) +
-        point.treeCluster * point.forestWeight * 0.38 +
-        point.pondWeight * 0.34) *
+        point.treeCluster * point.forestWeight * 0.38) *
         point.vegetationFactor -
         point.grasslandWeight * 0.64 -
         point.clearingWeight * 1.0 -
@@ -593,7 +578,6 @@ export function computeDecorationData(
     const mossChance = saturate(
       point.forestWeight * 0.52 +
         point.clearingWeight * 0.18 +
-        point.pondWeight * 0.26 +
         point.rockCluster * 0.28 -
         point.grasslandWeight * 0.24 -
         point.mountainWeight * 0.18 -
@@ -695,7 +679,6 @@ export function computeDecorationData(
         point.clearingWeight * 1.25) *
         point.vegetationFactor +
         point.grasslandWeight * 0.92 -
-        point.pondWeight * 0.76 -
         point.forestWeight * 0.28 -
         point.mountainWeight * 0.68 -
         point.alpineFactor * 1.18 -
@@ -733,7 +716,6 @@ export function computeDecorationData(
         point.clearingWeight * 0.58 +
         point.grassCluster * 0.32) *
         point.vegetationFactor -
-        point.pondWeight * 0.76 -
         point.mountainWeight * 0.64 -
         point.alpineFactor -
         point.snowWeight * 1.1 -
@@ -769,7 +751,6 @@ export function computeDecorationData(
         point.forestWeight * point.clearingWeight * 0.64 +
         point.grassCluster * 0.66) *
         point.vegetationFactor -
-        point.pondWeight * 0.86 -
         point.forestWeight * 0.24 -
         point.mountainWeight * 0.74 -
         point.alpineFactor * 1.08 -
@@ -807,7 +788,6 @@ export function computeDecorationData(
         point.midAltitudeFactor * 0.2 +
         point.mountainWeight * 0.12 -
         point.grasslandWeight * 0.42 -
-        point.pondWeight * 0.74 -
         point.alpineFactor * 0.72 -
         point.snowWeight * 1.04 -
         point.desertWeight * 1.04 -
@@ -827,26 +807,5 @@ export function computeDecorationData(
       scale * 0.88, scale * 0.72, scale * 0.88);
     writeColor(data.forestProps, idx, tintColor);
   }
-
-  // -- ponds (no per-instance colour) ------------------------------------
-  for (let i = 0; i < pondCapacity * 6 && data.ponds.count < pondCapacity; i++) {
-    const lx = (seededRandom2D(baseSeed + i, 601) - 0.5) * size;
-    const lz = (seededRandom2D(baseSeed + i, 607) - 0.5) * size;
-    const wx = lx + gridX * size;
-    const wz = lz + gridZ * size;
-    const point = sampleTerrainPoint(wx, wz, tempColor);
-    if (point.snowWeight > 0.34 || point.desertWeight > 0.28) continue;
-    if (point.pondWeight < 0.42) continue;
-    if (seededRandom2D(baseSeed + i, 613) > point.pondWeight) continue;
-
-    const radius = mathLerp(POND_RADIUS_MIN, POND_RADIUS_MAX, saturate(point.pondWeight));
-    const idx = data.ponds.count++;
-    writeMatrix(data.ponds, idx, lx, point.height + 0.08, lz,
-      0,
-      seededRandom2D(baseSeed + i, 619) * Math.PI,
-      0,
-      radius, 1, radius * (0.72 + seededRandom2D(baseSeed + i, 617) * 0.36));
-  }
-
   return data;
 }

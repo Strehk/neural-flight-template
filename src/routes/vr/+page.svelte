@@ -2,6 +2,7 @@
 import { Trophy } from "lucide-svelte";
 import { onDestroy, onMount } from "svelte";
 import * as THREE from "three";
+import { currentBiomeStore } from "$lib/experiences/sinneswandler_test1/biome-store";
 import { VRButton } from "three/examples/jsm/webxr/VRButton.js";
 import type { ActiveExperience } from "$lib/experiences/loader";
 import {
@@ -144,3 +145,5 @@ onDestroy(() => {
 		<Trophy size={20} /> {score}
 	</div>
 {/if}
+
+<div class="biome-overlay">{$currentBiomeStore ?? '—'}</div>
