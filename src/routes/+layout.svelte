@@ -1,6 +1,7 @@
 <script lang="ts">
 import "../app.css";
 import favicon from "$lib/assets/favicon.svg";
+import DevConsole from "$lib/dev-console/DevConsole.svelte";
 
 const { children } = $props();
 </script>
@@ -10,3 +11,5 @@ const { children } = $props();
 </svelte:head>
 
 {@render children()}
+
+<DevConsole />
