@@ -17,7 +17,7 @@
  * forwards pulse state via `syncEchoUniforms`.
  */
 
-import * as THREE from "three/webgpu";
+import * as THREE from "three";
 import { BAT_FOG_DISTANCE, BAT_MOTH_DEFAULTS, BAT_SCENE } from "./config";
 import {
   createInstancedRevealMaterial,
