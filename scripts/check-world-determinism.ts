@@ -35,7 +35,6 @@ import {
  * Coordinates chosen to span:
  *   - origin + axis-aligned points,
  *   - exact chunk seams at multiples of chunkSize = 112,
- *   - pond grid corners at multiples of pondCellSize = 82,
  *   - irrational offsets that won't land on any noise lattice,
  *   - mirror pairs so any sign bug surfaces.
  */
@@ -69,7 +68,7 @@ function dumpSample(s: TerrainSample): string {
     s.snowWeight, s.desertWeight, s.barrensWeight,
     s.basinWeight, s.cliffiness,
     s.treeCluster, s.grassCluster, s.rockCluster,
-    s.clearingWeight, s.pondWeight,
+    s.clearingWeight,
     s.altitudeFactor, s.vegetationFactor,
     s.midAltitudeFactor, s.alpineFactor,
   ];
@@ -104,7 +103,7 @@ function fnv1a(s: string): string {
  * Pinned 2026-05-27, after step 4 wiring (TerrainSampler + LRU cache,
  * legacy seeds preserved on `BAT_NOISE_DEFAULTS.layers.*.seed`).
  */
-const PINNED_HASH = "77adf9f2";
+const PINNED_HASH = "6d5d5d62";
 
 // ---------------------------------------------------------------------------
 // Run

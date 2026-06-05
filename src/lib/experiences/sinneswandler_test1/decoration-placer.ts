@@ -1,5 +1,5 @@
 /**
- * DecorationPlacer — assembles the 17 InstancedMesh objects for one
+ * DecorationPlacer — assembles the 16 InstancedMesh objects for one
  * chunk from a pre-computed `DecorationData` payload (typed arrays of
  * matrices + colours per decoration type).
  *
@@ -49,7 +49,6 @@ export interface DecorationGeometries {
   flower:      THREE.BufferGeometry;
   forestProp:  THREE.BufferGeometry;
   snowPlant:   THREE.BufferGeometry;
-  pond:        THREE.BufferGeometry;
 }
 
 export interface DecorationMaterials {
@@ -61,8 +60,6 @@ export interface DecorationMaterials {
   rock:  THREE.Material;
   /** Grass + bushes + flowers + cacti + snow plants. */
   grass: THREE.Material;
-  /** Water pond plane. */
-  pond:  THREE.Material;
 }
 
 export interface DecorationPlacerOptions {
@@ -117,7 +114,6 @@ export class DecorationPlacer {
       bushes:      { geometry: opts.geometries.bush,        material: opts.materials.grass, echoSurface: "grass" },
       flowers:     { geometry: opts.geometries.flower,      material: opts.materials.grass, echoSurface: "grass" },
       forestProps: { geometry: opts.geometries.forestProp,  material: opts.materials.trunk, echoSurface: "tree" },
-      ponds:       { geometry: opts.geometries.pond,        material: opts.materials.pond,  echoSurface: "terrain", renderOrder: 2 },
     };
   }
 
@@ -137,7 +133,7 @@ export class DecorationPlacer {
 
   /**
    * Worker-fed build path. Wraps a `DecorationData` payload (typed
-   * arrays of matrices + colours) into 17 InstancedMeshes. The float
+   * arrays of matrices + colours) into 16 InstancedMeshes. The float
    * arrays are *adopted* into the mesh attributes — caller must not
    * mutate them after handing them to applyData.
    */

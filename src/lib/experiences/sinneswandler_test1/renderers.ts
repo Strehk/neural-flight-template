@@ -10,7 +10,7 @@
  * isolating the rendering surface so BatWorld can shrink to a facade.
  *
  * Material set: terrain, trunk, crown, rock, grass, moth (all echo-
- * reveal shaders), pond (basic transparent water).
+ * reveal shaders).
  *
  * `applyEnvironment(env)` writes fog / visibility / reveal / wire-
  * thickness uniforms in one place. `renderEcho(pulses, elapsed)`
@@ -27,9 +27,6 @@ import {
   type EchoPulseRenderState,
   type SharedEchoUniforms,
 } from "./shaders";
-
-const WATER_COLOR      = new THREE.Color("#4f8fa7");
-const NOIR_WATER_COLOR = new THREE.Color("#f1f1ea");
 
 /** Settings slice needed by `applyEnvironment`. Structural — `BatWorldSettings` fits. */
 export interface RendererEnvironment {
@@ -54,8 +51,6 @@ export class Renderers {
   readonly grassMaterial: THREE.ShaderMaterial;
   /** Moth swarm — extra trail/pulse boost. */
   readonly mothMaterial: THREE.ShaderMaterial;
-  /** Pond surface — opaque water disc. */
-  readonly pondMaterial: THREE.MeshBasicMaterial;
 
   constructor() {
     this.sharedUniforms = createSharedEchoUniforms();
@@ -105,14 +100,6 @@ export class Renderers {
       pulseBoost: BAT_MOTH_DEFAULTS.echoPulseBoost,
       doubleSided: true,
     });
-    this.pondMaterial = new THREE.MeshBasicMaterial({
-      color: WATER_COLOR,
-      transparent: true,
-      opacity: 0.76,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-      fog: true,
-    });
   }
 
   /**
@@ -139,20 +126,6 @@ export class Renderers {
     syncEchoUniforms(this.sharedUniforms, pulses, elapsed);
   }
 
-  /** Update pond color/opacity based on current vision-mode blend factors. */
-  setMonochromeFactors(
-    whiteoutFactor: number,
-    edgeFactor: number,
-    shadowFactor: number,
-  ): void {
-    const sat = (v: number) => Math.min(1, Math.max(0, v));
-    const monochrome = sat(Math.max(whiteoutFactor, edgeFactor, shadowFactor));
-    this.pondMaterial.color.copy(WATER_COLOR).lerp(NOIR_WATER_COLOR, monochrome);
-    const targetOpacity =
-      whiteoutFactor > 0.01 ? 0.18 : shadowFactor > 0.01 ? 0.62 : 0.42;
-    this.pondMaterial.opacity = THREE.MathUtils.lerp(0.76, targetOpacity, monochrome);
-  }
-
   /** Dispose every owned material. Geometries are owned by the caller. */
   dispose(): void {
     this.terrainMaterial.dispose();
@@ -161,6 +134,5 @@ export class Renderers {
     this.rockMaterial.dispose();
     this.grassMaterial.dispose();
     this.mothMaterial.dispose();
-    this.pondMaterial.dispose();
   }
 }

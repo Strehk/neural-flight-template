@@ -157,7 +157,7 @@ export const BAT_NOISE_DEFAULTS: NoiseStackConfig = {
 };
 
 // ---------------------------------------------------------------------------
-// Terrain — fixed elevation bands and pond grid
+// Terrain — fixed elevation bands
 // ---------------------------------------------------------------------------
 
 /**
@@ -176,11 +176,6 @@ export interface DerivedFieldConfig {
   alpineHeightEnd: number;
   /** Absolute frequency of the clearing noise (used as `clearing.scale`). */
   clearingScale: number;
-  /** Side length of the pond Poisson grid in world units. */
-  pondCellSize: number;
-  /** Per-cell pond radius range. */
-  pondRadiusMin: number;
-  pondRadiusMax: number;
 }
 
 export const BAT_DERIVED_FIELD_DEFAULTS: DerivedFieldConfig = {
@@ -193,9 +188,6 @@ export const BAT_DERIVED_FIELD_DEFAULTS: DerivedFieldConfig = {
   alpineHeightStart: 48,
   alpineHeightEnd: 88,
   clearingScale: 0.0105,
-  pondCellSize: 82,
-  pondRadiusMin: 7,
-  pondRadiusMax: 16,
 };
 
 // ---------------------------------------------------------------------------
