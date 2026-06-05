@@ -6,6 +6,7 @@ import {
 	Fish,
 	Gamepad2,
 	Glasses,
+	Globe2,
 	Lightbulb,
 	MapPin,
 	Mountain,
@@ -166,6 +167,13 @@ const routes = [
 		icon: Palette,
 		title: "Shader Playground",
 		description: "Modular shader rack with live preview",
+		planned: false,
+	},
+	{
+		path: "/worlds",
+		icon: Globe2,
+		title: "World Builder",
+		description: "Generate biome worlds with rivers, lakes, and vegetation",
 		planned: false,
 	},
 	{

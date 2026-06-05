@@ -466,6 +466,13 @@ export interface WorldConfig {
   fogIntensity: number;
   revealIntensity: number;
   wireThickness: number;
+  /**
+   * Per-biome frequency multipliers. Controls how often each BatBiome appears
+   * in Voronoi cell assignment and post-blend weight scaling. Derived from
+   * WorldPreset.biomes by `presetToBiomeMultipliers()` in world.ts.
+   * Undefined = uniform distribution (equal probability for all 6 biomes).
+   */
+  biomeMultipliers?: Partial<Record<BatBiomeId, number>>;
 }
 
 export const BAT_WORLD_CONFIG_DEFAULTS: WorldConfig = {

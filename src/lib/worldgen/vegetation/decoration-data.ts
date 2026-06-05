@@ -10,15 +10,40 @@
  * entry point for decoration generation.
  */
 
-import { seededRandom2D } from "$lib/three/random";
-import { fbm, type NoiseStack } from "$lib/three/world/NoiseStack";
-import { remapNoise, saturate, smoothPeak } from "$lib/three/world/math";
-import {
-  applyTerrainEchoColor,
-  type RGBLike,
-  type TerrainEchoPalette,
-} from "./derived-field-sampler";
-import type { TerrainSample } from "./terrain-sampler";
+import { seededRandom2D } from "../random";
+
+export interface RGBLike {
+	r: number;
+	g: number;
+	b: number;
+}
+
+export interface WorldDecorationSample {
+	height: number;
+	forestWeight: number;
+	grasslandWeight: number;
+	mountainWeight: number;
+	snowWeight: number;
+	desertWeight: number;
+	barrensWeight: number;
+	vegetationFactor: number;
+	treeCluster: number;
+	grassCluster: number;
+	rockCluster: number;
+	clearingWeight: number;
+	midAltitudeFactor: number;
+	alpineFactor: number;
+	cliffiness: number;
+	altitudeFactor: number;
+	isWater?: boolean;
+}
+
+export type DecorationColorizer<TSample extends WorldDecorationSample> = (
+	outColor: RGBLike,
+	sample: TSample,
+) => void;
+
+export type ForestSectionSampler = (x: number, z: number) => number;
 
 export type DecorationName =
   | "pineTrees"
@@ -58,14 +83,16 @@ export interface DecorationDataSettings {
   mountainHeight: number;
 }
 
-export interface ComputeDecorationDataOptions {
+export interface ComputeDecorationDataOptions<
+	TSample extends WorldDecorationSample = WorldDecorationSample,
+> {
   settings: DecorationDataSettings;
-  /** Worker-safe TerrainSample lookup. Same shape as `TerrainSampler.sample`. */
-  sample: (x: number, z: number) => TerrainSample;
-  /** Noise stack — used directly for `sampleForestSection`. */
-  noiseStack: NoiseStack;
-  /** Echo-mode palette as RGBLike (`{ r, g, b }`). Used for per-decoration tint base. */
-  echoPalette: TerrainEchoPalette;
+  /** Worker-safe world surface lookup. */
+  sample: (x: number, z: number) => TSample;
+  /** Renderer/experience-specific base tint. */
+  colorizeSample?: DecorationColorizer<TSample>;
+  /** Optional section noise for forest clumping. */
+  forestSection?: ForestSectionSampler;
 }
 
 // ----------------------------------------------------------------------------
@@ -96,6 +123,43 @@ const HIGH_MOUNTAIN_GRAY:  RGBLike = rgbHex(0x8a, 0x8f, 0x92);
 
 function rgbHex(r: number, g: number, b: number): RGBLike {
   return { r: r / 255, g: g / 255, b: b / 255 };
+}
+
+function saturate(value: number): number {
+	return Math.min(1, Math.max(0, value));
+}
+
+function remapNoise(value: number): number {
+	return saturate(value * 0.5 + 0.5);
+}
+
+function smoothPeak(value: number, center: number, width: number): number {
+	if (width <= 0) return value === center ? 1 : 0;
+	return saturate(1 - Math.abs(value - center) / width);
+}
+
+function suppressWaterDecorationSample<TSample extends WorldDecorationSample>(
+	sample: TSample,
+): TSample {
+	if (sample.isWater !== true) return sample;
+	return {
+		...sample,
+		forestWeight: 0,
+		grasslandWeight: 0,
+		mountainWeight: 0,
+		snowWeight: 0,
+		desertWeight: 0,
+		barrensWeight: 0,
+		vegetationFactor: 0,
+		treeCluster: 0,
+		grassCluster: 0,
+		rockCluster: 0,
+		clearingWeight: 0,
+		midAltitudeFactor: 0,
+		alpineFactor: 0,
+		cliffiness: 0,
+		altitudeFactor: 0,
+	};
 }
 
 // In-place lerp identical to THREE.Color.lerp.
@@ -186,32 +250,36 @@ function emptyBucket(capacity: number, withColor: boolean): DecorationBucket {
  * Build the full DecorationData payload for a chunk. Pure function;
  * deterministic given the same noise stack + sampler + settings.
  */
-export function computeDecorationData(
+export function computeDecorationData<TSample extends WorldDecorationSample>(
   gridX: number,
   gridZ: number,
-  opts: ComputeDecorationDataOptions,
+  opts: ComputeDecorationDataOptions<TSample>,
 ): DecorationData {
-  const { settings, sample, noiseStack, echoPalette } = opts;
+  const { settings, sample, colorizeSample, forestSection } = opts;
   const size = settings.chunkSize;
   const baseSeed = gridX * 73856093 + gridZ * 19349663;
 
-  // Capacities — verbatim from DecorationPlacer.place().
-  const pineCapacity        = Math.max(34,  Math.round(settings.treeDensity  * 4.7));
-  const commonCapacity      = Math.max(32,  Math.round(settings.treeDensity  * 4.4));
-  const birchCapacity       = Math.max(24,  Math.round(settings.treeDensity  * 3.2));
-  const willowCapacity      = Math.max(18,  Math.round(settings.treeDensity  * 2.3));
-  const deadCapacity        = Math.max(4,   Math.round(settings.treeDensity  * 0.42));
-  const snowCapacity        = Math.max(8,   Math.round(settings.treeDensity  * 0.95));
-  const palmCapacity        = Math.max(2,   Math.round(settings.treeDensity  * 0.16));
-  const cactusCapacity      = Math.max(4,   Math.round(settings.grassDensity * 0.2));
-  const grassCapacity       = Math.max(260, Math.round(settings.grassDensity * 24));
-  const bushCapacity        = Math.max(26,  Math.round(settings.grassDensity * 2.4));
-  const flowerCapacity      = Math.max(36,  Math.round(settings.grassDensity * 3.6));
-  const forestPropCapacity  = Math.max(10,  Math.round(settings.treeDensity  * 0.9));
-  const snowPlantCapacity   = Math.max(8,   Math.round(settings.grassDensity * 0.8));
+  // Capacities — respect zero settings (treeDensity/grassDensity=0 → no placement).
+  // The Math.max floor only applies when density > 0 to preserve minimum visual
+  // quality at low-but-nonzero settings.
+  const td = settings.treeDensity;
+  const gd = settings.grassDensity;
+  const pineCapacity        = td <= 0 ? 0 : Math.max(34,  Math.round(td  * 4.7));
+  const commonCapacity      = td <= 0 ? 0 : Math.max(32,  Math.round(td  * 4.4));
+  const birchCapacity       = td <= 0 ? 0 : Math.max(24,  Math.round(td  * 3.2));
+  const willowCapacity      = td <= 0 ? 0 : Math.max(18,  Math.round(td  * 2.3));
+  const deadCapacity        = td <= 0 ? 0 : Math.max(4,   Math.round(td  * 0.42));
+  const snowCapacity        = td <= 0 ? 0 : Math.max(8,   Math.round(td  * 0.95));
+  const palmCapacity        = td <= 0 ? 0 : Math.max(2,   Math.round(td  * 0.16));
+  const cactusCapacity      = gd <= 0 ? 0 : Math.max(4,   Math.round(gd  * 0.2));
+  const grassCapacity       = gd <= 0 ? 0 : Math.max(260, Math.round(gd  * 24));
+  const bushCapacity        = gd <= 0 ? 0 : Math.max(26,  Math.round(gd  * 2.4));
+  const flowerCapacity      = gd <= 0 ? 0 : Math.max(36,  Math.round(gd  * 3.6));
+  const forestPropCapacity  = td <= 0 ? 0 : Math.max(10,  Math.round(td  * 0.9));
+  const snowPlantCapacity   = gd <= 0 ? 0 : Math.max(8,   Math.round(gd  * 0.8));
   const rockCapacity        = Math.max(10,  Math.round(14 + settings.mountainHeight * 0.22));
   const snowRockCapacity    = Math.max(8,   Math.round(10 + settings.mountainHeight * 0.16));
-  const mossRockCapacity    = Math.max(8,   Math.round(7  + settings.treeDensity   * 0.72));
+  const mossRockCapacity    = td <= 0 ? 0 : Math.max(8,   Math.round(7  + td  * 0.72));
 
   const data: DecorationData = {
     pineTrees:    emptyBucket(pineCapacity, true),
@@ -237,16 +305,22 @@ export function computeDecorationData(
   const tintColor: RGBLike = { r: 0, g: 0, b: 0 };
 
   // -- helpers ------------------------------------------------------------
-  function sampleTerrainPoint(x: number, z: number, outColor: RGBLike): TerrainSample {
-    const s = sample(x, z);
-    applyTerrainEchoColor(outColor, s, echoPalette);
+  function sampleTerrainPoint(
+    x: number,
+    z: number,
+    outColor: RGBLike,
+  ): TSample {
+    const s = suppressWaterDecorationSample(sample(x, z));
+    if (colorizeSample) {
+      colorizeSample(outColor, s);
+    } else {
+      copyRGB(outColor, GRASS_COLOR);
+    }
     return s;
   }
 
   function sampleForestSection(x: number, z: number): number {
-    return remapNoise(
-      fbm(noiseStack.getNoise("treeCluster"), x * 0.0024 + 41, z * 0.0024 - 29, 3, 2.05, 0.52),
-    );
+    return forestSection ? remapNoise(forestSection(x, z)) : 0.5;
   }
 
   // -- pineTrees ----------------------------------------------------------

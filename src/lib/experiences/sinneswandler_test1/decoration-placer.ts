@@ -10,15 +10,18 @@
  */
 
 import * as THREE from "three";
-import type { NoiseStack } from "$lib/three/world/NoiseStack";
+import { fbm, type NoiseStack } from "$lib/three/world/NoiseStack";
 import { finalizeInstancedMesh as finalizeInstancedMeshHelper } from "$lib/three/world/geometry-helpers";
 import {
   computeDecorationData,
   type DecorationBucket,
   type DecorationData,
   type DecorationName,
-} from "./decoration-data";
-import type { TerrainEchoPalette } from "./derived-field-sampler";
+} from "$lib/worldgen/vegetation/decoration-data";
+import {
+  applyTerrainEchoColor,
+  type TerrainEchoPalette,
+} from "./derived-field-sampler";
 import type { TerrainSampler } from "./terrain-sampler";
 
 // ---------------------------------------------------------------------------
@@ -125,8 +128,17 @@ export class DecorationPlacer {
     const data = computeDecorationData(gridX, gridZ, {
       settings: this.settings,
       sample: (x, z) => this.terrainSampler.sample(x, z),
-      noiseStack: this.noiseStack,
-      echoPalette: this.echoPalette,
+      colorizeSample: (outColor, sample) =>
+        applyTerrainEchoColor(outColor, sample, this.echoPalette),
+      forestSection: (x, z) =>
+        fbm(
+          this.noiseStack.getNoise("treeCluster"),
+          x * 0.0024 + 41,
+          z * 0.0024 - 29,
+          3,
+          2.05,
+          0.52,
+        ),
     });
     return this.applyData(data);
   }

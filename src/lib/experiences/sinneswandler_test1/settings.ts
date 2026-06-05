@@ -155,12 +155,16 @@ export function applySettings(
       break;
     }
 
-    case "baseVisibility":
-      s.worldSettings.baseVisibility = value as number;
-      s.world.setSettings({ baseVisibility: value as number });
-      break;
+	  case "baseVisibility":
+	      s.worldSettings.baseVisibility = value as number;
+	      s.world.setSettings({ baseVisibility: value as number });
+	      break;
 
-    default:
-      break;
+	    case "showMinimap":
+	      s.minimap.setVisible(value as boolean);
+	      break;
+
+	    default:
+	      break;
   }
 }

@@ -30,6 +30,7 @@ export class KeyboardInput {
   private pendingMode: VisionModeId | null = null;
   private pendingBiomeDelta = 0;
   private pendingInvertToggle = false;
+  private pendingMinimapToggle = false;
   private readonly onDown: (e: KeyboardEvent) => void;
   private readonly onUp: (e: KeyboardEvent) => void;
 
@@ -39,6 +40,9 @@ export class KeyboardInput {
       if (e.code in MODE_KEYS && !e.repeat) this.pendingMode = MODE_KEYS[e.code];
       if (e.code === "KeyI" && !e.repeat) {
         this.pendingInvertToggle = true;
+      }
+      if (e.code === "KeyM" && !e.repeat) {
+        this.pendingMinimapToggle = true;
       }
       if (BIOME_KEYS.includes(e.code) && !e.repeat) {
         e.preventDefault();
@@ -61,6 +65,13 @@ export class KeyboardInput {
   consumeInvertToggle(): boolean {
     const pending = this.pendingInvertToggle;
     this.pendingInvertToggle = false;
+    return pending;
+  }
+
+  /** Returns whether the minimap was toggled this frame. */
+  consumeMinimapToggle(): boolean {
+    const pending = this.pendingMinimapToggle;
+    this.pendingMinimapToggle = false;
     return pending;
   }
 

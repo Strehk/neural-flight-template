@@ -85,8 +85,19 @@ function vHash(a: number, b: number, seed: number): number {
   return h >>> 0;
 }
 
-function vCellBiome(cx: number, cz: number, seed: number): BatBiomeId {
-  return BIOME_LIST[vHash(cx, cz, seed) % 6];
+function vCellBiome(cx: number, cz: number, seed: number, multipliers?: Partial<Record<BatBiomeId, number>>): BatBiomeId {
+  const h = vHash(cx, cz, seed);
+  if (!multipliers) return BIOME_LIST[h % 6];
+  const weights = BIOME_LIST.map(b => Math.max(0, multipliers[b] ?? 1));
+  const total = weights.reduce((a, b) => a + b, 0);
+  if (total <= 0) return BIOME_LIST[h % 6];
+  const rand = (h / 0xffffffff) * total;
+  let cum = 0;
+  for (let i = 0; i < BIOME_LIST.length; i++) {
+    cum += weights[i];
+    if (rand < cum) return BIOME_LIST[i];
+  }
+  return BIOME_LIST[BIOME_LIST.length - 1];
 }
 
 function vCellCenter(cx: number, cz: number, seed: number): [number, number] {
@@ -102,6 +113,7 @@ function sampleVoronoi(
   x: number,
   z: number,
   seed: number,
+  multipliers?: Partial<Record<BatBiomeId, number>>,
 ): { w: Partial<Record<BatBiomeId, number>>; dominant: BatBiomeId } {
   const cx0 = Math.floor(x / VORONOI_CELL);
   const cz0 = Math.floor(z / VORONOI_CELL);
@@ -114,8 +126,8 @@ function sampleVoronoi(
       const cx = cx0 + dcx, cz = cz0 + dcz;
       const [px, pz] = vCellCenter(cx, cz, seed);
       const d = Math.hypot(x - px, z - pz);
-      if (d < d1) { d2 = d1; b2 = b1; d1 = d; b1 = vCellBiome(cx, cz, seed); }
-      else if (d < d2) { d2 = d; b2 = vCellBiome(cx, cz, seed); }
+      if (d < d1) { d2 = d1; b2 = b1; d1 = d; b1 = vCellBiome(cx, cz, seed, multipliers); }
+      else if (d < d2) { d2 = d; b2 = vCellBiome(cx, cz, seed, multipliers); }
     }
   }
 
@@ -143,6 +155,7 @@ export function sampleBiome(
   noise: NoiseStack,
   biomeScale: number,
   biomeOverride: BatBiomeId | null = null,
+  biomeMultipliers?: Partial<Record<BatBiomeId, number>>,
 ): BiomeContext {
   const scale = biomeScale * BIOME_DISTRIBUTION_SCALE;
   const warp = noise.warpAmount;
@@ -266,14 +279,36 @@ export function sampleBiome(
 
   // Voronoi override — blend Voronoi cell weights (92%) with noise weights (8%)
   // so every biome appears within predictable distance from any point.
-  const voronoi = sampleVoronoi(x, z, noise.masterSeed);
+  // biomeMultipliers bias which biomes are assigned to Voronoi cells.
+  const voronoi = sampleVoronoi(x, z, noise.masterSeed, biomeMultipliers);
   const vs = VORONOI_WEIGHT;
-  const forestWeight    = (voronoi.w.forest    ?? 0) * vs + forestWeightNoise    * (1 - vs);
-  const grasslandWeight = (voronoi.w.grassland ?? 0) * vs + grasslandWeightNoise * (1 - vs);
-  const mountainWeight  = (voronoi.w.mountains ?? 0) * vs + mountainWeightNoise  * (1 - vs);
-  const snowWeight      = (voronoi.w.snow      ?? 0) * vs + snowWeightNoise      * (1 - vs);
-  const desertWeight    = (voronoi.w.desert    ?? 0) * vs + desertWeightNoise    * (1 - vs);
-  const barrensWeight   = (voronoi.w.barrens   ?? 0) * vs + barrensWeightNoise   * (1 - vs);
+  let forestWeight    = (voronoi.w.forest    ?? 0) * vs + forestWeightNoise    * (1 - vs);
+  let grasslandWeight = (voronoi.w.grassland ?? 0) * vs + grasslandWeightNoise * (1 - vs);
+  let mountainWeight  = (voronoi.w.mountains ?? 0) * vs + mountainWeightNoise  * (1 - vs);
+  let snowWeight      = (voronoi.w.snow      ?? 0) * vs + snowWeightNoise      * (1 - vs);
+  let desertWeight    = (voronoi.w.desert    ?? 0) * vs + desertWeightNoise    * (1 - vs);
+  let barrensWeight   = (voronoi.w.barrens   ?? 0) * vs + barrensWeightNoise   * (1 - vs);
+
+  // Secondary pass: scale by multipliers and re-normalise so the blend
+  // weights also reflect the preset when the Voronoi cell boundary falls
+  // between two differently-weighted biomes.
+  if (biomeMultipliers) {
+    forestWeight    *= (biomeMultipliers.forest    ?? 1);
+    grasslandWeight *= (biomeMultipliers.grassland ?? 1);
+    mountainWeight  *= (biomeMultipliers.mountains ?? 1);
+    snowWeight      *= (biomeMultipliers.snow      ?? 1);
+    desertWeight    *= (biomeMultipliers.desert    ?? 1);
+    barrensWeight   *= (biomeMultipliers.barrens   ?? 1);
+    const mTotal = forestWeight + grasslandWeight + mountainWeight + snowWeight + desertWeight + barrensWeight + 1e-5;
+    forestWeight    /= mTotal;
+    grasslandWeight /= mTotal;
+    mountainWeight  /= mTotal;
+    snowWeight      /= mTotal;
+    desertWeight    /= mTotal;
+    barrensWeight   /= mTotal;
+  }
+
+  const dominant = dominantBiome({ forestWeight, grasslandWeight, mountainWeight, snowWeight, desertWeight, barrensWeight });
 
   return {
     wx,
@@ -292,7 +327,7 @@ export function sampleBiome(
     snowWeight,
     desertWeight,
     barrensWeight,
-    dominantBiome: voronoi.dominant,
+    dominantBiome: dominant,
   };
 }
 

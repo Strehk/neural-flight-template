@@ -41,6 +41,8 @@ export class Renderers {
 
   /** Terrain mesh — heightmap with `color` + `dayColor` vertex attributes. */
   readonly terrainMaterial: THREE.ShaderMaterial;
+  /** Generated world water surfaces: rivers, lakes, wetlands. */
+  readonly waterMaterial: THREE.MeshPhysicalMaterial;
   /** Tree trunks + forest props. */
   readonly trunkMaterial: THREE.ShaderMaterial;
   /** Tree crowns (pine / common / birch / willow / snow / palm). */
@@ -55,6 +57,17 @@ export class Renderers {
   constructor() {
     this.sharedUniforms = createSharedEchoUniforms();
     this.terrainMaterial = createTerrainRevealMaterial(this.sharedUniforms);
+    this.waterMaterial = new THREE.MeshPhysicalMaterial({
+      color: "#2eb6d2",
+      emissive: "#0c3548",
+      emissiveIntensity: 0.18,
+      roughness: 0.32,
+      metalness: 0,
+      transparent: true,
+      opacity: 0.68,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
 
     this.trunkMaterial = createInstancedRevealMaterial(this.sharedUniforms, {
       tintColor: "#f4f0df",
@@ -129,6 +142,7 @@ export class Renderers {
   /** Dispose every owned material. Geometries are owned by the caller. */
   dispose(): void {
     this.terrainMaterial.dispose();
+    this.waterMaterial.dispose();
     this.trunkMaterial.dispose();
     this.crownMaterial.dispose();
     this.rockMaterial.dispose();

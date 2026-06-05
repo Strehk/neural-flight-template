@@ -6,10 +6,14 @@
 
 import type { BatBiomeId } from "$lib/experiences/sinneswandler_test1/config";
 import type { WorldConfig } from "$lib/experiences/sinneswandler_test1/world-config";
-import type { DecorationData, DecorationDataSettings } from "$lib/experiences/sinneswandler_test1/decoration-data";
+import type {
+  DecorationData,
+  DecorationDataSettings,
+} from "$lib/worldgen/vegetation/decoration-data";
 import type { RGBLike, TerrainEchoPalette, TerrainDayPalette } from "$lib/experiences/sinneswandler_test1/derived-field-sampler";
 import type { TerrainData } from "$lib/three/world/TerrainDataBuilder";
 import type { TerrainSample } from "$lib/experiences/sinneswandler_test1/terrain-sampler";
+import type { WorldPreset } from "$lib/worldgen/types";
 
 /**
  * Serialisable variant of `AcousticField` (the live form holds the
@@ -47,6 +51,8 @@ export interface WorkerInitMessage {
   /** Plain RGB. Always send `{r,g,b}` objects; never `THREE.Color` instances. */
   echoPalette: Record<keyof TerrainEchoPalette, RGBLike>;
   dayPalette: Record<keyof TerrainDayPalette, RGBLike>;
+  /** Optional generated world preset. When set, worker TerrainSampler samples this world. */
+  worldPreset?: WorldPreset | null;
 }
 
 /** Configuration patch — sent on settings/biome change, bumps generation. */

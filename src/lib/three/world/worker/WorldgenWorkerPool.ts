@@ -10,7 +10,7 @@ import type { BatBiomeId } from "$lib/experiences/sinneswandler_test1/config";
 import type {
   WorldConfig,
 } from "$lib/experiences/sinneswandler_test1/world-config";
-import type { DecorationDataSettings } from "$lib/experiences/sinneswandler_test1/decoration-data";
+import type { DecorationDataSettings } from "$lib/worldgen/vegetation/decoration-data";
 import type {
   RGBLike,
   TerrainDayPalette,
@@ -23,6 +23,7 @@ import type {
   WorkerOutboundMessage,
   WorkerUpdateConfigMessage,
 } from "./protocol";
+import type { WorldPreset } from "$lib/worldgen/types";
 
 // Vite '?worker' import — see https://vitejs.dev/guide/features.html#web-workers
 import WorldgenWorker from "./worldgen.worker?worker";
@@ -37,6 +38,7 @@ export interface WorldgenWorkerPoolOptions {
   decorationSettings: DecorationDataSettings;
   echoPalette: TerrainEchoPalette;
   dayPalette: TerrainDayPalette;
+  worldPreset?: WorldPreset | null;
   /** Override worker count (testing). Defaults to clamp(hwc - 1, 1, 4). */
   workerCount?: number;
 }
@@ -89,6 +91,7 @@ export class WorldgenWorkerPool {
       decorationSettings: opts.decorationSettings,
       echoPalette: rgbPalette(opts.echoPalette),
       dayPalette:  rgbPalette(opts.dayPalette),
+      worldPreset: opts.worldPreset ?? null,
     };
     for (const w of this.workers) {
       w.postMessage(this.lastInit);

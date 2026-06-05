@@ -259,6 +259,17 @@ const parameters: ParameterDef[] = [
     icon: "Volume2",
   },
   {
+    id: "showMinimap",
+    label: "Minimap",
+    group: "Navigation",
+    type: "boolean",
+    min: 0,
+    max: 1,
+    default: true,
+    step: 1,
+    icon: "Map",
+  },
+  {
     id: "biomeScale",
     label: "Biome Scale",
     group: "World",
@@ -338,6 +349,11 @@ export const manifest: ExperienceManifest = {
   parameters,
   outputs,
   interfaces: { orientation: true, speed: true, triggers: [BAT_TRIGGER_ID] },
+  world: {
+    supported: true,
+    defaultPresetId: "sinneswandler-forest",
+    requiredLayers: ["height", "biome", "vegetation", "echolocation", "chemical", "swarm"],
+  },
   camera: { ...BAT_CAMERA },
   scene: {
     background: BAT_SCENE.background,

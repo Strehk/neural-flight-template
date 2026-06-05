@@ -10,11 +10,13 @@
  */
 
 import { TerrainSampler } from "$lib/experiences/sinneswandler_test1/terrain-sampler";
+import { WorldRuntime } from "$lib/worldgen/runtime";
 import {
   applyTerrainDayColor,
   applyTerrainEchoColor,
 } from "$lib/experiences/sinneswandler_test1/derived-field-sampler";
-import { computeDecorationData } from "$lib/experiences/sinneswandler_test1/decoration-data";
+import { computeDecorationData } from "$lib/worldgen/vegetation/decoration-data";
+import { fbm } from "$lib/three/world/NoiseStack";
 import {
   computeTerrainData,
   computeTerrainPlaneLayout,
@@ -68,7 +70,10 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
 };
 
 function handleInit(msg: WorkerInitMessage): void {
-  const sampler = new TerrainSampler(msg.worldConfig);
+  const worldRuntime = msg.worldPreset ? new WorldRuntime(msg.worldPreset) : null;
+  const sampler = new TerrainSampler(msg.worldConfig, {
+    worldRuntime: worldRuntime ?? undefined,
+  });
   if (msg.biomeOverride !== null) {
     sampler.setBiomeOverride(msg.biomeOverride);
   }
@@ -106,8 +111,17 @@ function handleBuild(msg: WorkerBuildMessage): void {
   const decorations = computeDecorationData(msg.gridX, msg.gridZ, {
     settings: init.decorationSettings,
     sample: sampleFn,
-    noiseStack: sampler.noiseStack,
-    echoPalette: init.echoPalette,
+    colorizeSample: (outColor, sample) =>
+      applyTerrainEchoColor(outColor, sample, init.echoPalette),
+    forestSection: (x, z) =>
+      fbm(
+        sampler.noiseStack.getNoise("treeCluster"),
+        x * 0.0024 + 41,
+        z * 0.0024 - 29,
+        3,
+        2.05,
+        0.52,
+      ),
   });
 
   let acoustic: SerializableAcousticField | null = null;
@@ -158,6 +172,8 @@ function collectTransferables(msg: WorkerOutboundMessage): Transferable[] {
   transfers.push(msg.terrain.heights.buffer);
   transfers.push(msg.terrain.echoColors.buffer);
   transfers.push(msg.terrain.dayColors.buffer);
+  transfers.push(msg.terrain.waterHeights.buffer);
+  transfers.push(msg.terrain.waterMask.buffer);
   for (const bucket of Object.values(msg.decorations)) {
     transfers.push(bucket.matrices.buffer);
     if (bucket.colors) transfers.push(bucket.colors.buffer);

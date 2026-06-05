@@ -43,15 +43,28 @@ import {
   type EchoMaterial,
 } from "./acoustics";
 import type * as THREE from "three";
+import type { WorldRuntime, WorldSample } from "$lib/worldgen";
+import type { BiomeId } from "$lib/worldgen/types";
 
-/** Public alias — what consumers should call a TerrainSampler sample. */
-export type TerrainSample = DerivedContext;
+/** Public sample shape consumed by Sinneswandler renderers and systems. */
+export interface TerrainSample extends DerivedContext {
+	worldBiome: BiomeId | null;
+	waterDepth: number;
+	flow: number;
+	riverWidth: number;
+	channelDepth: number;
+	isRiver: boolean;
+	isLake: boolean;
+	isWater: boolean;
+}
 
 export interface TerrainSamplerOptions {
-  /** Override the default cache size (default 8192 entries). */
-  cacheSize?: number;
-  /** Override the cache quantisation in world units (default 2). */
-  cacheQuantization?: number;
+	/** Override the default cache size (default 8192 entries). */
+	cacheSize?: number;
+	/** Override the cache quantisation in world units (default 2). */
+	cacheQuantization?: number;
+	/** Optional generated world runtime. When present, it owns terrain samples. */
+	worldRuntime?: WorldRuntime;
 }
 
 export class TerrainSampler {
@@ -60,17 +73,19 @@ export class TerrainSampler {
   readonly cache: SampleCache<TerrainSample>;
   /** Slope finite-difference half-step in world units (matches legacy 2.8 m). */
   readonly slopeStep = 2.8;
-  /** Normalisation factor for slope (matches legacy 0.045). */
-  readonly slopeScale = 0.045;
+	/** Normalisation factor for slope (matches legacy 0.045). */
+	readonly slopeScale = 0.045;
 
-  private biomeOverride: BatBiomeId | null = null;
+	private biomeOverride: BatBiomeId | null = null;
+	private readonly worldRuntime: WorldRuntime | null;
 
-  constructor(config: WorldConfig, options: TerrainSamplerOptions = {}) {
-    this.config = config;
-    this.noiseStack = new NoiseStack(config.noise, config.masterSeed);
-    this.cache = new SampleCache<TerrainSample>({
-      maxSize: options.cacheSize ?? 8192,
-      quantization: options.cacheQuantization ?? 2,
+	constructor(config: WorldConfig, options: TerrainSamplerOptions = {}) {
+		this.config = config;
+		this.noiseStack = new NoiseStack(config.noise, config.masterSeed);
+		this.worldRuntime = options.worldRuntime ?? null;
+		this.cache = new SampleCache<TerrainSample>({
+			maxSize: options.cacheSize ?? 8192,
+			quantization: options.cacheQuantization ?? 2,
     });
   }
 
@@ -194,6 +209,11 @@ export class TerrainSampler {
   /**
    * Single-pass sampler chain. Kept private so consumers can't bypass
    * the cache by accident. Used by both `sample()` and `sampleExact()`.
+   *
+   * Always runs the 3-stage NoiseStack pipeline (Voronoi biomes → height
+   * → derived fields) to preserve the original Erasmus visual quality.
+   * WorldRuntime is used only as a hydrology overlay (rivers, lakes,
+   * water depth) on top of the NoiseStack terrain.
    */
   private computeSample(x: number, z: number): TerrainSample {
     const biome = sampleBiome(
@@ -202,21 +222,65 @@ export class TerrainSampler {
       this.noiseStack,
       this.config.biomeScale,
       this.biomeOverride,
+      this.config.biomeMultipliers,
     );
     const heightCtx = sampleHeight(
       biome,
       this.noiseStack,
       this.config.biomeScale,
       this.config.mountainHeight,
-      // We keep derivedField config on the sampler for now; future steps
-      // will surface it via WorldConfig once the full tree is populated.
       BAT_DERIVED_FIELD_DEFAULTS,
     );
-    return sampleDerivedFields(
+    const derived = sampleDerivedFields(
       heightCtx,
       this.noiseStack,
       this.config.biomeScale,
       BAT_DERIVED_FIELD_DEFAULTS,
     );
+
+    if (this.worldRuntime) {
+      const ws = this.worldRuntime.sample(x, z);
+      const isWater = ws.waterDepth > 0.015 || ws.isRiver || ws.isLake;
+      const scaledDepth = isWater
+        ? Math.max(0.4, ws.waterDepth * this.config.mountainHeight * 0.35)
+        : 0;
+      return {
+        ...derived,
+        worldBiome: ws.biome,
+        waterDepth: scaledDepth,
+        flow: ws.flow,
+        riverWidth: ws.riverWidth,
+        channelDepth: ws.channelDepth,
+        isRiver: ws.isRiver,
+        isLake: ws.isLake,
+        isWater,
+      };
+    }
+
+    return withDefaultWorldSurface(derived);
   }
+}
+
+function withDefaultWorldSurface(sample: DerivedContext): TerrainSample {
+  return {
+    ...sample,
+    worldBiome: null,
+    waterDepth: 0,
+    flow: 0,
+    riverWidth: 0,
+    channelDepth: 0,
+    isRiver: false,
+    isLake: false,
+    isWater: false,
+  };
+}
+
+function clamp01(value: number): number {
+  return Math.min(1, Math.max(0, value));
+}
+
+function smoothRange(value: number, start: number, end: number): number {
+  if (end <= start) return value >= end ? 1 : 0;
+  const x = clamp01((value - start) / (end - start));
+  return x * x * (3 - 2 * x);
 }

@@ -30,8 +30,51 @@ import { ChemosenseLayer } from "./chemosense-layer";
 import { createDepthPostprocess, type DepthPostprocess } from "./depth-postprocess";
 import { NetworkLayer } from "./network-layer";
 import type { VisionModeId } from "./vision-modes";
-import { loadWorldModels } from "./world-models";
+import { loadWorldModels } from "$lib/three/world/vegetation/world-models";
 import { currentBiomeStore } from "./biome-store";
+import { MinimapHud } from "./minimap-hud";
+
+function applyWorldPresetToSettings(
+  settings: BatWorldSettings,
+  ctx: SetupContext,
+): BatWorldSettings {
+  const preset = ctx.worldPreset;
+  if (!preset) return settings;
+
+  return {
+    ...settings,
+    biomeScale: THREE.MathUtils.clamp(
+      0.00072 + preset.terrain.continentScale * 0.00105,
+      0.0007,
+      0.0024,
+    ),
+    mountainHeight: THREE.MathUtils.clamp(
+      preset.terrain.heightScale * (0.72 + preset.terrain.ridgeStrength * 0.72),
+      24,
+      120,
+    ),
+    treeDensity: THREE.MathUtils.clamp(
+      preset.vegetation.density * preset.vegetation.treeRatio * 54,
+      0,
+      44,
+    ),
+    grassDensity: THREE.MathUtils.clamp(
+      preset.vegetation.density * (0.45 + preset.biomes.wetlandWeight * 0.55) * 76,
+      0,
+      80,
+    ),
+    fogIntensity: THREE.MathUtils.clamp(
+      0.28 + preset.climate.moistureBias * 0.52,
+      0.2,
+      1,
+    ),
+    baseVisibility: THREE.MathUtils.clamp(
+      settings.baseVisibility,
+      0,
+      0.035,
+    ),
+  };
+}
 
 const WHITEOUT_PARTICLE_COUNT = 280;
 const WHITEOUT_PARTICLE_RADIUS = 165;
@@ -97,6 +140,7 @@ export interface BatEcholocationState extends ExperienceState {
   controllerInput: ControllerInput;
   chemosenseLayer: ChemosenseLayer;
   networkLayer: NetworkLayer;
+  minimap: MinimapHud;
   depthPostprocess: DepthPostprocess;
   invertOutput: boolean;
   chemosenseScore: number;
@@ -494,11 +538,11 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
     BAT_MOON.direction.y,
     BAT_MOON.direction.z,
   ).normalize();
-  const worldSettings: BatWorldSettings = {
+  const worldSettings: BatWorldSettings = applyWorldPresetToSettings({
     ...BAT_WORLD_DEFAULTS,
     revealIntensity: BAT_ECHO_DEFAULTS.revealIntensity,
     wireThickness: BAT_ECHO_DEFAULTS.wireThickness,
-  };
+  }, ctx);
   const [worldModels] = await Promise.allSettled([
     loadWorldModels(),
     loadFlyGeometry().then((geo) => { flyGeometry = geo; }).catch((err) => {
@@ -508,6 +552,8 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
   const models = worldModels.status === "fulfilled" ? worldModels.value : null;
 
   const world = new BatWorld(worldSettings, {
+    worldPreset: ctx.worldPreset ?? null,
+    worldRuntime: ctx.worldRuntime ?? null,
     mothGeometry: flyGeometry,
     pineTree: models?.pineTree ?? null,
     commonTree: models?.commonTree ?? null,
@@ -582,6 +628,8 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
   );
   const chemosenseLayer = new ChemosenseLayer(world);
   const networkLayer = new NetworkLayer(world);
+	const minimap = new MinimapHud(world, worldSettings.chunkSize, ctx.renderer.domElement);
+  player.camera.add(minimap.group);
   const depthPostprocess = createDepthPostprocess(ctx.renderer);
 
   ctx.scene.add(world.group);
@@ -631,6 +679,7 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
     controllerInput,
     chemosenseLayer,
     networkLayer,
+    minimap,
     depthPostprocess,
     invertOutput: false,
     chemosenseScore: 0,
@@ -659,11 +708,14 @@ export function tick(
   s.keyboardInput.applyTo(s.player);
   s.controllerInput.applyTo(s.player);
 
-  if (s.keyboardInput.consumeInvertToggle() || s.controllerInput.consumeInvertToggle()) {
-    s.invertOutput = !s.invertOutput;
-  }
-  const pendingMode =
-    s.keyboardInput.consumePendingMode() ?? s.controllerInput.consumePendingMode();
+	  if (s.keyboardInput.consumeInvertToggle() || s.controllerInput.consumeInvertToggle()) {
+	    s.invertOutput = !s.invertOutput;
+	  }
+	  if (s.keyboardInput.consumeMinimapToggle()) {
+	    s.minimap.toggleVisible();
+	  }
+	  const pendingMode =
+	    s.keyboardInput.consumePendingMode() ?? s.controllerInput.consumePendingMode();
   if (pendingMode) {
     s.intro.playForMode(pendingMode);
     if (pendingMode !== s.senseSwitch.currentMode) {
@@ -772,6 +824,7 @@ export function tick(
   );
 
   s.world.renderEcho(renderPulses, ctx.elapsed);
+  s.minimap.tick(s.player.rig.position, s.camera, ctx.elapsed);
   updateCollectionBursts(s, ctx.elapsed);
   updateMothEchoBursts(s, ctx.elapsed);
   s.audio.update();
@@ -829,6 +882,7 @@ export function dispose(state: ExperienceState, scene: THREE.Scene): void {
   s.controllerInput.dispose();
   s.chemosenseLayer.dispose();
   s.networkLayer.dispose();
+  s.minimap.dispose();
   s.depthPostprocess.dispose();
   disposeBatMount(s.batMount);
   s.world.dispose();
