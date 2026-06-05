@@ -767,24 +767,19 @@ export function render(state: ExperienceState, ctx: RenderContext): void {
   const s = state as BatEcholocationState;
   const depthFactor = s.senseSwitch.getDepthFactor();
   const depthInvert = s.senseSwitch.getDepthInvertFactor();
-  const isVR = ctx.renderer.xr.isPresenting;
+  const depthFloor = s.senseSwitch.getDepthFloorFactor();
+  const depthRadius = s.senseSwitch.getDepthRadius();
 
-  // In VR, bake depth into the world shader — post-process can't composite to XR framebuffer.
-  // On desktop, the post-process handles depth so the shader factor stays 0.
-  s.world.sharedUniforms.uDepthVisFactor.value = isVR ? depthFactor : 0;
-  s.world.sharedUniforms.uDepthInvertFactor.value = isVR ? depthInvert : 0;
+  // Bake the depth visualization into the world shader on both desktop and VR, and
+  // render straight to the canvas so terrain silhouettes get its MSAA. The offscreen
+  // depth post-process had no MSAA and produced aliased "feathered" silhouette edges.
+  s.world.sharedUniforms.uDepthVisFactor.value = depthFactor;
+  s.world.sharedUniforms.uDepthInvertFactor.value = depthInvert;
+  s.world.sharedUniforms.uDepthFloor.value = depthFloor;
+  s.world.sharedUniforms.uDepthRadius.value = depthRadius;
 
   const renderLayers = (): void => {
-    if (depthFactor > 0.001) {
-      s.depthPostprocess.render(
-        ctx.scene,
-        ctx.camera,
-        depthFactor,
-        depthInvert > 0.5,
-      );
-    } else {
-      ctx.renderer.render(ctx.scene, ctx.camera);
-    }
+    ctx.renderer.render(ctx.scene, ctx.camera);
     const previousAutoClear = ctx.renderer.autoClear;
     ctx.renderer.autoClear = false;
     ctx.renderer.render(s.whiteoutOverlayScene, ctx.camera);

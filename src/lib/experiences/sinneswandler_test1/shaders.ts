@@ -29,6 +29,8 @@ export interface SharedEchoUniforms {
   uInfraredTone: THREE.IUniform<number>;
   uDepthVisFactor: THREE.IUniform<number>;
   uDepthInvertFactor: THREE.IUniform<number>;
+  uDepthFloor: THREE.IUniform<number>;
+  uDepthRadius: THREE.IUniform<number>;
 }
 
 interface RevealMaterialOptions {
@@ -50,6 +52,14 @@ interface RevealMaterialOptions {
 const COMMON_FRAGMENT = /* glsl */ `
 precision highp float;
 #define MAX_ECHO_PULSES ${BAT_MAX_PULSES}
+// >1 holds the dark core and ramps sharply to the bright edge (more pronounced gradient).
+#define DEPTH_CONTRAST 2.2
+// Palette size for the depth view — quantize the grey ramp to this many flat bands
+// (low = chunky papercut layers with crisp contour edges).
+#define DEPTH_LEVELS 12.0
+// Distance (as a fraction of the sphere radius) where terrain starts dissolving into
+// the background, so the bubble edge and the chunks streaming in past it stay hidden.
+#define DEPTH_EDGE_FADE 0.8
 
 uniform float uTime;
 uniform int uPulseCount;
@@ -70,6 +80,8 @@ uniform float uNoirFactor;
 uniform float uInfraredTone;
 uniform float uDepthVisFactor;
 uniform float uDepthInvertFactor;
+uniform float uDepthFloor;
+uniform float uDepthRadius;
 uniform vec3 uTintColor;
 uniform vec3 uDaylightTintColor;
 uniform float uFillStrength;
@@ -120,7 +132,22 @@ float fogAmount(vec3 worldPos) {
 	return smoothstep(uFogNear, uFogFar, distToCamera);
 }
 
+// Quantize to DEPTH_LEVELS flat bands, but smooth each contour boundary across
+// ~1px using screen-space derivatives so the band edges don't stair-step. Bands
+// stay flat where depth changes slowly; at steep depth jumps the edge softens.
+float bandedDepth(float v) {
+	float s = v * (DEPTH_LEVELS - 1.0) + 0.5;
+	float w = max(fwidth(s), 1e-4);
+	return (floor(s) + smoothstep(1.0 - w, 1.0, fract(s))) / (DEPTH_LEVELS - 1.0);
+}
+
 void main() {
+	// Spherical view cutoff: discard everything past the bubble radius (uFogFar) — this
+	// shader is shared by terrain, decorations and moths, so one test culls them all.
+	// The depth fade just inside this edge dissolves fragments to the background first,
+	// so the hard cut lands on already-invisible pixels (no pop) and the real sky shows
+	// through (no ghost). No-op in wide-fog modes where uFogFar is beyond all geometry.
+	if (distance(cameraPosition, vWorldPos) > uFogFar) discard;
 	float reveal = pulseReveal(vWorldPos);
 	float edge = edgeMask(vBarycentric, uWireThickness * (0.92 + reveal * 0.22));
 	vec3 viewDir = normalize(cameraPosition - vWorldPos);
@@ -193,9 +220,21 @@ void main() {
 	// In-shader depth visualization — VR fallback (post-process can't composite to XR framebuffer)
 	if (uDepthVisFactor > 0.001) {
 		float depthDist = distance(cameraPosition, vWorldPos);
-		float depthNorm = clamp(depthDist / max(uFogFar, 1.0), 0.0, 1.0);
+		// Normalize bands over uDepthRadius (the layer scale), kept separate from uFogFar
+		// (fog/cutoff) so the papercut layers stay dense even when the view radius is wide.
+		float depthNorm = clamp(depthDist / max(uDepthRadius, 1.0), 0.0, 1.0);
+		depthNorm = pow(depthNorm, DEPTH_CONTRAST);
 		float depthVal = mix(1.0 - depthNorm, depthNorm, uDepthInvertFactor);
-		color = mix(color, vec3(depthVal), uDepthVisFactor);
+		// Lift the dark (near) end off pure black when inverted, so close geometry
+		// reads as dark grey rather than a void. No-op when uDepthFloor is 0.
+		depthVal = mix(depthVal, mix(uDepthFloor, 1.0, depthVal), uDepthInvertFactor);
+		// Quantize into flat papercut bands with edge-antialiased contour boundaries.
+		depthVal = bandedDepth(depthVal);
+		// Dissolve the papercut into the background as it nears the sphere edge, so
+		// terrain beyond the bubble (and chunks streaming in past it) blends into the
+		// sky and disappears instead of standing out as a flat distant plate.
+		vec3 depthRGB = mix(vec3(depthVal), uFogColor, smoothstep(uFogFar * DEPTH_EDGE_FADE, uFogFar, depthDist));
+		color = mix(color, depthRGB, uDepthVisFactor);
 	}
 
 	gl_FragColor = vec4(color, 1.0);
@@ -276,6 +315,8 @@ export function createSharedEchoUniforms(): SharedEchoUniforms {
     uInfraredTone: { value: 0.76 },
     uDepthVisFactor: { value: 0 },
     uDepthInvertFactor: { value: 0 },
+    uDepthFloor: { value: 0 },
+    uDepthRadius: { value: 120 },
   };
 }
 

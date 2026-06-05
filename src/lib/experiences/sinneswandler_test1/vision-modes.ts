@@ -41,8 +41,10 @@ export const VISION_MODES: Record<VisionModeId, VisionMode> = {
   echoLocation: {
     id: "echoLocation",
     label: "Echo Location",
-    fogNear: 180,
-    fogFar: 760,
+    // Tight view sphere: fogFar is the sphere radius (euclidean distance, Y included),
+    // so the world is only visible within ~120 units and fades to the surround at the edge.
+    fogNear: 20,
+    fogFar: 120,
     fogColorHex: 0xf8f8f3,
     skyColors: [0xffffff, 0xfafaf5, 0xf0f0eb],
     baseVisibility: 1,
