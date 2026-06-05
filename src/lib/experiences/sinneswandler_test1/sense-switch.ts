@@ -19,7 +19,7 @@ const ATMO_TINT_DAY  = 0.60; // strong tint in luft/normal so biome is obvious
 const ATMO_TINT_ECHO = 0.18; // subtle tint in dark/echo modes
 const ATMO_LERP_SPEED = 1.4; // per-second lerp rate toward target tint
 
-const TRANSITION_DURATION = 2.5;
+const TRANSITION_DURATION = 4.5;
 
 const ZONE_RADIUS_MIN = 20;
 const ZONE_RADIUS_MAX = 30;
@@ -74,6 +74,20 @@ function smoothstep(t: number): number {
   return c * c * (3 - 2 * c);
 }
 
+// Reveal choreography. When a transition changes the view-cutoff radius, the new sense's
+// styling must finish BEFORE newly-exposed terrain appears — otherwise raw "true terrain"
+// flashes at the growing sphere edge while the papercut shader is still ramping. (And when
+// hiding, the terrain must vanish before it loses its styling.) So styling and the radius
+// run on offset curves: the leader completes over the first CHOREO_SPLIT of the transition,
+// the follower over the remainder. Which one leads depends on the direction (see styleBlend).
+const CHOREO_SPLIT = 0.45;
+function leadEase(p: number): number {
+  return smoothstep(p / CHOREO_SPLIT);
+}
+function lagEase(p: number): number {
+  return smoothstep((p - CHOREO_SPLIT) / (1 - CHOREO_SPLIT));
+}
+
 const SUBTLE_DEPTH = 0.45;
 
 // Echo location near end is dark grey rather than pure black, so the closest
@@ -116,6 +130,16 @@ function modeDepthRadius(mode: VisionModeId): number {
   if (mode === "infrarot" || mode === "duft" || mode === "netzwerk") {
     return LAYERED_DEPTH_RADIUS;
   }
+  return VISION_MODES[mode].fogFar;
+}
+
+// Radius of the spherical view cutoff (uViewRadius), decoupled from fogFar so luft can
+// hide all world geometry while keeping its white fog/background. luft = 0 (invisible
+// room, only particles + empty space); every other mode uses its fogFar — the tight echo
+// bubble (120) and the wide senses whose radius sits beyond all geometry (a no-op cutoff).
+// Lerping this 0 → 120 across the luft → echoLocation transition inflates the world in.
+function modeViewCutoff(mode: VisionModeId): number {
+  if (mode === "luft") return 0;
   return VISION_MODES[mode].fogFar;
 }
 
@@ -208,6 +232,28 @@ export class SenseSwitchManager {
     return this.getStackedLayerFactor("netzwerk");
   }
 
+  /**
+   * True when the active transition grows (or holds) the view-cutoff radius — i.e. it
+   * reveals terrain, so styling must lead the radius. False when it shrinks the radius
+   * (hides terrain), so the radius must lead the styling.
+   */
+  private styleLeadsReveal(): boolean {
+    if (!this.transition) return true;
+    return (
+      modeViewCutoff(this.transition.toMode) >= modeViewCutoff(this.transition.fromMode)
+    );
+  }
+
+  /** Blend curve for the new sense's styling (depth bands etc.). Leads when revealing. */
+  private styleBlend(progress: number): number {
+    return this.styleLeadsReveal() ? leadEase(progress) : lagEase(progress);
+  }
+
+  /** Blend curve for the view-cutoff radius. Lags when revealing, leads when hiding. */
+  private revealBlend(progress: number): number {
+    return this.styleLeadsReveal() ? lagEase(progress) : leadEase(progress);
+  }
+
   /** Blend weight for the depth-map spatial basis. */
   getDepthFactor(): number {
     if (!this.transition) {
@@ -215,7 +261,7 @@ export class SenseSwitchManager {
     }
     const fromVal = modeDepthFactor(this.transition.fromMode);
     const toVal   = modeDepthFactor(this.transition.toMode);
-    const t = smoothstep(this.transition.progress);
+    const t = this.styleBlend(this.transition.progress);
     return fromVal + (toVal - fromVal) * t;
   }
 
@@ -226,7 +272,7 @@ export class SenseSwitchManager {
     }
     const fromVal = modeDepthInvert(this.transition.fromMode);
     const toVal   = modeDepthInvert(this.transition.toMode);
-    const t = smoothstep(this.transition.progress);
+    const t = this.styleBlend(this.transition.progress);
     return fromVal + (toVal - fromVal) * t;
   }
 
@@ -237,7 +283,7 @@ export class SenseSwitchManager {
     }
     const fromVal = modeDepthFloor(this.transition.fromMode);
     const toVal   = modeDepthFloor(this.transition.toMode);
-    const t = smoothstep(this.transition.progress);
+    const t = this.styleBlend(this.transition.progress);
     return fromVal + (toVal - fromVal) * t;
   }
 
@@ -248,7 +294,7 @@ export class SenseSwitchManager {
     }
     const fromVal = modeDepthRadius(this.transition.fromMode);
     const toVal   = modeDepthRadius(this.transition.toMode);
-    const t = smoothstep(this.transition.progress);
+    const t = this.styleBlend(this.transition.progress);
     return fromVal + (toVal - fromVal) * t;
   }
 
@@ -384,6 +430,14 @@ export class SenseSwitchManager {
       const from = VISION_MODES[this.transition.fromMode];
       const to = VISION_MODES[this.transition.toMode];
       this.applyModeLerp(from, to, smoothstep(this.transition.progress));
+      // The view-cutoff radius rides a separate, choreographed curve so it lags the
+      // styling when revealing (terrain only appears once it's papercut-styled) and
+      // leads it when hiding (terrain vanishes before it loses its styling).
+      this.sharedUniforms.uViewRadius.value = lerp(
+        modeViewCutoff(from.id),
+        modeViewCutoff(to.id),
+        this.revealBlend(this.transition.progress),
+      );
     }
   }
 
@@ -540,6 +594,7 @@ export class SenseSwitchManager {
     this.sharedUniforms.uFogColor.value.set(mode.fogColorHex);
     this.sharedUniforms.uFogNear.value = mode.fogNear;
     this.sharedUniforms.uFogFar.value = mode.fogFar;
+    this.sharedUniforms.uViewRadius.value = modeViewCutoff(mode.id);
     this.sharedUniforms.uBaseVisibility.value = mode.baseVisibility;
     this.sharedUniforms.uMoonColor.value.set(mode.moonColorHex);
     this.sharedUniforms.uMoonDirection.value.copy(mode.moonDirection);
