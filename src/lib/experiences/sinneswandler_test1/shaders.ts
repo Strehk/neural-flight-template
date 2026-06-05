@@ -140,6 +140,12 @@ float bandedDepth(float v) {
 }
 
 void main() {
+	// Spherical view cutoff: discard everything past the bubble radius (uFogFar) — this
+	// shader is shared by terrain, decorations and moths, so one test culls them all.
+	// The depth fade just inside this edge dissolves fragments to the background first,
+	// so the hard cut lands on already-invisible pixels (no pop) and the real sky shows
+	// through (no ghost). No-op in wide-fog modes where uFogFar is beyond all geometry.
+	if (distance(cameraPosition, vWorldPos) > uFogFar) discard;
 	float reveal = pulseReveal(vWorldPos);
 	float edge = edgeMask(vBarycentric, uWireThickness * (0.92 + reveal * 0.22));
 	vec3 viewDir = normalize(cameraPosition - vWorldPos);
