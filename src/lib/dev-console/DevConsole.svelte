@@ -14,6 +14,17 @@ import { devConsole } from "./registry.svelte";
 
 let open = $state(false);
 
+// Aktuelle Werte der registrierten Live-Regler (im Sample-Loop gespiegelt,
+// damit die Anzeige reaktiv bleibt – die Werte leben in fremden Uniforms).
+let tweakVals = $state<number[]>([]);
+
+function setTweak(i: number, value: number): void {
+	const t = devConsole.tweaks[i];
+	if (!t) return;
+	t.set(value);
+	tweakVals[i] = value;
+}
+
 // ── Live-Metriken (gedrosselt aktualisiert, damit Reactivity nicht ruckelt) ──
 let fps = $state(0);
 let fpsAvg = $state(0);
@@ -131,6 +142,15 @@ function sample(now: number): void {
 	if (mem) {
 		heapUsed = mem.usedJSHeapSize / 1048576;
 		heapLimit = mem.jsHeapSizeLimit / 1048576;
+	}
+
+	// Live-Regler-Werte spiegeln (Anzahl/Werte können sich beim Wechsel ändern).
+	if (tweakVals.length !== devConsole.tweaks.length) {
+		tweakVals = devConsole.tweaks.map((t) => t.get());
+	} else {
+		for (let i = 0; i < devConsole.tweaks.length; i++) {
+			tweakVals[i] = devConsole.tweaks[i].get();
+		}
 	}
 }
 
@@ -280,6 +300,29 @@ onMount(() => {
 				{/if}
 			</div>
 		</section>
+
+		<!-- Live-Regler der aktiven Experience (z. B. Shader-Tuning) -->
+		{#if devConsole.tweaks.length > 0}
+			<section class="devc-section">
+				<h3 class="devc-h3">Live-Regler</h3>
+				{#each devConsole.tweaks as tweak, i (tweak.id)}
+					<div class="devc-tweak">
+						<div class="devc-tweak-head">
+							<span>{tweak.label}</span>
+							<b>{tweakVals[i] ?? tweak.get()}{tweak.unit ?? ""}</b>
+						</div>
+						<input
+							type="range"
+							min={tweak.min}
+							max={tweak.max}
+							step={tweak.step}
+							value={tweakVals[i] ?? tweak.get()}
+							oninput={(e) => setTweak(i, Number(e.currentTarget.value))}
+						/>
+					</div>
+				{/each}
+			</section>
+		{/if}
 
 		<!-- Kontext (statisch) -->
 		{#if ctxInfo}
@@ -490,6 +533,52 @@ onMount(() => {
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+
+	.devc-tweak {
+		margin-bottom: 12px;
+	}
+	.devc-tweak:last-child {
+		margin-bottom: 0;
+	}
+	.devc-tweak-head {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		margin-bottom: 4px;
+	}
+	.devc-tweak-head span {
+		color: var(--text-muted);
+	}
+	.devc-tweak-head b {
+		color: var(--accent);
+		font-weight: 600;
+	}
+	.devc-tweak input[type="range"] {
+		width: 100%;
+		height: 4px;
+		-webkit-appearance: none;
+		appearance: none;
+		background: var(--surface-active);
+		outline: none;
+		cursor: pointer;
+	}
+	.devc-tweak input[type="range"]::-webkit-slider-thumb {
+		-webkit-appearance: none;
+		appearance: none;
+		width: 12px;
+		height: 12px;
+		background: var(--accent);
+		border: none;
+		cursor: pointer;
+	}
+	.devc-tweak input[type="range"]::-moz-range-thumb {
+		width: 12px;
+		height: 12px;
+		background: var(--accent);
+		border: none;
+		border-radius: 0;
+		cursor: pointer;
 	}
 
 	.devc-foot {

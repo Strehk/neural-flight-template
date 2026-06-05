@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { createGradientSky, updateGradientSky } from "$lib/three/gradient-sky";
+import { registerTweak, unregisterTweak } from "$lib/dev-console/registry.svelte";
 import type { TriggerCommand } from "$lib/types/orientation";
 import type { ExperienceState, SetupContext, TickContext, RenderContext } from "../types";
 import { EchoAudioManager } from "./audio";
@@ -36,7 +37,7 @@ const WHITEOUT_PARTICLE_COUNT = 280;
 const WHITEOUT_PARTICLE_RADIUS = 165;
 const WHITEOUT_PARTICLE_MIN_DISTANCE = 16;
 const WHITEOUT_PARTICLE_SPEED = 24;
-const SENSE_SWITCH_DELAY_SECONDS = 1;
+const SENSE_SWITCH_DELAY_SECONDS = 0;
 
 interface CollectionBurst {
   sprite: THREE.Sprite;
@@ -529,6 +530,21 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
   audio.startBackgroundMusic();
   world.sharedUniforms.uMoonDirection.value.copy(moonDirection);
   world.sharedUniforms.uMoonColor.value.set(BAT_MOON.glowColor);
+
+  // Live-Regler in der Dev-Konsole (Taste "C"): Anzahl der Tiefen-Bänder in der
+  // Echolocation-Ansicht durchprobieren. Wirkt nur, wenn die Depth-Sicht aktiv ist.
+  registerTweak({
+    id: "echo-depth-levels",
+    label: "Echo: Tiefen-Bänder",
+    min: 2,
+    max: 48,
+    step: 1,
+    get: () => world.sharedUniforms.uDepthLevels.value,
+    set: (v) => {
+      world.sharedUniforms.uDepthLevels.value = v;
+    },
+  });
+
   const sky = createGradientSky({
     colors: [0xffffff, 0xffffff, 0xffffff],
     radius: BAT_CAMERA.far * 1.3,
@@ -805,6 +821,7 @@ export function handleTrigger(
 export function dispose(state: ExperienceState, scene: THREE.Scene): void {
   const s = state as BatEcholocationState;
 
+  unregisterTweak("echo-depth-levels");
   s.intro.dispose();
   s.audio.dispose();
   s.senseSwitch.dispose();

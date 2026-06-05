@@ -17,6 +17,9 @@ export interface SharedEchoUniforms {
   uFogColor: THREE.IUniform<THREE.Color>;
   uFogNear: THREE.IUniform<number>;
   uFogFar: THREE.IUniform<number>;
+  // Radius of the spherical view cutoff, decoupled from fog so a mode can hide all
+  // world geometry (radius 0 = invisible room) while keeping its fog/background.
+  uViewRadius: THREE.IUniform<number>;
   uBaseVisibility: THREE.IUniform<number>;
   uRevealIntensity: THREE.IUniform<number>;
   uWireThickness: THREE.IUniform<number>;
@@ -31,6 +34,8 @@ export interface SharedEchoUniforms {
   uDepthInvertFactor: THREE.IUniform<number>;
   uDepthFloor: THREE.IUniform<number>;
   uDepthRadius: THREE.IUniform<number>;
+  // Number of flat depth bands in the echolocation view (palette size). Tunable live.
+  uDepthLevels: THREE.IUniform<number>;
 }
 
 interface RevealMaterialOptions {
@@ -54,9 +59,9 @@ precision highp float;
 #define MAX_ECHO_PULSES ${BAT_MAX_PULSES}
 // >1 holds the dark core and ramps sharply to the bright edge (more pronounced gradient).
 #define DEPTH_CONTRAST 2.2
-// Palette size for the depth view — quantize the grey ramp to this many flat bands
-// (low = chunky papercut layers with crisp contour edges).
-#define DEPTH_LEVELS 12.0
+// Palette size for the depth view lives in uDepthLevels (uniform) so it can be tuned
+// live — quantize the grey ramp to that many flat bands (low = chunky papercut layers
+// with crisp contour edges, high = smooth gradient).
 // Distance (as a fraction of the sphere radius) where terrain starts dissolving into
 // the background, so the bubble edge and the chunks streaming in past it stay hidden.
 #define DEPTH_EDGE_FADE 0.8
@@ -68,6 +73,7 @@ uniform vec4 uPulseParams[MAX_ECHO_PULSES];
 uniform vec3 uFogColor;
 uniform float uFogNear;
 uniform float uFogFar;
+uniform float uViewRadius;
 uniform float uBaseVisibility;
 uniform float uRevealIntensity;
 uniform float uWireThickness;
@@ -82,6 +88,7 @@ uniform float uDepthVisFactor;
 uniform float uDepthInvertFactor;
 uniform float uDepthFloor;
 uniform float uDepthRadius;
+uniform float uDepthLevels;
 uniform vec3 uTintColor;
 uniform vec3 uDaylightTintColor;
 uniform float uFillStrength;
@@ -132,22 +139,25 @@ float fogAmount(vec3 worldPos) {
 	return smoothstep(uFogNear, uFogFar, distToCamera);
 }
 
-// Quantize to DEPTH_LEVELS flat bands, but smooth each contour boundary across
+// Quantize to uDepthLevels flat bands, but smooth each contour boundary across
 // ~1px using screen-space derivatives so the band edges don't stair-step. Bands
 // stay flat where depth changes slowly; at steep depth jumps the edge softens.
 float bandedDepth(float v) {
-	float s = v * (DEPTH_LEVELS - 1.0) + 0.5;
+	float levels = max(uDepthLevels, 2.0);
+	float s = v * (levels - 1.0) + 0.5;
 	float w = max(fwidth(s), 1e-4);
-	return (floor(s) + smoothstep(1.0 - w, 1.0, fract(s))) / (DEPTH_LEVELS - 1.0);
+	return (floor(s) + smoothstep(1.0 - w, 1.0, fract(s))) / (levels - 1.0);
 }
 
 void main() {
-	// Spherical view cutoff: discard everything past the bubble radius (uFogFar) — this
+	// Spherical view cutoff: discard everything past the bubble radius (uViewRadius) — this
 	// shader is shared by terrain, decorations and moths, so one test culls them all.
 	// The depth fade just inside this edge dissolves fragments to the background first,
 	// so the hard cut lands on already-invisible pixels (no pop) and the real sky shows
-	// through (no ghost). No-op in wide-fog modes where uFogFar is beyond all geometry.
-	if (distance(cameraPosition, vWorldPos) > uFogFar) discard;
+	// through (no ghost). Radius 0 (luft) culls everything → an empty room; growing it
+	// during a transition inflates the world into view. No-op in wide modes where
+	// uViewRadius sits beyond all geometry.
+	if (distance(cameraPosition, vWorldPos) > uViewRadius) discard;
 	float reveal = pulseReveal(vWorldPos);
 	float edge = edgeMask(vBarycentric, uWireThickness * (0.92 + reveal * 0.22));
 	vec3 viewDir = normalize(cameraPosition - vWorldPos);
@@ -233,7 +243,7 @@ void main() {
 		// Dissolve the papercut into the background as it nears the sphere edge, so
 		// terrain beyond the bubble (and chunks streaming in past it) blends into the
 		// sky and disappears instead of standing out as a flat distant plate.
-		vec3 depthRGB = mix(vec3(depthVal), uFogColor, smoothstep(uFogFar * DEPTH_EDGE_FADE, uFogFar, depthDist));
+		vec3 depthRGB = mix(vec3(depthVal), uFogColor, smoothstep(uViewRadius * DEPTH_EDGE_FADE, uViewRadius, depthDist));
 		color = mix(color, depthRGB, uDepthVisFactor);
 	}
 
@@ -301,6 +311,7 @@ export function createSharedEchoUniforms(): SharedEchoUniforms {
     uFogColor: { value: new THREE.Color(BAT_SCENE.fogColor) },
     uFogNear: { value: 24 },
     uFogFar: { value: 240 },
+    uViewRadius: { value: 240 },
     uBaseVisibility: { value: 0.0195 },
     uRevealIntensity: { value: 1.15 },
     uWireThickness: { value: 1.45 },
@@ -317,6 +328,7 @@ export function createSharedEchoUniforms(): SharedEchoUniforms {
     uDepthInvertFactor: { value: 0 },
     uDepthFloor: { value: 0 },
     uDepthRadius: { value: 120 },
+    uDepthLevels: { value: 12 },
   };
 }
 

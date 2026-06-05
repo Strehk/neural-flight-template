@@ -17,6 +17,26 @@
 
 import type { Camera, Scene, WebGLRenderer } from "three";
 
+/**
+ * Live-Regler, den eine Experience in der Dev-Konsole bereitstellen kann
+ * (z. B. ein Shader-Uniform, das man zur Laufzeit „durchprobieren" will).
+ */
+export interface DevTweak {
+	/** Eindeutige ID zum Ab-/Anmelden. */
+	id: string;
+	/** Anzeigename im Panel. */
+	label: string;
+	min: number;
+	max: number;
+	step: number;
+	/** Liest den aktuellen Wert (z. B. aus dem Uniform). */
+	get: () => number;
+	/** Schreibt den neuen Wert (z. B. ins Uniform). */
+	set: (value: number) => void;
+	/** Optionaler Suffix für die Wertanzeige (z. B. "px", "×"). */
+	unit?: string;
+}
+
 interface DevConsoleState {
 	/** Aktiver Renderer oder null, wenn keine 3D-Szene läuft. */
 	renderer: WebGLRenderer | null;
@@ -26,6 +46,8 @@ interface DevConsoleState {
 	gpuTimeMs: number | null;
 	/** performance.now() der letzten GPU-Messung – für „veraltet"-Erkennung. */
 	gpuUpdatedAt: number;
+	/** Von der aktiven Experience bereitgestellte Live-Regler. */
+	tweaks: DevTweak[];
 }
 
 export const devConsole = $state<DevConsoleState>({
@@ -33,7 +55,20 @@ export const devConsole = $state<DevConsoleState>({
 	label: "",
 	gpuTimeMs: null,
 	gpuUpdatedAt: 0,
+	tweaks: [],
 });
+
+/** Live-Regler in der Dev-Konsole registrieren (ersetzt einen mit gleicher ID). */
+export function registerTweak(tweak: DevTweak): void {
+	const existing = devConsole.tweaks.findIndex((t) => t.id === tweak.id);
+	if (existing >= 0) devConsole.tweaks[existing] = tweak;
+	else devConsole.tweaks.push(tweak);
+}
+
+/** Live-Regler wieder abmelden. */
+export function unregisterTweak(id: string): void {
+	devConsole.tweaks = devConsole.tweaks.filter((t) => t.id !== id);
+}
 
 // ── GPU-Timer-Plumbing ────────────────────────────────────────────────
 
@@ -148,4 +183,5 @@ export function unregisterRenderer(renderer?: WebGLRenderer): void {
 	teardownGpuTimer();
 	devConsole.renderer = null;
 	devConsole.label = "";
+	devConsole.tweaks = [];
 }
