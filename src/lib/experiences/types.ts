@@ -1,4 +1,5 @@
 import type * as THREE from "three";
+import type { TriggerCommand } from "$lib/types/orientation";
 
 // ── Signal Types ──
 
@@ -135,6 +136,14 @@ export interface SetupContext {
 	renderer: THREE.WebGLRenderer;
 }
 
+export interface RenderContext {
+	scene: THREE.Scene;
+	renderer: THREE.WebGLRenderer;
+	camera: THREE.PerspectiveCamera;
+	delta: number;
+	elapsed: number;
+}
+
 export interface TickContext {
 	delta: number;
 	elapsed: number;
@@ -203,6 +212,16 @@ export interface ExperienceManifest {
 		delta: number,
 	) => void;
 
+	/** Called when a trigger event arrives (if declared in interfaces.triggers). Optional. */
+	handleTrigger?: (
+		trigger: TriggerCommand,
+		state: ExperienceState,
+		scene: THREE.Scene,
+	) => void;
+
 	/** Called when experience unloads. Dispose geometries, materials, textures. */
 	dispose: (state: ExperienceState, scene: THREE.Scene) => void;
+
+	/** Optional custom render hook for experience-specific post-processing (e.g. depth compositing). */
+	render?: (state: ExperienceState, ctx: RenderContext) => void;
 }

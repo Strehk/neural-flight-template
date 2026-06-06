@@ -23,6 +23,14 @@ export interface SettingsUpdate {
 	timestamp: number;
 }
 
+/** Generic trigger event (e.g. VR grip, Pulse button) — id is experience-defined */
+export interface TriggerCommand {
+	type: "trigger";
+	id: string;
+	active: boolean;
+	timestamp: number;
+}
+
 /** Runtime settings update for the M5Stick bridge */
 export interface M5BridgeSettingsUpdate {
 	type: "m5-settings";
@@ -35,4 +43,5 @@ export type ControllerMessage =
 	| OrientationData
 	| SpeedCommand
 	| SettingsUpdate
+	| TriggerCommand
 	| M5BridgeSettingsUpdate;

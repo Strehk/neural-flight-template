@@ -2,6 +2,11 @@
 import { Trophy } from "lucide-svelte";
 import { onDestroy, onMount } from "svelte";
 import * as THREE from "three";
+import { currentBiomeStore } from "$lib/experiences/sinneswandler_test1/biome-store";
+import {
+	registerRenderer,
+	unregisterRenderer,
+} from "$lib/dev-console/registry.svelte";
 import { VRButton } from "three/examples/jsm/webxr/VRButton.js";
 import type { ActiveExperience } from "$lib/experiences/loader";
 import {
@@ -42,6 +47,9 @@ onMount(() => {
 	renderer.shadowMap.enabled = true;
 	renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
+	// Renderer der Dev-Konsole (Taste "C") melden.
+	registerRenderer(renderer, "ICAROS VR");
+
 	vrButton = VRButton.createButton(renderer);
 	document.body.appendChild(vrButton);
 
@@ -51,6 +59,7 @@ onMount(() => {
 	loadExperience(experienceId, { scene, camera: dummyCamera, renderer }).then(
 		(exp: ActiveExperience) => {
 			experienceName = exp.manifest.name;
+			registerRenderer(renderer, exp.manifest.name);
 			hasOutputs = (exp.manifest.outputs?.length ?? 0) > 0;
 			const renderCamera = exp.state.camera as THREE.PerspectiveCamera;
 
@@ -104,7 +113,17 @@ onMount(() => {
 					score = result.outputs.score as number;
 				}
 
-				renderer.render(scene, renderCamera);
+				if (exp.manifest.render) {
+					exp.manifest.render(exp.state, {
+						scene,
+						renderer,
+						camera: renderCamera,
+						delta,
+						elapsed: clock.elapsedTime,
+					});
+				} else {
+					renderer.render(scene, renderCamera);
+				}
 			});
 		},
 	);
@@ -116,6 +135,7 @@ onMount(() => {
 
 onDestroy(() => {
 	renderer?.setAnimationLoop(null);
+	unregisterRenderer(renderer);
 	if (scene) unloadExperience(scene);
 	renderer?.dispose();
 	vrButton?.remove();
@@ -134,3 +154,5 @@ onDestroy(() => {
 		<Trophy size={20} /> {score}
 	</div>
 {/if}
+
+<div class="biome-overlay">{$currentBiomeStore ?? '—'}</div>
