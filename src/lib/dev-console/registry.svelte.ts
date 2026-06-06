@@ -106,6 +106,9 @@ function pollGpuQueries(): void {
 }
 
 function setupGpuTimer(renderer: WebGLRenderer): void {
+	if (wrappedRenderer === renderer) return;
+	if (wrappedRenderer) teardownGpuTimer();
+
 	const ctx = renderer.getContext();
 	if (
 		typeof WebGL2RenderingContext === "undefined" ||
@@ -167,8 +170,14 @@ export function registerRenderer(
 	renderer: WebGLRenderer,
 	label = "",
 ): void {
+	if (devConsole.renderer === renderer) {
+		devConsole.label = label;
+		setupGpuTimer(renderer);
+		return;
+	}
+
 	// Falls noch ein alter Renderer registriert war, sauber abbauen.
-	if (devConsole.renderer && devConsole.renderer !== renderer) {
+	if (devConsole.renderer) {
 		teardownGpuTimer();
 	}
 	devConsole.renderer = renderer;
