@@ -138,7 +138,6 @@ export interface BatEcholocationState extends ExperienceState {
   world: BatWorld;
   audio: EchoAudioManager;
   sky: THREE.Mesh;
-  moon: THREE.Group;
   pulses: EchoPulse[];
   audioSettings: BatAudioSettings;
   echoSettings: BatEchoSettings;
@@ -184,36 +183,6 @@ function createRenderPulseState(
     trail: pulse.trailLength,
     intensity: pulse.intensity,
   };
-}
-
-function createMoonGlowTexture(): THREE.CanvasTexture {
-  const size = 256;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    throw new Error("2D canvas context unavailable for moon glow");
-  }
-
-  const gradient = ctx.createRadialGradient(
-    size * 0.5,
-    size * 0.5,
-    0,
-    size * 0.5,
-    size * 0.5,
-    size * 0.5,
-  );
-  gradient.addColorStop(0, "rgba(255,255,255,1)");
-  gradient.addColorStop(0.18, "rgba(240,245,255,0.95)");
-  gradient.addColorStop(0.42, "rgba(220,230,255,0.28)");
-  gradient.addColorStop(1, "rgba(220,230,255,0)");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, size, size);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.needsUpdate = true;
-  return texture;
 }
 
 function createCollectionBurstTexture(): THREE.CanvasTexture {
@@ -274,44 +243,6 @@ function createMothEchoTexture(): THREE.CanvasTexture {
   const texture = new THREE.CanvasTexture(canvas);
   texture.needsUpdate = true;
   return texture;
-}
-
-function createMoon(): THREE.Group {
-  const group = new THREE.Group();
-  const glowTexture = createMoonGlowTexture();
-  const body = new THREE.Mesh(
-    new THREE.SphereGeometry(BAT_MOON.radius, 32, 32),
-    new THREE.MeshBasicMaterial({
-      color: BAT_MOON.color,
-      transparent: true,
-      opacity: BAT_MOON.opacity,
-      toneMapped: false,
-      fog: false,
-      depthWrite: false,
-      depthTest: false,
-    }),
-  );
-  const glow = new THREE.Sprite(
-    new THREE.SpriteMaterial({
-      map: glowTexture,
-      color: BAT_MOON.glowColor,
-      transparent: true,
-      opacity: BAT_MOON.glowOpacity,
-      depthWrite: false,
-      depthTest: false,
-      fog: false,
-      toneMapped: false,
-      blending: THREE.AdditiveBlending,
-    }),
-  );
-
-  glow.scale.set(BAT_MOON.glowRadius, BAT_MOON.glowRadius, 1);
-  body.renderOrder = 12;
-  glow.renderOrder = 11;
-  group.renderOrder = 11;
-  group.add(glow, body);
-  group.userData.glowTexture = glowTexture;
-  return group;
 }
 
 function createPulse(
@@ -625,7 +556,6 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
     radius: BAT_CAMERA.far * 1.3,
     animationSpeed: 0.0008,
   });
-  const moon = createMoon();
   const collectionFx = new THREE.Group();
   const collectionBurstTexture = createCollectionBurstTexture();
   const mothEchoFx = new THREE.Group();
@@ -641,10 +571,6 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
   } catch (error) {
     console.error("Failed to load bat mount", error);
   }
-
-  moon.position
-    .copy(player.rig.position)
-    .addScaledVector(moonDirection, BAT_MOON.distance);
 
   const keyboardInput = new KeyboardInput();
   const controllerInput = new ControllerInput();
@@ -662,7 +588,6 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
   ctx.scene.add(world.group);
   ctx.scene.add(player.rig);
   ctx.scene.add(sky);
-  ctx.scene.add(moon);
   ctx.scene.add(collectionFx);
   ctx.scene.add(mothEchoFx);
   ctx.scene.add(whiteoutParticles);
@@ -680,7 +605,6 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
     world,
     audio,
     sky,
-    moon,
     pulses: [],
     audioSettings: { ...BAT_AUDIO_DEFAULTS },
     echoSettings: { ...BAT_ECHO_DEFAULTS },
@@ -770,12 +694,6 @@ export function tick(
   s.senseSwitch.tick(s.player.rig.position, ctx.delta, ctx.elapsed);
   s.player.tick(ctx.delta, (x, z) => s.world.sampleHeight(x, z));
   s.sky.position.copy(s.player.rig.position);
-  s.moon.position
-    .copy(s.player.rig.position)
-    .addScaledVector(
-      s.world.sharedUniforms.uMoonDirection.value,
-      BAT_MOON.distance,
-    );
 
   const worldFrame = s.world.prepare(s.player.rig.position);
 
@@ -920,7 +838,6 @@ export function dispose(state: ExperienceState, scene: THREE.Scene): void {
   scene.remove(s.world.group);
   scene.remove(s.player.rig);
   scene.remove(s.sky);
-  scene.remove(s.moon);
   scene.remove(s.collectionFx);
   scene.remove(s.mothEchoFx);
   scene.remove(s.whiteoutParticles);
@@ -943,18 +860,4 @@ export function dispose(state: ExperienceState, scene: THREE.Scene): void {
   for (const burst of s.mothEchoBursts) {
     burst.core.material.dispose();
   }
-  s.moon.traverse((child) => {
-    if (child instanceof THREE.Mesh) {
-      child.geometry.dispose();
-      if (child.material instanceof THREE.Material) {
-        child.material.dispose();
-      }
-    }
-    if (child instanceof THREE.Sprite) {
-      if (child.material instanceof THREE.SpriteMaterial) {
-        child.material.map?.dispose();
-        child.material.dispose();
-      }
-    }
-  });
 }

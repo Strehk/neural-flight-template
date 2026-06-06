@@ -160,10 +160,6 @@ export function applySettings(
 	      s.world.setSettings({ baseVisibility: value as number });
 	      break;
 
-	    case "showMinimap":
-	      s.minimap.setVisible(value as boolean);
-	      break;
-
 	    default:
 	      break;
   }
