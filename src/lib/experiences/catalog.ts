@@ -6,6 +6,7 @@ import { manifest as shaderDemo } from "./shader-demo";
 import { manifest as visioTechnologica } from "./visio-technologica";
 import { manifest as visioTechnologicaCityTest } from "./visio-technologica-city-test";
 import { manifest as sinneswandlerTest1 } from "./sinneswandler_test1";
+import { manifest as carDrive } from "./car-drive";
 import type { ExperienceManifest } from "./types";
 
 // ── Registry ──
@@ -25,6 +26,7 @@ const CATALOG: Record<string, ExperienceManifest> = {
 	"visio-technologica": visioTechnologica,
 	"visio-technologica-city-test": visioTechnologicaCityTest,
 	"sinneswandler_test1": sinneswandlerTest1,
+	"car-drive": carDrive,
 };
 
 export const DEFAULT_EXPERIENCE_ID = "mountain-flight";
