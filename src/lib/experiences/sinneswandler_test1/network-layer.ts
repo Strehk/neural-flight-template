@@ -1,8 +1,15 @@
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { seededRandom2D } from "$lib/three/random";
 import type { BatBiomeId } from "./config";
 import type { BatWorld } from "./world";
 
+const BIRD_MODEL_URL = "/sinneswandler_test1/models/bird/bird_BS.glb";
+const BIRD_WORLD_SIZE = 2.88;
+const BIRD_GLOW_OUTER_SCALE = 17;
+const BIRD_GLOW_MID_SCALE = 9.5;
+const BIRD_GLOW_CORE_SCALE = 4.4;
 const CELL_SIZE = 24;
 const VIEW_DISTANCE = 260;
 const MAX_NODES = 520;
@@ -58,8 +65,14 @@ interface Boid {
   velocity: THREE.Vector3;
 }
 
+interface BirdInstance {
+  object: THREE.Object3D;
+  mixer: THREE.AnimationMixer | null;
+}
+
 interface AerialFlock {
   boids: Boid[];
+  birds: BirdInstance[];
   homeX: number;
   homeZ: number;
   targetY: number;
@@ -77,6 +90,7 @@ interface NetworkNode {
   z: number;
   color: THREE.Color;
   clusterId: number;
+  isAerial?: boolean;
 }
 
 function cellSeed(gx: number, gz: number): number {
@@ -89,6 +103,135 @@ const _ali = new THREE.Vector3();
 const _coh = new THREE.Vector3();
 const _diff = new THREE.Vector3();
 const _acc = new THREE.Vector3();
+const _birdLookTarget = new THREE.Vector3();
+const _birdBox = new THREE.Box3();
+const _birdSize = new THREE.Vector3();
+const _birdCenter = new THREE.Vector3();
+
+function makeBirdMaterial(source: THREE.Material): THREE.Material {
+  const sourceMap =
+    (source as THREE.Material & { map?: THREE.Texture | null }).map ?? null;
+  const material = new THREE.MeshBasicMaterial({
+    map: sourceMap,
+    color: sourceMap ? 0xffffff : 0x242018,
+    transparent: true,
+    opacity: 1,
+    depthWrite: false,
+    depthTest: true,
+    fog: false,
+    side: THREE.DoubleSide,
+    toneMapped: false,
+  });
+  material.userData.baseOpacity = 1;
+  return material;
+}
+
+function createBirdGlowTexture(): THREE.CanvasTexture {
+  const size = 96;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("2D canvas context unavailable for bird glow");
+
+  const gradient = ctx.createRadialGradient(
+    size * 0.5,
+    size * 0.5,
+    0,
+    size * 0.5,
+    size * 0.5,
+    size * 0.5,
+  );
+  gradient.addColorStop(0, "rgba(255,176,64,0.8)");
+  gradient.addColorStop(0.3, "rgba(255,126,28,0.45)");
+  gradient.addColorStop(0.66, "rgba(255,94,22,0.16)");
+  gradient.addColorStop(1, "rgba(255,94,22,0)");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function createBirdGlowSprite(
+  texture: THREE.Texture,
+  scale: number,
+  opacity: number,
+  color: number,
+): THREE.Sprite {
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map: texture,
+      color,
+      transparent: true,
+      opacity,
+      depthWrite: false,
+      depthTest: false,
+      fog: false,
+      toneMapped: false,
+      blending: THREE.AdditiveBlending,
+    }),
+  );
+  sprite.name = "network-bird-orange-glow";
+  sprite.renderOrder = 6;
+  sprite.scale.set(scale, scale, 1);
+  (sprite.material as THREE.SpriteMaterial).userData.baseOpacity = opacity;
+  return sprite;
+}
+
+function addBirdGlow(object: THREE.Object3D, texture: THREE.Texture): void {
+  object.add(
+    createBirdGlowSprite(texture, BIRD_GLOW_OUTER_SCALE, 0.78, 0xff7a1f),
+    createBirdGlowSprite(texture, BIRD_GLOW_MID_SCALE, 0.9, 0xff9b35),
+    createBirdGlowSprite(texture, BIRD_GLOW_CORE_SCALE, 1, 0xffc36b),
+  );
+}
+
+function prepareBirdTemplate(root: THREE.Object3D): THREE.Object3D {
+  const model = cloneSkeleton(root);
+  model.updateMatrixWorld(true);
+  _birdBox.setFromObject(model);
+  _birdBox.getCenter(_birdCenter);
+  _birdBox.getSize(_birdSize);
+  const maxDimension = Math.max(_birdSize.x, _birdSize.y, _birdSize.z);
+
+  model.position.sub(_birdCenter);
+  model.renderOrder = 7;
+  model.traverse((child: THREE.Object3D) => {
+    if (!(child instanceof THREE.Mesh)) return;
+    child.renderOrder = 7;
+    child.frustumCulled = false;
+    child.material = Array.isArray(child.material)
+      ? child.material.map(makeBirdMaterial)
+      : makeBirdMaterial(child.material);
+  });
+
+  const wrapper = new THREE.Group();
+  wrapper.name = "network-bird-template";
+  wrapper.renderOrder = 7;
+  wrapper.add(model);
+  if (maxDimension > 0) {
+    wrapper.scale.setScalar(BIRD_WORLD_SIZE / maxDimension);
+  }
+  return wrapper;
+}
+
+function createBirdMixer(
+  object: THREE.Object3D,
+  clips: THREE.AnimationClip[],
+): THREE.AnimationMixer | null {
+  if (clips.length === 0) return null;
+  const mixer = new THREE.AnimationMixer(object);
+  const clip = clips[0];
+  const action = mixer.clipAction(clip);
+  action.reset();
+  action.setLoop(THREE.LoopRepeat, Infinity);
+  action.timeScale = 0.82 + Math.random() * 0.34;
+  action.play();
+  mixer.setTime(Math.random() * clip.duration);
+  return mixer;
+}
 
 export class NetworkLayer {
   readonly group = new THREE.Group();
@@ -98,13 +241,18 @@ export class NetworkLayer {
   private readonly lineColors: THREE.BufferAttribute;
   private readonly nodePositions: THREE.BufferAttribute;
   private readonly nodeColors: THREE.BufferAttribute;
+  private readonly birdGroup = new THREE.Group();
+  private readonly birdGlowTexture: THREE.CanvasTexture;
   private readonly lines: THREE.LineSegments;
   private readonly nodes: THREE.Points;
   private readonly aerialFlocks = new Map<string, AerialFlock>();
+  private birdTemplate: THREE.Object3D | null = null;
+  private birdClips: THREE.AnimationClip[] = [];
   private factor = 0;
 
   constructor(world: BatWorld) {
     this.world = world;
+    this.birdGlowTexture = createBirdGlowTexture();
 
     const lineGeo = new THREE.BufferGeometry();
     this.linePositions = new THREE.BufferAttribute(
@@ -156,7 +304,11 @@ export class NetworkLayer {
     this.nodes.frustumCulled = false;
     this.nodes.renderOrder = 5;
 
-    this.group.add(this.lines, this.nodes);
+    this.birdGroup.name = "network-aerial-birds";
+    this.birdGroup.renderOrder = 7;
+
+    this.group.add(this.lines, this.nodes, this.birdGroup);
+    this.loadBirdModel();
   }
 
   setFactor(factor: number): void {
@@ -164,11 +316,12 @@ export class NetworkLayer {
     (this.lines.material as THREE.LineBasicMaterial).opacity = this.factor * 0.72;
     (this.nodes.material as THREE.PointsMaterial).opacity = this.factor * 0.88;
     this.group.visible = this.factor > 0.01;
+    this.updateBirdOpacity();
   }
 
   tick(playerPos: THREE.Vector3, delta: number, elapsed: number): void {
     if (this.factor <= 0.01) return;
-    this.maintainFlocks(playerPos, delta);
+    this.maintainFlocks(playerPos, delta, elapsed);
     const nodes = this.collectNodes(playerPos, elapsed);
     this.writeNodes(nodes, elapsed);
     this.writeConnections(nodes, elapsed);
@@ -179,12 +332,92 @@ export class NetworkLayer {
     (this.lines.material as THREE.Material).dispose();
     this.nodes.geometry.dispose();
     (this.nodes.material as THREE.Material).dispose();
+    const geometries = new Set<THREE.BufferGeometry>();
+    const materials = new Set<THREE.Material>();
+    this.birdGroup.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        geometries.add(child.geometry);
+      }
+      if (!(child instanceof THREE.Mesh || child instanceof THREE.Sprite)) return;
+      const mats =
+        child instanceof THREE.Mesh && Array.isArray(child.material)
+          ? child.material
+          : [child.material];
+      for (const material of mats) materials.add(material);
+    });
+    for (const geometry of geometries) geometry.dispose();
+    for (const material of materials) material.dispose();
+    this.birdGlowTexture.dispose();
+    this.birdGroup.clear();
     this.aerialFlocks.clear();
+  }
+
+  private async loadBirdModel(): Promise<void> {
+    const loader = new GLTFLoader();
+    try {
+      const gltf = await loader.loadAsync(BIRD_MODEL_URL);
+      this.birdTemplate = prepareBirdTemplate(gltf.scene);
+      this.birdClips = gltf.animations;
+      for (const flock of this.aerialFlocks.values()) {
+        this.ensureBirdInstances(flock);
+      }
+      this.updateBirdOpacity();
+    } catch (error) {
+      console.warn("[network-layer] Failed to load bird model.", error);
+    }
+  }
+
+  private createBirdInstance(): BirdInstance | null {
+    if (!this.birdTemplate) return null;
+    const object = cloneSkeleton(this.birdTemplate);
+    addBirdGlow(object, this.birdGlowTexture);
+    object.visible = this.factor > 0.01;
+    this.birdGroup.add(object);
+    return {
+      object,
+      mixer: createBirdMixer(object, this.birdClips),
+    };
+  }
+
+  private ensureBirdInstances(flock: AerialFlock): void {
+    while (flock.birds.length < flock.boids.length) {
+      const bird = this.createBirdInstance();
+      if (!bird) return;
+      flock.birds.push(bird);
+    }
+  }
+
+  private removeFlockBirds(flock: AerialFlock): void {
+    for (const bird of flock.birds) {
+      bird.object.removeFromParent();
+      bird.mixer?.stopAllAction();
+    }
+    flock.birds.length = 0;
+  }
+
+  private updateBirdOpacity(): void {
+    this.birdGroup.visible = this.factor > 0.01 && !!this.birdTemplate;
+    this.birdGroup.traverse((child) => {
+      if (!(child instanceof THREE.Mesh || child instanceof THREE.Sprite)) return;
+      const materials =
+        child instanceof THREE.Mesh && Array.isArray(child.material)
+          ? child.material
+          : [child.material];
+      for (const material of materials) {
+        const baseOpacity =
+          typeof material.userData.baseOpacity === "number"
+            ? material.userData.baseOpacity
+            : material.opacity;
+        material.userData.baseOpacity = baseOpacity;
+        material.opacity = baseOpacity * this.factor;
+        material.needsUpdate = true;
+      }
+    });
   }
 
   // ── Flock lifecycle ───────────────────────────────────────────────────────
 
-  private maintainFlocks(playerPos: THREE.Vector3, delta: number): void {
+  private maintainFlocks(playerPos: THREE.Vector3, delta: number, elapsed: number): void {
     const halfCells = Math.ceil(VIEW_DISTANCE / CELL_SIZE);
     const centerGX = Math.round(playerPos.x / CELL_SIZE);
     const centerGZ = Math.round(playerPos.z / CELL_SIZE);
@@ -217,12 +450,18 @@ export class NetworkLayer {
     }
 
     for (const key of this.aerialFlocks.keys()) {
-      if (!activeCellKeys.has(key)) this.aerialFlocks.delete(key);
+      if (!activeCellKeys.has(key)) {
+        const flock = this.aerialFlocks.get(key);
+        if (flock) this.removeFlockBirds(flock);
+        this.aerialFlocks.delete(key);
+      }
     }
 
     const clampedDelta = Math.min(delta, 0.05); // cap for large frames
     for (const flock of this.aerialFlocks.values()) {
+      this.ensureBirdInstances(flock);
       this.stepBoids(flock, clampedDelta);
+      this.updateBirdInstances(flock, clampedDelta, elapsed);
     }
   }
 
@@ -275,6 +514,7 @@ export class NetworkLayer {
 
     return {
       boids,
+      birds: [],
       homeX: cx,
       homeZ: cz,
       targetY,
@@ -359,6 +599,21 @@ export class NetworkLayer {
     }
   }
 
+  private updateBirdInstances(flock: AerialFlock, delta: number, elapsed: number): void {
+    for (let i = 0; i < flock.boids.length; i++) {
+      const bird = flock.birds[i];
+      if (!bird) continue;
+      const boid = flock.boids[i];
+      bird.mixer?.update(delta);
+      bird.object.position.copy(boid.position);
+      _birdLookTarget.copy(boid.position).add(boid.velocity);
+      bird.object.lookAt(_birdLookTarget);
+      bird.object.rotateY(-Math.PI * 0.5);
+      bird.object.rotateZ(Math.sin(elapsed * 3.6 + i) * 0.08);
+      bird.object.visible = this.factor > 0.01;
+    }
+  }
+
   // ── Node collection ───────────────────────────────────────────────────────
 
   private collectNodes(playerPos: THREE.Vector3, elapsed: number): NetworkNode[] {
@@ -374,6 +629,7 @@ export class NetworkLayer {
           z: b.position.z,
           color: new THREE.Color(ci === 0 ? COLOR_CORE : COLOR_MEMBER),
           clusterId: flock.clusterId,
+          isAerial: true,
         });
       }
     }
@@ -448,19 +704,22 @@ export class NetworkLayer {
   private writeNodes(nodes: NetworkNode[], elapsed: number): void {
     const pos = this.nodePositions.array as Float32Array;
     const col = this.nodeColors.array as Float32Array;
+    let visibleNodeCount = 0;
     for (let i = 0; i < nodes.length; i++) {
       const node = nodes[i];
+      if (node.isAerial) continue;
       const pulse = 0.74 + 0.26 * Math.sin(elapsed * 1.8 + i * 0.37);
-      pos[i * 3] = node.x;
-      pos[i * 3 + 1] = node.y;
-      pos[i * 3 + 2] = node.z;
-      col[i * 3] = node.color.r * pulse;
-      col[i * 3 + 1] = node.color.g * pulse;
-      col[i * 3 + 2] = node.color.b * pulse;
+      pos[visibleNodeCount * 3] = node.x;
+      pos[visibleNodeCount * 3 + 1] = node.y;
+      pos[visibleNodeCount * 3 + 2] = node.z;
+      col[visibleNodeCount * 3] = node.color.r * pulse;
+      col[visibleNodeCount * 3 + 1] = node.color.g * pulse;
+      col[visibleNodeCount * 3 + 2] = node.color.b * pulse;
+      visibleNodeCount++;
     }
     this.nodePositions.needsUpdate = true;
     this.nodeColors.needsUpdate = true;
-    this.nodes.geometry.setDrawRange(0, nodes.length);
+    this.nodes.geometry.setDrawRange(0, visibleNodeCount);
   }
 
   private writeConnections(nodes: NetworkNode[], elapsed: number): void {
