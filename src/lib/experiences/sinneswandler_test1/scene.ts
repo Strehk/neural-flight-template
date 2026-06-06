@@ -29,10 +29,10 @@ import { IntroSequence } from "./intro-sequence";
 import { ChemosenseLayer } from "./chemosense-layer";
 import { createDepthPostprocess, type DepthPostprocess } from "./depth-postprocess";
 import { NetworkLayer } from "./network-layer";
-import type { VisionModeId } from "./vision-modes";
-import { loadWorldModels } from "$lib/three/world/vegetation/world-models";
+import { BeeSwarm } from "./bee-swarm";
+import { MODE_SEQUENCE, type VisionModeId } from "./vision-modes";
+import { loadWorldModels } from "./world-models";
 import { currentBiomeStore } from "./biome-store";
-import { MinimapHud } from "./minimap-hud";
 
 function applyWorldPresetToSettings(
   settings: BatWorldSettings,
@@ -81,6 +81,30 @@ const WHITEOUT_PARTICLE_RADIUS = 165;
 const WHITEOUT_PARTICLE_MIN_DISTANCE = 16;
 const WHITEOUT_PARTICLE_SPEED = 24;
 const SENSE_SWITCH_DELAY_SECONDS = 0;
+
+function shouldShowBees(mode: VisionModeId): boolean {
+  return MODE_SEQUENCE.indexOf(mode) >= MODE_SEQUENCE.indexOf("echoLocation");
+}
+
+function getBeeFactor(state: BatEcholocationState): number {
+  if (!shouldShowBees(state.senseSwitch.currentMode)) return 0;
+  return Math.max(
+    state.senseSwitch.getEchoLocationFactor(),
+    state.senseSwitch.getInfrarotFactor(),
+    state.senseSwitch.getDuftFactor(),
+    state.senseSwitch.getNetzwerkFactor(),
+    state.senseSwitch.getDepthFactor(),
+    state.senseSwitch.currentMode === "normal" ? 1 : 0,
+  );
+}
+
+function getBeeDensity(state: BatEcholocationState): number {
+  if (state.senseSwitch.currentMode === "echoLocation") return 0.12;
+  return MODE_SEQUENCE.indexOf(state.senseSwitch.currentMode) >=
+    MODE_SEQUENCE.indexOf("infrarot")
+    ? 1
+    : 0;
+}
 
 interface CollectionBurst {
   sprite: THREE.Sprite;
@@ -140,7 +164,7 @@ export interface BatEcholocationState extends ExperienceState {
   controllerInput: ControllerInput;
   chemosenseLayer: ChemosenseLayer;
   networkLayer: NetworkLayer;
-  minimap: MinimapHud;
+  beeSwarm: BeeSwarm | null;
   depthPostprocess: DepthPostprocess;
   invertOutput: boolean;
   chemosenseScore: number;
@@ -543,13 +567,18 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
     revealIntensity: BAT_ECHO_DEFAULTS.revealIntensity,
     wireThickness: BAT_ECHO_DEFAULTS.wireThickness,
   }, ctx);
-  const [worldModels] = await Promise.allSettled([
+  const [worldModels, beeSwarmResult] = await Promise.allSettled([
     loadWorldModels(),
+    BeeSwarm.load(),
     loadFlyGeometry().then((geo) => { flyGeometry = geo; }).catch((err) => {
       console.error("Failed to load fly geometry", err);
     }),
   ]);
   const models = worldModels.status === "fulfilled" ? worldModels.value : null;
+  const beeSwarm = beeSwarmResult.status === "fulfilled" ? beeSwarmResult.value : null;
+  if (beeSwarmResult.status === "rejected") {
+    console.warn("[bee-swarm] Failed to load bee model.", beeSwarmResult.reason);
+  }
 
   const world = new BatWorld(worldSettings, {
     worldPreset: ctx.worldPreset ?? null,
@@ -628,8 +657,6 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
   );
   const chemosenseLayer = new ChemosenseLayer(world);
   const networkLayer = new NetworkLayer(world);
-	const minimap = new MinimapHud(world, worldSettings.chunkSize, ctx.renderer.domElement);
-  player.camera.add(minimap.group);
   const depthPostprocess = createDepthPostprocess(ctx.renderer);
 
   ctx.scene.add(world.group);
@@ -642,6 +669,9 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
   ctx.scene.add(senseSwitch.group);
   ctx.scene.add(chemosenseLayer.group);
   ctx.scene.add(networkLayer.group);
+  if (beeSwarm) {
+    ctx.scene.add(beeSwarm.group);
+  }
 
   const state: BatEcholocationState = {
     player,
@@ -679,7 +709,7 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
     controllerInput,
     chemosenseLayer,
     networkLayer,
-    minimap,
+    beeSwarm,
     depthPostprocess,
     invertOutput: false,
     chemosenseScore: 0,
@@ -708,13 +738,10 @@ export function tick(
   s.keyboardInput.applyTo(s.player);
   s.controllerInput.applyTo(s.player);
 
-	  if (s.keyboardInput.consumeInvertToggle() || s.controllerInput.consumeInvertToggle()) {
-	    s.invertOutput = !s.invertOutput;
-	  }
-	  if (s.keyboardInput.consumeMinimapToggle()) {
-	    s.minimap.toggleVisible();
-	  }
-	  const pendingMode =
+  if (s.keyboardInput.consumeInvertToggle() || s.controllerInput.consumeInvertToggle()) {
+    s.invertOutput = !s.invertOutput;
+  }
+  const pendingMode =
 	    s.keyboardInput.consumePendingMode() ?? s.controllerInput.consumePendingMode();
   if (pendingMode) {
     s.intro.playForMode(pendingMode);
@@ -772,6 +799,11 @@ export function tick(
     s.networkLayer.tick(s.player.rig.position, ctx.delta, ctx.elapsed);
   }
 
+  if (s.beeSwarm) {
+    s.beeSwarm.setFactor(getBeeFactor(s), getBeeDensity(s));
+    s.beeSwarm.tick(s.player.rig.position, ctx.camera, ctx.delta, ctx.elapsed);
+  }
+
   // Moths are 2x larger in echolocation mode.
   const echoFactor = s.senseSwitch.getEcholocationFactor();
   s.world.setMothScale(1 + echoFactor);
@@ -824,7 +856,6 @@ export function tick(
   );
 
   s.world.renderEcho(renderPulses, ctx.elapsed);
-  s.minimap.tick(s.player.rig.position, s.camera, ctx.elapsed);
   updateCollectionBursts(s, ctx.elapsed);
   updateMothEchoBursts(s, ctx.elapsed);
   s.audio.update();
@@ -882,7 +913,7 @@ export function dispose(state: ExperienceState, scene: THREE.Scene): void {
   s.controllerInput.dispose();
   s.chemosenseLayer.dispose();
   s.networkLayer.dispose();
-  s.minimap.dispose();
+  s.beeSwarm?.dispose();
   s.depthPostprocess.dispose();
   disposeBatMount(s.batMount);
   s.world.dispose();
@@ -896,6 +927,9 @@ export function dispose(state: ExperienceState, scene: THREE.Scene): void {
   scene.remove(s.senseSwitch.group);
   scene.remove(s.chemosenseLayer.group);
   scene.remove(s.networkLayer.group);
+  if (s.beeSwarm) {
+    scene.remove(s.beeSwarm.group);
+  }
   s.sky.geometry.dispose();
   (s.sky.material as THREE.Material).dispose();
   s.whiteoutParticles.geometry.dispose();
