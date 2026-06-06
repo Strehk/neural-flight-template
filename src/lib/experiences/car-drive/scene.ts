@@ -64,6 +64,7 @@ class CarInput {
 // ── State ──
 
 export interface CarDriveState extends ExperienceState {
+  camera: THREE.PerspectiveCamera;
   rapierWorld: RAPIER.World;
   chassisBody: RAPIER.RigidBody;
   vehicle: RAPIER.DynamicRayCastVehicleController;
@@ -218,6 +219,7 @@ export async function setup(ctx: SetupContext): Promise<CarDriveState> {
   const input = new CarInput();
 
   return {
+    camera: ctx.camera,
     rapierWorld,
     chassisBody,
     vehicle,
