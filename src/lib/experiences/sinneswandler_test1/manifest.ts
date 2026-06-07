@@ -351,7 +351,7 @@ export const manifest: ExperienceManifest = {
   interfaces: { orientation: true, speed: true, triggers: [BAT_TRIGGER_ID] },
   world: {
     supported: true,
-    defaultPresetId: "sinneswandler-forest",
+    defaultPresetId: "temperate-forest",
     requiredLayers: ["height", "biome", "vegetation", "echolocation", "chemical", "swarm"],
   },
   camera: { ...BAT_CAMERA },

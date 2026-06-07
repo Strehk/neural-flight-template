@@ -59,7 +59,7 @@ function applyWorldPresetToSettings(
       44,
     ),
     grassDensity: THREE.MathUtils.clamp(
-      preset.vegetation.density * (0.45 + preset.biomes.wetlandWeight * 0.55) * 76,
+      preset.vegetation.density * (0.45 + preset.vegetation.bushRatio * 0.55) * 76,
       0,
       80,
     ),
@@ -513,7 +513,6 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
 
   const world = new BatWorld(worldSettings, {
     worldPreset: ctx.worldPreset ?? null,
-    worldRuntime: ctx.worldRuntime ?? null,
     mothGeometry: flyGeometry,
     pineTree: models?.pineTree ?? null,
     commonTree: models?.commonTree ?? null,

@@ -18,7 +18,7 @@
  * `(masterSeed, WorldConfig)` → identical fields.
  */
 
-import type { TerrainSample } from "$lib/experiences/sinneswandler_test1/terrain-sampler";
+import type { TerrainSample } from "$lib/worldgen/terrain/terrain-sampler";
 
 export interface AcousticField {
   readonly chunkSize: number;

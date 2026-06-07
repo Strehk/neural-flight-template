@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { getActiveWorldPresetId, getWorldPreset, WorldRuntime } from "$lib/worldgen";
+import { getActiveWorldPresetId, getWorldPreset } from "$lib/worldgen";
 import { DEFAULT_EXPERIENCE_ID, getExperience } from "./catalog";
 import type {
 	CameraConfig,
@@ -45,8 +45,7 @@ export async function loadExperience(
 	const worldPreset = getWorldPreset(
 		getActiveWorldPresetId() || manifest.world?.defaultPresetId || "",
 	);
-	const worldRuntime = new WorldRuntime(worldPreset);
-	const state = await manifest.setup({ ...ctx, worldPreset, worldRuntime });
+	const state = await manifest.setup({ ...ctx, worldPreset });
 
 	active = { manifest, state, lights };
 	return active;

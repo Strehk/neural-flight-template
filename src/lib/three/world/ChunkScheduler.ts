@@ -28,7 +28,7 @@
  * in-flight request cancelled and disposes resolved results inline.
  */
 
-import type { StreamingConfig } from "$lib/experiences/sinneswandler_test1/world-config";
+import type { StreamingConfig } from "$lib/worldgen/noise-config";
 
 /** Minimal contract any chunk type must satisfy to plug into the scheduler. */
 export interface ChunkLike {

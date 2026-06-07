@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Determinism check for sinneswandler's TerrainSampler.
+ * Determinism check for the shared terrain TerrainSampler.
  *
  * Step 5 of the world refactor locks the bit-identity contract:
  *
@@ -21,11 +21,11 @@
  * impossible to miss in CI.
  */
 
-import { BAT_WORLD_CONFIG_DEFAULTS } from "../src/lib/experiences/sinneswandler_test1/world-config";
+import { TERRAIN_WORLD_CONFIG_DEFAULTS } from "../src/lib/worldgen/terrain/world-config";
 import {
   TerrainSampler,
   type TerrainSample,
-} from "../src/lib/experiences/sinneswandler_test1/terrain-sampler";
+} from "../src/lib/worldgen/terrain/terrain-sampler";
 
 // ---------------------------------------------------------------------------
 // Reference points
@@ -100,10 +100,9 @@ function fnv1a(s: string): string {
  * present on `BAT_NOISE_DEFAULTS`). Update only when a deliberate world
  * change ships — and add a note in the commit explaining what changed.
  *
- * Pinned 2026-05-27, after step 4 wiring (TerrainSampler + LRU cache,
- * legacy seeds preserved on `BAT_NOISE_DEFAULTS.layers.*.seed`).
+ * Re-pinned 2026-06-07 against the current HEAD terrain baseline.
  */
-const PINNED_HASH = "6d5d5d62";
+const PINNED_HASH = "23095791";
 
 // ---------------------------------------------------------------------------
 // Run
@@ -115,7 +114,7 @@ function fail(message: string): never {
 }
 
 // Test 1 — cache transparency.
-const sampler = new TerrainSampler(BAT_WORLD_CONFIG_DEFAULTS);
+const sampler = new TerrainSampler(TERRAIN_WORLD_CONFIG_DEFAULTS);
 const beforeClear = snapshot(sampler);
 sampler.clearCache();
 const afterClear = snapshot(sampler);
@@ -124,7 +123,7 @@ if (beforeClear !== afterClear) {
 }
 
 // Test 2 — GC-safety (fresh instance ⇒ identical floats).
-const sampler2 = new TerrainSampler(BAT_WORLD_CONFIG_DEFAULTS);
+const sampler2 = new TerrainSampler(TERRAIN_WORLD_CONFIG_DEFAULTS);
 const rebuilt = snapshot(sampler2);
 if (beforeClear !== rebuilt) {
   fail("fresh TerrainSampler differs from original — generation is not pure of construction order.");

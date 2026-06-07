@@ -5,7 +5,7 @@ import {
   type BatBiomeId,
   type BatWorldSettings,
 } from "./config";
-import { BAT_ECHO_PROBE_DEFAULTS, BAT_MASTER_SEED, BAT_STREAMING_DEFAULTS, BAT_WORLD_CONFIG_DEFAULTS } from "./world-config";
+import { BAT_ECHO_PROBE_DEFAULTS, BAT_STREAMING_DEFAULTS, BAT_WORLD_CONFIG_DEFAULTS } from "./world-config";
 import { ChunkScheduler } from "$lib/three/world/ChunkScheduler";
 import type { AcousticField } from "$lib/three/world/AcousticFieldBaker";
 import type {
@@ -16,7 +16,6 @@ import { TerrainSampler, type TerrainSample } from "./terrain-sampler";
 import { addBarycentricAttribute } from "$lib/three/world/geometry-helpers";
 import {
   assembleTerrainGeometry,
-  assembleWaterGeometry,
 } from "$lib/three/world/TerrainMeshBuilder";
 import { DecorationPlacer } from "./decoration-placer";
 import { WorldgenWorkerPool } from "$lib/three/world/worker/WorldgenWorkerPool";
@@ -32,7 +31,7 @@ import {
 } from "$lib/three/world/echo/EchoProbe";
 import type { EchoPulseRenderState, SharedEchoUniforms } from "./shaders";
 import { seededRandom2D } from "$lib/three/random";
-import type { WorldPreset, WorldRuntime } from "$lib/worldgen";
+import { worldPresetToTerrainConfig, type WorldPreset } from "$lib/worldgen";
 
 // Re-export the echo types so `audio.ts` (and any other consumer) keeps
 // importing them from "./world". The probe + its types live in the
@@ -70,7 +69,6 @@ interface WorldChunk {
   gridX: number;
   gridZ: number;
   terrain: THREE.Mesh;
-  water: THREE.Mesh | null;
   decorations: THREE.Group;
   /** Pre-baked echo-acoustic field; null when disabled. (Step 11.) */
   acousticField: AcousticField | null;
@@ -130,31 +128,6 @@ const TERRAIN_DAY_PALETTE: TerrainDayPalette = {
   midMountainGray: MID_MOUNTAIN_GRAY,
   highMountainGray: HIGH_MOUNTAIN_GRAY,
 };
-
-/**
- * Maps WorldPreset biome category weights to BatBiome frequency multipliers
- * for the Voronoi cell assignment in biome-sampler.ts.
- *
- * WorldPreset uses an independent vocabulary (forest/wetland/fungal/drySteppe/alpine)
- * that is mapped to the six BatBiome slots:
- *   forest    ← forestWeight + fungalWeight*0.5
- *   grassland ← wetlandWeight
- *   mountains ← alpineWeight
- *   snow      ← alpineWeight*0.6
- *   desert    ← drySteppeWeight
- *   barrens   ← drySteppeWeight*0.8
- */
-function presetToBiomeMultipliers(preset: WorldPreset): Partial<Record<BatBiomeId, number>> {
-  const b = preset.biomes;
-  return {
-    forest:    b.forestWeight + b.fungalWeight * 0.5,
-    grassland: b.wetlandWeight,
-    mountains: b.alpineWeight,
-    snow:      b.alpineWeight * 0.6,
-    desert:    b.drySteppeWeight,
-    barrens:   b.drySteppeWeight * 0.8,
-  };
-}
 
 export class BatWorld {
   readonly group = new THREE.Group();
@@ -219,6 +192,7 @@ export class BatWorld {
    * is extracted.
    */
   private readonly terrainSampler: TerrainSampler;
+  private readonly activeWorldPreset: WorldPreset | null;
   // The 14 noise field accessors + 3 scratch colours that used to live
   // here are gone — TerrainSampler / DecorationPlacer / MothSwarm hold
   // their own references through the sampler (refactor step 9b).
@@ -252,32 +226,13 @@ export class BatWorld {
       forestProp?: THREE.BufferGeometry | null;
       snowPlant?: THREE.BufferGeometry | null;
       worldPreset?: WorldPreset | null;
-      worldRuntime?: WorldRuntime | null;
     },
   ) {
     this.settings = { ...settings };
+    this.activeWorldPreset = options?.worldPreset ?? null;
+    const terrainConfig = this.buildWorldConfigSnapshot();
 
-    // Build the TerrainSampler with a WorldConfig snapshot that mirrors
-    // BatWorldSettings' tunables. Sampler owns the NoiseStack + SampleCache;
-    // the legacy `noiseXxx` accessors below alias the sampler's instances.
-    this.terrainSampler = new TerrainSampler(
-      {
-        ...BAT_WORLD_CONFIG_DEFAULTS,
-        masterSeed: options?.worldPreset?.seed ?? BAT_MASTER_SEED,
-        biomeMultipliers: options?.worldPreset
-          ? presetToBiomeMultipliers(options.worldPreset)
-          : undefined,
-        biomeScale: settings.biomeScale,
-        mountainHeight: settings.mountainHeight,
-        treeDensity: settings.treeDensity,
-        grassDensity: settings.grassDensity,
-        baseVisibility: settings.baseVisibility,
-        fogIntensity: settings.fogIntensity,
-        revealIntensity: settings.revealIntensity,
-        wireThickness: settings.wireThickness,
-      },
-      { worldRuntime: options?.worldRuntime ?? undefined },
-    );
+    this.terrainSampler = new TerrainSampler(terrainConfig);
     // Renderers owns the 7 shader materials + sharedUniforms + the
     // applyEnvironment / renderEcho plumbing.
     this.renderers = new Renderers();
@@ -313,13 +268,11 @@ export class BatWorld {
         const payload = await this.workerPool.build(gridX, gridZ);
         const chunk = this.assembleChunkFromWorker(payload);
         this.group.add(chunk.terrain);
-        if (chunk.water) this.group.add(chunk.water);
         this.group.add(chunk.decorations);
         return chunk;
       },
       onChunkDisposed: (chunk) => {
         this.group.remove(chunk.terrain);
-        if (chunk.water) this.group.remove(chunk.water);
         this.group.remove(chunk.decorations);
       },
     });
@@ -468,30 +421,23 @@ export class BatWorld {
       acousticFieldGridStep: BAT_STREAMING_DEFAULTS.acousticFieldGridStep,
       decorationSettings: {
         chunkSize: this.settings.chunkSize,
-        treeDensity: this.settings.treeDensity,
-        grassDensity: this.settings.grassDensity,
-        mountainHeight: this.settings.mountainHeight,
+        treeDensity: terrainConfig.treeDensity,
+        grassDensity: terrainConfig.grassDensity,
+        mountainHeight: terrainConfig.mountainHeight,
       },
       echoPalette: TERRAIN_ECHO_PALETTE,
       dayPalette:  TERRAIN_DAY_PALETTE,
-      worldPreset: options?.worldPreset ?? null,
     });
   }
 
   private buildWorldConfigSnapshot() {
-    return {
-      ...BAT_WORLD_CONFIG_DEFAULTS,
-      masterSeed: this.terrainSampler.config.masterSeed,
-      biomeMultipliers: this.terrainSampler.config.biomeMultipliers,
+    return worldPresetToTerrainConfig(this.activeWorldPreset, {
       biomeScale: this.settings.biomeScale,
-      mountainHeight: this.settings.mountainHeight,
-      treeDensity: this.settings.treeDensity,
-      grassDensity: this.settings.grassDensity,
       baseVisibility: this.settings.baseVisibility,
       fogIntensity: this.settings.fogIntensity,
       revealIntensity: this.settings.revealIntensity,
       wireThickness: this.settings.wireThickness,
-    };
+    });
   }
 
   prepare(playerPosition: THREE.Vector3): BatWorldFrameEvents {
@@ -590,27 +536,17 @@ export class BatWorld {
 
   setSettings(nextSettings: Partial<BatWorldSettings>): void {
     this.settings = { ...this.settings, ...nextSettings };
-    // Push the noise-relevant slice into the sampler; updateConfig
-    // also clears the LRU cache so stale samples don't survive a
-    // biomeScale / mountainHeight change.
-    const samplerPatch = {
-      biomeScale: this.settings.biomeScale,
-      mountainHeight: this.settings.mountainHeight,
-      treeDensity: this.settings.treeDensity,
-      grassDensity: this.settings.grassDensity,
-      baseVisibility: this.settings.baseVisibility,
-      fogIntensity: this.settings.fogIntensity,
-      revealIntensity: this.settings.revealIntensity,
-      wireThickness: this.settings.wireThickness,
-    };
-    this.terrainSampler.updateConfig(samplerPatch);
+    // Rebuild the sampler config through the shared adapter so Terrain Builder
+    // values remain authoritative for terrain shape / biome / vegetation.
+    const terrainConfig = this.buildWorldConfigSnapshot();
+    this.terrainSampler.updateConfig(terrainConfig);
     this.workerPool.updateConfig({
-      worldConfigPatch: samplerPatch,
+      worldConfigPatch: terrainConfig,
       decorationSettings: {
         chunkSize: this.settings.chunkSize,
-        treeDensity: this.settings.treeDensity,
-        grassDensity: this.settings.grassDensity,
-        mountainHeight: this.settings.mountainHeight,
+        treeDensity: terrainConfig.treeDensity,
+        grassDensity: terrainConfig.grassDensity,
+        mountainHeight: terrainConfig.mountainHeight,
       },
     });
     this.renderers.applyEnvironment(this.settings);
@@ -703,20 +639,6 @@ export class BatWorld {
       gridZ * this.settings.chunkSize,
     );
 
-    const waterGeometry = assembleWaterGeometry(
-      this.settings.chunkSize,
-      this.settings.terrainSegments,
-      payload.terrain,
-    );
-    const water = waterGeometry
-      ? new THREE.Mesh(waterGeometry, this.renderers.waterMaterial)
-      : null;
-    if (water) {
-      water.userData.echoSurface = "terrain";
-      water.renderOrder = 2;
-      water.position.copy(terrain.position);
-    }
-
     const decorations = this.decorationPlacer.applyData(payload.decorations);
     decorations.position.copy(terrain.position);
 
@@ -736,12 +658,10 @@ export class BatWorld {
       gridX,
       gridZ,
       terrain,
-      water,
       decorations,
       acousticField,
       dispose() {
         terrain.geometry.dispose();
-        water?.geometry.dispose();
         for (const child of decorations.children) {
           if (child instanceof THREE.InstancedMesh) {
             child.dispose();

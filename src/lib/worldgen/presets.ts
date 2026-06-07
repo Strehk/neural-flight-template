@@ -1,11 +1,11 @@
 import type { WorldParameterDef, WorldPreset } from "./types";
 
-export const DEFAULT_WORLD_PRESET_ID = "sinneswandler-forest";
+export const DEFAULT_WORLD_PRESET_ID = "temperate-forest";
 
 export const WORLD_PRESETS: WorldPreset[] = [
 	{
-		id: "sinneswandler-forest",
-		name: "Sinneswandler Forest",
+		id: "temperate-forest",
+		name: "Temperate Forest",
 		description:
 			"Feuchter, biomreicher Wald mit Hügeln, Lichtungen und dichter Vegetation.",
 		version: "0.1.0",
@@ -17,6 +17,7 @@ export const WORLD_PRESETS: WorldPreset[] = [
 			basinDepth: 0.18,
 			detailAmplitude: 0.22,
 			cliffThreshold: 0.78,
+			waterLevel: 0.34,
 		},
 		climate: {
 			temperatureBias: 0.48,
@@ -25,17 +26,8 @@ export const WORLD_PRESETS: WorldPreset[] = [
 			windDirectionDeg: 35,
 			altitudeCooling: 0.28,
 		},
-			hydrology: {
-				waterLevel: 0.34,
-				riverSourceCount: 6,
-				flowThreshold: 1.05,
-				lakeThreshold: 2.1,
-				channelCarveStrength: 0.16,
-				riverWidth: 5,
-			},
 		biomes: {
 			forestWeight: 0.84,
-			wetlandWeight: 0.62,
 			fungalWeight: 0.38,
 			drySteppeWeight: 0.14,
 			alpineWeight: 0.3,
@@ -48,60 +40,6 @@ export const WORLD_PRESETS: WorldPreset[] = [
 			treeRatio: 0.72,
 			bushRatio: 0.44,
 			rockRatio: 0.18,
-		},
-		streaming: {
-			chunkSize: 128,
-			buildRadius: 2,
-			keepRadius: 3,
-			maxBuildsPerFrame: 1,
-			workerCount: 2,
-		},
-	},
-	{
-		id: "river-basin",
-		name: "River Basin",
-		description:
-			"Breites Einzugsgebiet mit sichtbaren Quellen, Flussarmen, Seen und feuchten Uferbiomen.",
-		version: "0.1.0",
-		seed: 9021,
-		terrain: {
-			heightScale: 46,
-			continentScale: 0.58,
-			ridgeStrength: 0.24,
-			basinDepth: 0.42,
-			detailAmplitude: 0.16,
-			cliffThreshold: 0.86,
-		},
-		climate: {
-			temperatureBias: 0.56,
-			moistureBias: 0.64,
-			rainfallAmount: 0.86,
-			windDirectionDeg: 112,
-			altitudeCooling: 0.18,
-		},
-		hydrology: {
-			waterLevel: 0.38,
-			riverSourceCount: 9,
-			flowThreshold: 0.85,
-			lakeThreshold: 1.6,
-			channelCarveStrength: 0.22,
-			riverWidth: 7,
-		},
-		biomes: {
-			forestWeight: 0.58,
-			wetlandWeight: 0.86,
-			fungalWeight: 0.28,
-			drySteppeWeight: 0.08,
-			alpineWeight: 0.18,
-			transitionSoftness: 0.34,
-		},
-		vegetation: {
-			density: 0.64,
-			clustering: 0.54,
-			clearingAmount: 0.18,
-			treeRatio: 0.44,
-			bushRatio: 0.68,
-			rockRatio: 0.12,
 		},
 		streaming: {
 			chunkSize: 128,
@@ -125,6 +63,7 @@ export const WORLD_PRESETS: WorldPreset[] = [
 			basinDepth: 0.14,
 			detailAmplitude: 0.38,
 			cliffThreshold: 0.58,
+			waterLevel: 0.28,
 		},
 		climate: {
 			temperatureBias: 0.28,
@@ -133,17 +72,8 @@ export const WORLD_PRESETS: WorldPreset[] = [
 			windDirectionDeg: 270,
 			altitudeCooling: 0.54,
 		},
-		hydrology: {
-			waterLevel: 0.28,
-			riverSourceCount: 5,
-			flowThreshold: 1.2,
-			lakeThreshold: 2.4,
-			channelCarveStrength: 0.12,
-			riverWidth: 4,
-		},
 		biomes: {
 			forestWeight: 0.72,
-			wetlandWeight: 0.18,
 			fungalWeight: 0.12,
 			drySteppeWeight: 0.06,
 			alpineWeight: 0.82,
@@ -179,6 +109,7 @@ export const WORLD_PRESETS: WorldPreset[] = [
 			basinDepth: 0.56,
 			detailAmplitude: 0.28,
 			cliffThreshold: 0.92,
+			waterLevel: 0.42,
 		},
 		climate: {
 			temperatureBias: 0.62,
@@ -187,17 +118,8 @@ export const WORLD_PRESETS: WorldPreset[] = [
 			windDirectionDeg: 185,
 			altitudeCooling: 0.12,
 		},
-		hydrology: {
-			waterLevel: 0.42,
-			riverSourceCount: 4,
-			flowThreshold: 0.72,
-			lakeThreshold: 1.2,
-			channelCarveStrength: 0.08,
-			riverWidth: 5,
-		},
 		biomes: {
 			forestWeight: 0.68,
-			wetlandWeight: 0.72,
 			fungalWeight: 0.94,
 			drySteppeWeight: 0.04,
 			alpineWeight: 0.08,
@@ -233,6 +155,7 @@ export const WORLD_PRESETS: WorldPreset[] = [
 			basinDepth: 0.24,
 			detailAmplitude: 0.14,
 			cliffThreshold: 0.88,
+			waterLevel: 0.22,
 		},
 		climate: {
 			temperatureBias: 0.82,
@@ -241,17 +164,8 @@ export const WORLD_PRESETS: WorldPreset[] = [
 			windDirectionDeg: 55,
 			altitudeCooling: 0.08,
 		},
-		hydrology: {
-			waterLevel: 0.22,
-			riverSourceCount: 2,
-			flowThreshold: 1.8,
-			lakeThreshold: 3.2,
-			channelCarveStrength: 0.06,
-			riverWidth: 3,
-		},
 		biomes: {
 			forestWeight: 0.08,
-			wetlandWeight: 0.06,
 			fungalWeight: 0.04,
 			drySteppeWeight: 0.92,
 			alpineWeight: 0.12,
@@ -283,19 +197,13 @@ export const WORLD_PARAMETER_DEFS: WorldParameterDef[] = [
 	{ id: "terrain.basinDepth", label: "Becken", group: "Terrain", min: 0, max: 0.8, step: 0.01 },
 	{ id: "terrain.detailAmplitude", label: "Detail", group: "Terrain", min: 0, max: 0.6, step: 0.01 },
 	{ id: "terrain.cliffThreshold", label: "Klippen-Schwelle", group: "Terrain", min: 0.45, max: 0.98, step: 0.01 },
+	{ id: "terrain.waterLevel", label: "Höhen-Offset", group: "Terrain", min: 0.1, max: 0.7, step: 0.01 },
 	{ id: "climate.temperatureBias", label: "Temperatur", group: "Klima", min: 0, max: 1, step: 0.01 },
 	{ id: "climate.moistureBias", label: "Feuchtigkeit", group: "Klima", min: 0, max: 1, step: 0.01 },
 	{ id: "climate.rainfallAmount", label: "Regenmenge", group: "Klima", min: 0, max: 1, step: 0.01 },
 	{ id: "climate.windDirectionDeg", label: "Windrichtung", group: "Klima", min: 0, max: 360, step: 1, unit: "°" },
 	{ id: "climate.altitudeCooling", label: "Höhenkühlung", group: "Klima", min: 0, max: 0.8, step: 0.01 },
-	{ id: "hydrology.waterLevel", label: "Wasserlevel", group: "Hydrologie", min: 0.1, max: 0.7, step: 0.01 },
-	{ id: "hydrology.riverSourceCount", label: "Quellen", group: "Hydrologie", min: 0, max: 24, step: 1 },
-	{ id: "hydrology.flowThreshold", label: "Fluss-Schwelle", group: "Hydrologie", min: 0.1, max: 2.5, step: 0.01 },
-	{ id: "hydrology.lakeThreshold", label: "See-Schwelle", group: "Hydrologie", min: 0.2, max: 4, step: 0.01 },
-	{ id: "hydrology.channelCarveStrength", label: "Flussbett", group: "Hydrologie", min: 0, max: 0.45, step: 0.01 },
-	{ id: "hydrology.riverWidth", label: "Flussbreite", group: "Hydrologie", min: 1, max: 14, step: 0.5, unit: "m" },
 	{ id: "biomes.forestWeight", label: "Wald", group: "Biome", min: 0, max: 1, step: 0.01 },
-	{ id: "biomes.wetlandWeight", label: "Feuchtgebiet", group: "Biome", min: 0, max: 1, step: 0.01 },
 	{ id: "biomes.drySteppeWeight", label: "Trockensteppe", group: "Biome", min: 0, max: 1, step: 0.01 },
 	{ id: "biomes.alpineWeight", label: "Alpin", group: "Biome", min: 0, max: 1, step: 0.01 },
 	{ id: "biomes.transitionSoftness", label: "Übergänge", group: "Biome", min: 0, max: 0.7, step: 0.01 },

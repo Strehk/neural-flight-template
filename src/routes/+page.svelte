@@ -172,8 +172,8 @@ const routes = [
 	{
 		path: "/worlds",
 		icon: Globe2,
-		title: "World Builder",
-		description: "Generate biome worlds with rivers, lakes, and vegetation",
+		title: "Terrain Builder",
+		description: "Shared terrain presets for supported VR experiences",
 		planned: false,
 	},
 	{

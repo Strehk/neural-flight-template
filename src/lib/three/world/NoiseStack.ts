@@ -21,7 +21,7 @@ import {
   streamSeed,
   type NoiseLayerConfig,
   type NoiseStackConfig,
-} from "$lib/experiences/sinneswandler_test1/world-config";
+} from "$lib/worldgen/noise-config";
 
 export type Noise2DFn = (x: number, z: number) => number;
 

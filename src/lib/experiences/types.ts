@@ -1,6 +1,5 @@
 import type * as THREE from "three";
 import type { TriggerCommand } from "$lib/types/orientation";
-import type { WorldRuntime } from "$lib/worldgen/runtime";
 import type { WorldPreset } from "$lib/worldgen/types";
 
 // ── Signal Types ──
@@ -138,8 +137,6 @@ export interface SetupContext {
 	renderer: THREE.WebGLRenderer;
 	/** Optional generated world selected through /worlds. Legacy experiences can ignore it. */
 	worldPreset?: WorldPreset;
-	/** Runtime sampler for generated world data. Legacy experiences can ignore it. */
-	worldRuntime?: WorldRuntime;
 }
 
 export interface RenderContext {

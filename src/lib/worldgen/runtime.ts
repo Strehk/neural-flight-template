@@ -143,46 +143,17 @@ function interpolatedSample(
 	const c11 = map.cells[(gridZ + 1) * map.size + gridX + 1];
 	if (!c00 || !c10 || !c01 || !c11) return sampleWorld(preset, x, z);
 
-	const waterDepth = bilerp(c00.waterDepth, c10.waterDepth, c01.waterDepth, c11.waterDepth, tx, tz);
-	const flow = bilerp(c00.flow, c10.flow, c01.flow, c11.flow, tx, tz);
-	const riverWidth = bilerp(c00.riverWidth, c10.riverWidth, c01.riverWidth, c11.riverWidth, tx, tz);
-	const channelDepth = bilerp(c00.channelDepth, c10.channelDepth, c01.channelDepth, c11.channelDepth, tx, tz);
-	const riverCoverage = bilerp(flag(c00.isRiver), flag(c10.isRiver), flag(c01.isRiver), flag(c11.isRiver), tx, tz);
-	const lakeCoverage = bilerp(flag(c00.isLake), flag(c10.isLake), flag(c01.isLake), flag(c11.isLake), tx, tz);
-	const isRiver = riverCoverage > 0.18 && flow >= preset.hydrology.flowThreshold * 0.45;
-	const isLake = lakeCoverage > 0.24 && waterDepth > 0.012;
-
 	return {
 		x,
 		z,
-		normalizedHeight: bilerp(
-			c00.normalizedHeight,
-			c10.normalizedHeight,
-			c01.normalizedHeight,
-			c11.normalizedHeight,
-			tx,
-			tz,
-		),
+		normalizedHeight: bilerp(c00.normalizedHeight, c10.normalizedHeight, c01.normalizedHeight, c11.normalizedHeight, tx, tz),
 		height: bilerp(c00.height, c10.height, c01.height, c11.height, tx, tz),
 		slope: bilerp(c00.slope, c10.slope, c01.slope, c11.slope, tx, tz),
 		temperature: bilerp(c00.temperature, c10.temperature, c01.temperature, c11.temperature, tx, tz),
 		moisture: bilerp(c00.moisture, c10.moisture, c01.moisture, c11.moisture, tx, tz),
 		rainfall: bilerp(c00.rainfall, c10.rainfall, c01.rainfall, c11.rainfall, tx, tz),
-		vegetationDensity: bilerp(
-			c00.vegetationDensity,
-			c10.vegetationDensity,
-			c01.vegetationDensity,
-			c11.vegetationDensity,
-			tx,
-			tz,
-		),
-		waterDepth,
-		flow,
-		riverWidth,
-		channelDepth,
-		biome: interpolatedBiome(c00, c10, c01, c11, tx, tz, waterDepth, isRiver, isLake),
-		isRiver,
-		isLake,
+		vegetationDensity: bilerp(c00.vegetationDensity, c10.vegetationDensity, c01.vegetationDensity, c11.vegetationDensity, tx, tz),
+		biome: interpolatedBiome(c00, c10, c01, c11, tx, tz),
 	};
 }
 
@@ -193,15 +164,7 @@ function interpolatedBiome(
 	c11: WorldMapCell,
 	tx: number,
 	tz: number,
-	waterDepth: number,
-	isRiver: boolean,
-	isLake: boolean,
 ): BiomeId {
-	if (waterDepth > 0.18) return "deep-water";
-	if (isRiver) return "river";
-	if (isLake) return "lake";
-	if (waterDepth > 0.02) return "wetland";
-
 	const weights = new Map<BiomeId, number>();
 	addBiomeWeight(weights, c00.biome, (1 - tx) * (1 - tz));
 	addBiomeWeight(weights, c10.biome, tx * (1 - tz));
@@ -234,8 +197,4 @@ function lerp(a: number, b: number, t: number): number {
 function smootherstep(value: number): number {
 	const x = Math.min(1, Math.max(0, value));
 	return x * x * x * (x * (x * 6 - 15) + 10);
-}
-
-function flag(value: boolean): number {
-	return value ? 1 : 0;
 }

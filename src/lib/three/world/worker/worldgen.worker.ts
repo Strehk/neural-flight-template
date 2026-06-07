@@ -9,12 +9,11 @@
  * `DecorationPlacer.applyData`.
  */
 
-import { TerrainSampler } from "$lib/experiences/sinneswandler_test1/terrain-sampler";
-import { WorldRuntime } from "$lib/worldgen/runtime";
+import { TerrainSampler } from "$lib/worldgen/terrain/terrain-sampler";
 import {
   applyTerrainDayColor,
   applyTerrainEchoColor,
-} from "$lib/experiences/sinneswandler_test1/derived-field-sampler";
+} from "$lib/worldgen/terrain/derived-field-sampler";
 import { computeDecorationData } from "$lib/worldgen/vegetation/decoration-data";
 import { fbm } from "$lib/three/world/NoiseStack";
 import {
@@ -23,7 +22,7 @@ import {
   type TerrainPlaneLayout,
 } from "$lib/three/world/TerrainDataBuilder";
 import { bakeAcousticField } from "$lib/three/world/AcousticFieldBaker";
-import type { TerrainSample } from "$lib/experiences/sinneswandler_test1/terrain-sampler";
+import type { TerrainSample } from "$lib/worldgen/terrain/terrain-sampler";
 import type {
   WorkerInboundMessage,
   WorkerOutboundMessage,
@@ -70,10 +69,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
 };
 
 function handleInit(msg: WorkerInitMessage): void {
-  const worldRuntime = msg.worldPreset ? new WorldRuntime(msg.worldPreset) : null;
-  const sampler = new TerrainSampler(msg.worldConfig, {
-    worldRuntime: worldRuntime ?? undefined,
-  });
+  const sampler = new TerrainSampler(msg.worldConfig);
   if (msg.biomeOverride !== null) {
     sampler.setBiomeOverride(msg.biomeOverride);
   }
@@ -172,8 +168,6 @@ function collectTransferables(msg: WorkerOutboundMessage): Transferable[] {
   transfers.push(msg.terrain.heights.buffer);
   transfers.push(msg.terrain.echoColors.buffer);
   transfers.push(msg.terrain.dayColors.buffer);
-  transfers.push(msg.terrain.waterHeights.buffer);
-  transfers.push(msg.terrain.waterMask.buffer);
   for (const bucket of Object.values(msg.decorations)) {
     transfers.push(bucket.matrices.buffer);
     if (bucket.colors) transfers.push(bucket.colors.buffer);

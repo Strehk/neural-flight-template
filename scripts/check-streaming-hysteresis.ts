@@ -27,7 +27,7 @@
  */
 
 import { ChunkScheduler, type ChunkLike } from "../src/lib/three/world/ChunkScheduler";
-import { BAT_STREAMING_DEFAULTS } from "../src/lib/experiences/sinneswandler_test1/world-config";
+import { BAT_STREAMING_DEFAULTS } from "../src/lib/worldgen/noise-config";
 
 const OSCILLATIONS = 20;
 

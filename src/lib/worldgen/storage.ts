@@ -8,6 +8,9 @@ import type { WorldPreset } from "./types";
 
 const ACTIVE_WORLD_KEY = "active-world-preset";
 const CUSTOM_WORLDS_KEY = "worldgen-custom-presets";
+const LEGACY_WORLD_IDS: Record<string, string> = {
+	"sinneswandler-forest": DEFAULT_WORLD_PRESET_ID,
+};
 
 function hasLocalStorage(): boolean {
 	return typeof localStorage !== "undefined";
@@ -21,14 +24,14 @@ function isStoredPreset(value: unknown): value is WorldPreset {
 		typeof record.name === "string" &&
 		typeof record.seed === "number" &&
 		typeof record.terrain === "object" &&
-		typeof record.climate === "object" &&
-		typeof record.hydrology === "object"
+		typeof record.climate === "object"
 	);
 }
 
 export function getActiveWorldPresetId(): string {
 	if (!hasLocalStorage()) return DEFAULT_WORLD_PRESET_ID;
-	return localStorage.getItem(ACTIVE_WORLD_KEY) ?? DEFAULT_WORLD_PRESET_ID;
+	const stored = localStorage.getItem(ACTIVE_WORLD_KEY) ?? DEFAULT_WORLD_PRESET_ID;
+	return LEGACY_WORLD_IDS[stored] ?? stored;
 }
 
 export function setActiveWorldPresetId(id: string): void {
@@ -66,7 +69,8 @@ export function listWorldPresets(): WorldPreset[] {
 }
 
 export function getWorldPreset(id: string): WorldPreset {
-	const custom = loadCustomWorldPresets().find((preset) => preset.id === id);
+	const resolvedId = LEGACY_WORLD_IDS[id] ?? id;
+	const custom = loadCustomWorldPresets().find((preset) => preset.id === resolvedId);
 	if (custom) return cloneWorldPreset(custom);
-	return getBuiltInWorldPreset(id);
+	return getBuiltInWorldPreset(resolvedId);
 }

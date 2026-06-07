@@ -10,7 +10,7 @@
  * segments, segments).rotateX(-π/2).toNonIndexed()` so the resulting
  * arrays can be written verbatim into the assembled geometry.
  */
-import type { RGBLike } from "$lib/experiences/sinneswandler_test1/derived-field-sampler";
+import type { RGBLike } from "$lib/worldgen/terrain/derived-field-sampler";
 
 /** Pre-computed per-vertex local (x, z) offsets for a chunk plane. */
 export interface TerrainPlaneLayout {
@@ -25,10 +25,6 @@ export interface TerrainPlaneLayout {
 export interface TerrainData {
   /** segments^2 * 6 floats — Y displacement per non-indexed vertex. */
   heights: Float32Array;
-  /** segments^2 * 6 floats — water surface Y per vertex. */
-  waterHeights: Float32Array;
-  /** segments^2 * 6 bytes — 1 when this vertex belongs to water. */
-  waterMask: Uint8Array;
   /** segments^2 * 6 * 3 floats — RGB per vertex (echo mode). */
   echoColors: Float32Array;
   /** segments^2 * 6 * 3 floats — RGB per vertex (day mode). */
@@ -97,13 +93,7 @@ export interface ComputeTerrainDataOptions<TSample, TEchoPalette, TDayPalette> {
  * with the layout) so they can be transferred via postMessage.
  */
 export function computeTerrainData<
-  TSample extends {
-    height: number;
-    waterDepth?: number;
-    isWater?: boolean;
-    isRiver?: boolean;
-    isLake?: boolean;
-  },
+  TSample extends { height: number },
   TEchoPalette,
   TDayPalette,
 >(
@@ -114,8 +104,6 @@ export function computeTerrainData<
   const { chunkSize, layout, sample, echo, day } = opts;
   const { count, localX, localZ } = layout;
   const heights = new Float32Array(count);
-  const waterHeights = new Float32Array(count);
-  const waterMask = new Uint8Array(count);
   const echoColors = new Float32Array(count * 3);
   const dayColors = new Float32Array(count * 3);
   const tmpEcho: RGBLike = { r: 0, g: 0, b: 0 };
@@ -127,16 +115,6 @@ export function computeTerrainData<
     const wz = localZ[i] + offZ;
     const point = sample(wx, wz);
     heights[i] = point.height;
-    const waterDepth = point.waterDepth ?? 0;
-    const isWater =
-      point.isWater === true ||
-      point.isRiver === true ||
-      point.isLake === true ||
-      waterDepth > 0.015;
-    if (isWater) {
-      waterMask[i] = 1;
-      waterHeights[i] = point.height + Math.max(0.04, waterDepth);
-    }
 
     echo.apply(tmpEcho, point, echo.palette);
     const e = i * 3;
@@ -149,5 +127,5 @@ export function computeTerrainData<
     dayColors[e + 1] = tmpDay.g;
     dayColors[e + 2] = tmpDay.b;
   }
-  return { heights, waterHeights, waterMask, echoColors, dayColors };
+  return { heights, echoColors, dayColors };
 }

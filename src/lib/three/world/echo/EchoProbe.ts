@@ -26,10 +26,10 @@
  */
 
 import * as THREE from "three";
-import type { AcousticMaterial } from "$lib/experiences/sinneswandler_test1/world-config";
-import type { TerrainSampler } from "$lib/experiences/sinneswandler_test1/terrain-sampler";
-import type { EchoProbeConfig } from "$lib/experiences/sinneswandler_test1/world-config";
-import type { BatBiomeId } from "$lib/experiences/sinneswandler_test1/config";
+import type { AcousticMaterial } from "$lib/worldgen/terrain/world-config";
+import type { TerrainSampler } from "$lib/worldgen/terrain/terrain-sampler";
+import type { EchoProbeConfig } from "$lib/worldgen/terrain/world-config";
+import type { TerrainBiomeId } from "$lib/worldgen/terrain/biome-types";
 import { saturate } from "$lib/three/world/math";
 import {
   readAcousticField,
@@ -47,7 +47,7 @@ export interface EchoProbeHit {
   pan: number;
   elevation: number;
   material: EchoSurfaceType;
-  biome: BatBiomeId;
+  biome: TerrainBiomeId;
   density: number;
   ruggedness: number;
   reflectivity: number;
@@ -71,7 +71,7 @@ export interface EchoProbeProfile {
 /** Moth bonus-target shape — kept minimal so MothSwarm can adopt it later. */
 export interface EchoMothTarget {
   position: THREE.Vector3;
-  biome: BatBiomeId;
+  biome: TerrainBiomeId;
 }
 
 export interface EchoProbeOptions {

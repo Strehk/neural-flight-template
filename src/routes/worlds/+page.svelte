@@ -32,9 +32,18 @@ let selectedPresetId = $state(WORLD_PRESETS[0].id);
 let draftName = $state("");
 let saveMessage = $state("");
 let previewRevision = $state(0);
+let activeParameterGroup = $state("Terrain");
 
 const worldMap = $derived(buildWorldMap(preset, PREVIEW_SIZE, PREVIEW_SPAN));
 const groupedParameters = $derived(groupParameters(WORLD_PARAMETER_DEFS));
+const activeParameterTitle = $derived(
+	groupedParameters.some(([group]) => group === activeParameterGroup)
+		? activeParameterGroup
+		: (groupedParameters[0]?.[0] ?? ""),
+);
+const activeParameters = $derived(
+	groupedParameters.find(([group]) => group === activeParameterTitle)?.[1] ?? [],
+);
 
 onMount(() => {
 	presetOptions = listWorldPresets();
@@ -80,7 +89,7 @@ function selectPreset(id: string): void {
 	preset = getWorldPreset(id);
 	draftName = `${preset.name} Copy`;
 	setActiveWorldPresetId(id);
-	saveMessage = "World preset assigned to VR.";
+	saveMessage = "Terrain preset assigned to VR.";
 }
 
 function saveCurrentPreset(): void {
@@ -95,7 +104,7 @@ function saveCurrentPreset(): void {
 	presetOptions = listWorldPresets();
 	selectedPresetId = next.id;
 	preset = next;
-	saveMessage = "Custom world saved and assigned.";
+	saveMessage = "Custom terrain preset saved and assigned.";
 }
 
 function assignCurrentPreset(): void {
@@ -110,7 +119,7 @@ function assignCurrentPreset(): void {
 	selectedPresetId = next.id;
 	preset = next;
 	setActiveWorldPresetId(next.id);
-	saveMessage = "Gespeichert — VR-Seite neu laden um Änderungen zu übernehmen.";
+	saveMessage = "Gespeichert — unterstützte Experiences übernehmen dieses Terrain nach dem VR-Neuladen.";
 }
 
 function updateParameter(path: WorldParameterPath, value: number): void {
@@ -152,29 +161,11 @@ function updateParameter(path: WorldParameterPath, value: number): void {
 		case "climate.altitudeCooling":
 			next.climate.altitudeCooling = value;
 			break;
-		case "hydrology.waterLevel":
-			next.hydrology.waterLevel = value;
-			break;
-		case "hydrology.riverSourceCount":
-			next.hydrology.riverSourceCount = value;
-			break;
-		case "hydrology.flowThreshold":
-			next.hydrology.flowThreshold = value;
-			break;
-		case "hydrology.lakeThreshold":
-			next.hydrology.lakeThreshold = value;
-			break;
-		case "hydrology.channelCarveStrength":
-			next.hydrology.channelCarveStrength = value;
-			break;
-		case "hydrology.riverWidth":
-			next.hydrology.riverWidth = value;
+		case "terrain.waterLevel":
+			next.terrain.waterLevel = value;
 			break;
 		case "biomes.forestWeight":
 			next.biomes.forestWeight = value;
-			break;
-		case "biomes.wetlandWeight":
-			next.biomes.wetlandWeight = value;
 			break;
 		case "biomes.fungalWeight":
 			next.biomes.fungalWeight = value;
@@ -238,22 +229,10 @@ function getParameterValue(path: WorldParameterPath): number {
 			return preset.climate.windDirectionDeg;
 		case "climate.altitudeCooling":
 			return preset.climate.altitudeCooling;
-		case "hydrology.waterLevel":
-			return preset.hydrology.waterLevel;
-		case "hydrology.riverSourceCount":
-			return preset.hydrology.riverSourceCount;
-		case "hydrology.flowThreshold":
-			return preset.hydrology.flowThreshold;
-		case "hydrology.lakeThreshold":
-			return preset.hydrology.lakeThreshold;
-		case "hydrology.channelCarveStrength":
-			return preset.hydrology.channelCarveStrength;
-		case "hydrology.riverWidth":
-			return preset.hydrology.riverWidth;
+		case "terrain.waterLevel":
+			return preset.terrain.waterLevel;
 		case "biomes.forestWeight":
 			return preset.biomes.forestWeight;
-		case "biomes.wetlandWeight":
-			return preset.biomes.wetlandWeight;
 		case "biomes.fungalWeight":
 			return preset.biomes.fungalWeight;
 		case "biomes.drySteppeWeight":
@@ -287,36 +266,14 @@ function drawMap(target: HTMLCanvasElement, map: WorldMap): void {
 	ctx.clearRect(0, 0, target.width, target.height);
 
 	for (const cell of map.cells) {
-		ctx.fillStyle = shadeBiome(
-			colorForBiome(cell.biome),
-			cell.normalizedHeight,
-			cell.waterDepth,
-			cell.channelDepth,
-		);
+		ctx.fillStyle = shadeBiome(colorForBiome(cell.biome), cell.normalizedHeight);
 		ctx.fillRect(cell.gridX * scale, cell.gridZ * scale, scale, scale);
-	}
-
-	ctx.strokeStyle = "rgba(220, 255, 255, 0.75)";
-	ctx.lineCap = "round";
-	ctx.lineJoin = "round";
-	for (const cell of map.cells) {
-		if (!cell.isRiver || cell.downstreamIndex === null) continue;
-		const downstream = map.cells[cell.downstreamIndex];
-		ctx.lineWidth = Math.max(1.4, cell.riverWidth * 0.22 + Math.log1p(cell.flow) * 0.2);
-		ctx.beginPath();
-		ctx.moveTo(cell.gridX * scale + scale / 2, cell.gridZ * scale + scale / 2);
-		ctx.lineTo(
-			downstream.gridX * scale + scale / 2,
-			downstream.gridZ * scale + scale / 2,
-		);
-		ctx.stroke();
 	}
 }
 
-function shadeBiome(hex: string, height: number, waterDepth: number, channelDepth: number): string {
+function shadeBiome(hex: string, height: number): string {
 	const rgb = hexToRgb(hex);
-	const channelShade = Math.min(0.26, channelDepth * 0.012);
-	const shade = 0.72 + height * 0.35 - waterDepth * 0.32 - channelShade;
+	const shade = 0.72 + height * 0.35;
 	return `rgb(${Math.round(rgb.r * shade)}, ${Math.round(rgb.g * shade)}, ${Math.round(rgb.b * shade)})`;
 }
 
@@ -330,11 +287,8 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
 }
 
 const legend: Array<{ biome: BiomeId; label: string }> = [
-	{ biome: "deep-water", label: "Tiefwasser" },
-	{ biome: "lake", label: "See" },
-	{ biome: "river", label: "Fluss" },
-	{ biome: "wetland", label: "Feuchtgebiet" },
 	{ biome: "forest", label: "Wald" },
+	{ biome: "fungal-grove", label: "Pilzhain" },
 	{ biome: "dry-steppe", label: "Steppe" },
 	{ biome: "rock", label: "Fels" },
 	{ biome: "alpine", label: "Alpin" },
@@ -343,11 +297,11 @@ const legend: Array<{ biome: BiomeId; label: string }> = [
 </script>
 
 <svelte:head>
-	<title>World Builder | ICAROS VR</title>
+	<title>Terrain Builder | ICAROS VR</title>
 </svelte:head>
 
 <div class="worlds-page">
-	<PageHeader icon={Droplets} label="World Builder" />
+	<PageHeader icon={Droplets} label="Terrain Builder" />
 
 	<main class="worlds-main">
 		<a class="back-link" href="/">
@@ -359,7 +313,7 @@ const legend: Array<{ biome: BiomeId; label: string }> = [
 			<div class="preview-panel">
 				<div class="panel-header">
 					<div>
-						<p class="mono-label">PREVIEW</p>
+						<p class="mono-label">TERRAIN PREVIEW</p>
 						<h1>{preset.name}</h1>
 					</div>
 					<span class="status-pill">{preset.id}</span>
@@ -367,8 +321,8 @@ const legend: Array<{ biome: BiomeId; label: string }> = [
 
 				<canvas bind:this={canvas} class="world-canvas" aria-label="Generated world biome preview"></canvas>
 				<p class="preview-note">
-					Preview: {PREVIEW_SPAN}x{PREVIEW_SPAN} units. Runtime: deterministic 4096-unit regions
-					stream forever from the same preset.
+					Preview: {PREVIEW_SPAN}x{PREVIEW_SPAN} units. Supported experiences receive this
+					preset through the shared worldgen terrain module.
 				</p>
 
 				<div class="stats-grid">
@@ -377,16 +331,8 @@ const legend: Array<{ biome: BiomeId; label: string }> = [
 						<strong>{worldMap.stats.dominantBiome}</strong>
 					</div>
 					<div>
-						<span class="stat-label">River Cells</span>
-						<strong>{worldMap.stats.riverCells}</strong>
-					</div>
-					<div>
-						<span class="stat-label">Lake Cells</span>
-						<strong>{worldMap.stats.lakeCells}</strong>
-					</div>
-					<div>
-						<span class="stat-label">Water Cells</span>
-						<strong>{worldMap.stats.waterCells}</strong>
+						<span class="stat-label">Avg. Moisture</span>
+						<strong>{worldMap.stats.averageMoisture.toFixed(2)}</strong>
 					</div>
 				</div>
 
@@ -404,10 +350,10 @@ const legend: Array<{ biome: BiomeId; label: string }> = [
 				<div class="preset-card">
 					<div class="section-heading">
 						<Database size={14} />
-						Preset
+						Terrain Preset
 					</div>
 
-					<label class="field-label" for="world-preset">Active world</label>
+					<label class="field-label" for="world-preset">Aktives Terrain</label>
 					<select
 						id="world-preset"
 						class="select-input"
@@ -425,12 +371,12 @@ const legend: Array<{ biome: BiomeId; label: string }> = [
 						<input
 							class="text-input"
 							bind:value={draftName}
-							placeholder="Custom preset name"
+							placeholder="Custom terrain preset name"
 						/>
-						<button class="icon-button" onclick={saveCurrentPreset} title="Save custom world">
+						<button class="icon-button" onclick={saveCurrentPreset} title="Save custom terrain preset">
 							<Save size={15} />
 						</button>
-						<button class="icon-button" onclick={assignCurrentPreset} title="Assign to VR">
+						<button class="icon-button" onclick={assignCurrentPreset} title="Assign terrain preset to VR">
 							<Copy size={15} />
 						</button>
 					</div>
@@ -447,34 +393,48 @@ const legend: Array<{ biome: BiomeId; label: string }> = [
 
 				<div class="section-heading">
 					<SlidersHorizontal size={14} />
-					Regler
+					Weltparameter
 				</div>
 
-				<div class="parameter-groups">
+				<div class="parameter-tabs" role="tablist" aria-label="Parametergruppen">
 					{#each groupedParameters as [group, params]}
-						<section class="parameter-group">
-							<h2>{group}</h2>
-							{#each params as param}
-								{@const value = getParameterValue(param.id)}
-								<label class="slider-row">
-									<span class="slider-label">
-										<span>{param.label}</span>
-										<strong>{formatValue(value, param.step, param.unit)}</strong>
-									</span>
-									<input
-										type="range"
-										min={param.min}
-										max={param.max}
-										step={param.step}
-										value={value}
-										oninput={(event) =>
-											updateParameter(param.id, event.currentTarget.valueAsNumber)}
-									/>
-								</label>
-							{/each}
-						</section>
+						<button
+							type="button"
+							class:active={group === activeParameterTitle}
+							role="tab"
+							aria-selected={group === activeParameterTitle}
+							onclick={() => (activeParameterGroup = group)}
+						>
+							<span>{group}</span>
+							<small>{params.length}</small>
+						</button>
 					{/each}
 				</div>
+
+				<section class="parameter-group" aria-label={activeParameterTitle}>
+					<div class="parameter-group-header">
+						<h2>{activeParameterTitle}</h2>
+						<span>{activeParameters.length} Regler</span>
+					</div>
+					{#each activeParameters as param}
+						{@const value = getParameterValue(param.id)}
+						<label class="slider-row">
+							<span class="slider-label">
+								<span>{param.label}</span>
+								<strong>{formatValue(value, param.step, param.unit)}</strong>
+							</span>
+							<input
+								type="range"
+								min={param.min}
+								max={param.max}
+								step={param.step}
+								value={value}
+								oninput={(event) =>
+									updateParameter(param.id, event.currentTarget.valueAsNumber)}
+							/>
+						</label>
+					{/each}
+				</section>
 			</div>
 		</section>
 	</main>
@@ -694,19 +654,69 @@ const legend: Array<{ biome: BiomeId; label: string }> = [
 		color: var(--accent);
 	}
 
-	.parameter-groups {
+	.parameter-tabs {
+		display: grid;
+		grid-template-columns: repeat(5, minmax(0, 1fr));
+		gap: var(--space-xs);
+		margin-bottom: var(--space-sm);
+	}
+
+	.parameter-tabs button {
 		display: flex;
-		flex-direction: column;
-		gap: var(--space-md);
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-xs);
+		border: 1px solid var(--border-subtle);
+		background: var(--bg);
+		color: var(--text-muted);
+		font-family: var(--font-main);
+		font-size: 0.7rem;
+		padding: 0.45rem 0.5rem;
+		cursor: pointer;
+		min-width: 0;
+	}
+
+	.parameter-tabs button span {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.parameter-tabs button small {
+		color: var(--text-subtle);
+		font-size: 0.625rem;
+	}
+
+	.parameter-tabs button:hover,
+	.parameter-tabs button.active {
+		border-color: var(--accent);
+		color: var(--text);
+		background: var(--surface-hover);
+	}
+
+	.parameter-tabs button.active small {
+		color: var(--accent);
 	}
 
 	.parameter-group {
 		padding: var(--space-md);
 	}
 
-	.parameter-group h2 {
-		font-size: 0.8125rem;
+	.parameter-group-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		gap: var(--space-sm);
 		margin-bottom: var(--space-sm);
+	}
+
+	.parameter-group-header h2 {
+		font-size: 0.8125rem;
+	}
+
+	.parameter-group-header span {
+		font-size: 0.6875rem;
+		color: var(--text-subtle);
 	}
 
 	.slider-row {
@@ -749,6 +759,10 @@ const legend: Array<{ biome: BiomeId; label: string }> = [
 		}
 
 		.stats-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
+		.parameter-tabs {
 			grid-template-columns: repeat(2, minmax(0, 1fr));
 		}
 	}
