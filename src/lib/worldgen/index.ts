@@ -17,11 +17,9 @@ export {
 	biomeToLayerId,
 	layerIdToBiome,
 	WORLDGEN_BIOME_IDS,
-	WORLDGEN_LAYER_FLAGS,
 	worldMapToLayerBuffers,
 	type WorldLayerBuffers,
 	type WorldLayerMetadata,
-	type WorldgenLayerFlag,
 } from "./layers";
 export {
 	computeDecorationData,
