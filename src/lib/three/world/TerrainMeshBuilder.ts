@@ -104,3 +104,48 @@ export function assembleTerrainGeometry(
   return geometry;
 }
 
+/**
+ * Build the water-surface geometry for a chunk from the per-vertex
+ * `waterHeights` + `waterMask`. Emits only the triangles whose three vertices
+ * are all under water, so the surface stays inside the carved channel and
+ * never overhangs the banks (Rule 15). Returns `null` for a dry chunk.
+ *
+ * The water surface Y is the smooth, gently-falling profile from the river
+ * carve, so it reads as calm and level — it does not follow terrain bumps.
+ */
+export function assembleWaterGeometry(
+  chunkSize: number,
+  segments: number,
+  data: TerrainData,
+): THREE.BufferGeometry | null {
+  const layout = computeTerrainPlaneLayout(chunkSize, segments);
+  const { waterHeights, waterMask } = data;
+  if (layout.count !== waterHeights.length || layout.count !== waterMask.length) {
+    throw new Error(
+      `assembleWaterGeometry: vertex count mismatch — layout=${layout.count}, water=${waterHeights.length}, mask=${waterMask.length}`,
+    );
+  }
+
+  const positions: number[] = [];
+  for (let i = 0; i < layout.count; i += 3) {
+    if (waterMask[i] === 0 || waterMask[i + 1] === 0 || waterMask[i + 2] === 0) {
+      continue;
+    }
+    for (let j = 0; j < 3; j++) {
+      const index = i + j;
+      positions.push(layout.localX[index], waterHeights[index] + 0.035, layout.localZ[index]);
+    }
+  }
+
+  if (positions.length === 0) return null;
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+    "position",
+    new THREE.BufferAttribute(new Float32Array(positions), 3),
+  );
+  geometry.computeVertexNormals();
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+

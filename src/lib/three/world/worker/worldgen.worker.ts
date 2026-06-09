@@ -166,6 +166,8 @@ function collectTransferables(msg: WorkerOutboundMessage): Transferable[] {
   if (msg.type !== "built") return [];
   const transfers: Transferable[] = [];
   transfers.push(msg.terrain.heights.buffer);
+  transfers.push(msg.terrain.waterHeights.buffer);
+  transfers.push(msg.terrain.waterMask.buffer);
   transfers.push(msg.terrain.echoColors.buffer);
   transfers.push(msg.terrain.dayColors.buffer);
   for (const bucket of Object.values(msg.decorations)) {

@@ -25,6 +25,10 @@ export interface TerrainPlaneLayout {
 export interface TerrainData {
   /** segments^2 * 6 floats — Y displacement per non-indexed vertex. */
   heights: Float32Array;
+  /** segments^2 * 6 floats — water-surface Y per vertex (only valid where mask=1). */
+  waterHeights: Float32Array;
+  /** segments^2 * 6 bytes — 1 where an open water surface sits above the bed. */
+  waterMask: Uint8Array;
   /** segments^2 * 6 * 3 floats — RGB per vertex (echo mode). */
   echoColors: Float32Array;
   /** segments^2 * 6 * 3 floats — RGB per vertex (day mode). */
@@ -93,7 +97,12 @@ export interface ComputeTerrainDataOptions<TSample, TEchoPalette, TDayPalette> {
  * with the layout) so they can be transferred via postMessage.
  */
 export function computeTerrainData<
-  TSample extends { height: number },
+  TSample extends {
+    height: number;
+    waterSurfaceHeight?: number;
+    waterDepth?: number;
+    isWater?: boolean;
+  },
   TEchoPalette,
   TDayPalette,
 >(
@@ -104,6 +113,8 @@ export function computeTerrainData<
   const { chunkSize, layout, sample, echo, day } = opts;
   const { count, localX, localZ } = layout;
   const heights = new Float32Array(count);
+  const waterHeights = new Float32Array(count);
+  const waterMask = new Uint8Array(count);
   const echoColors = new Float32Array(count * 3);
   const dayColors = new Float32Array(count * 3);
   const tmpEcho: RGBLike = { r: 0, g: 0, b: 0 };
@@ -116,6 +127,13 @@ export function computeTerrainData<
     const point = sample(wx, wz);
     heights[i] = point.height;
 
+    if (point.isWater === true || (point.waterDepth ?? 0) > 0.015) {
+      waterMask[i] = 1;
+      // Use the smooth water-surface elevation from the carve; fall back to
+      // bed + depth for samples that only expose a depth.
+      waterHeights[i] = point.waterSurfaceHeight ?? point.height + (point.waterDepth ?? 0);
+    }
+
     echo.apply(tmpEcho, point, echo.palette);
     const e = i * 3;
     echoColors[e]     = tmpEcho.r;
@@ -127,5 +145,5 @@ export function computeTerrainData<
     dayColors[e + 1] = tmpDay.g;
     dayColors[e + 2] = tmpDay.b;
   }
-  return { heights, echoColors, dayColors };
+  return { heights, waterHeights, waterMask, echoColors, dayColors };
 }

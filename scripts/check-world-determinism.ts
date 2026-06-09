@@ -100,9 +100,11 @@ function fnv1a(s: string): string {
  * present on `BAT_NOISE_DEFAULTS`). Update only when a deliberate world
  * change ships — and add a note in the commit explaining what changed.
  *
- * Re-pinned 2026-06-07 against the current HEAD terrain baseline.
+ * Re-pinned 2026-06-08: river system landed — terrain is now carved by the
+ * graph-first hydrology (height-sampler relief refactor + river carve in
+ * TerrainSampler), so heights at river-adjacent reference points changed.
  */
-const PINNED_HASH = "23095791";
+const PINNED_HASH = "6ed9f0f4";
 
 // ---------------------------------------------------------------------------
 // Run

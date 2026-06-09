@@ -16,6 +16,7 @@ import { TerrainSampler, type TerrainSample } from "./terrain-sampler";
 import { addBarycentricAttribute } from "$lib/three/world/geometry-helpers";
 import {
   assembleTerrainGeometry,
+  assembleWaterGeometry,
 } from "$lib/three/world/TerrainMeshBuilder";
 import { DecorationPlacer } from "./decoration-placer";
 import { WorldgenWorkerPool } from "$lib/three/world/worker/WorldgenWorkerPool";
@@ -69,6 +70,8 @@ interface WorldChunk {
   gridX: number;
   gridZ: number;
   terrain: THREE.Mesh;
+  /** River/lake surface mesh; null for a dry chunk. */
+  water: THREE.Mesh | null;
   decorations: THREE.Group;
   /** Pre-baked echo-acoustic field; null when disabled. (Step 11.) */
   acousticField: AcousticField | null;
@@ -268,11 +271,13 @@ export class BatWorld {
         const payload = await this.workerPool.build(gridX, gridZ);
         const chunk = this.assembleChunkFromWorker(payload);
         this.group.add(chunk.terrain);
+        if (chunk.water) this.group.add(chunk.water);
         this.group.add(chunk.decorations);
         return chunk;
       },
       onChunkDisposed: (chunk) => {
         this.group.remove(chunk.terrain);
+        if (chunk.water) this.group.remove(chunk.water);
         this.group.remove(chunk.decorations);
       },
     });
@@ -639,6 +644,20 @@ export class BatWorld {
       gridZ * this.settings.chunkSize,
     );
 
+    const waterGeometry = assembleWaterGeometry(
+      this.settings.chunkSize,
+      this.settings.terrainSegments,
+      payload.terrain,
+    );
+    const water = waterGeometry
+      ? new THREE.Mesh(waterGeometry, this.renderers.waterMaterial)
+      : null;
+    if (water) {
+      water.userData.echoSurface = "terrain";
+      water.renderOrder = 2;
+      water.position.copy(terrain.position);
+    }
+
     const decorations = this.decorationPlacer.applyData(payload.decorations);
     decorations.position.copy(terrain.position);
 
@@ -658,10 +677,12 @@ export class BatWorld {
       gridX,
       gridZ,
       terrain,
+      water,
       decorations,
       acousticField,
       dispose() {
         terrain.geometry.dispose();
+        water?.geometry.dispose();
         for (const child of decorations.children) {
           if (child instanceof THREE.InstancedMesh) {
             child.dispose();
