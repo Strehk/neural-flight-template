@@ -100,11 +100,11 @@ function fnv1a(s: string): string {
  * present on `BAT_NOISE_DEFAULTS`). Update only when a deliberate world
  * change ships — and add a note in the commit explaining what changed.
  *
- * Re-pinned 2026-06-08: river system landed — terrain is now carved by the
- * graph-first hydrology (height-sampler relief refactor + river carve in
- * TerrainSampler), so heights at river-adjacent reference points changed.
+ * Re-pinned 2026-06-09: river quality pass — terrain-driven curved sub-segments
+ * (bend toward lower ground), spring-biased sources, sharper width hierarchy,
+ * and macro-anchored water surfaces. Carve geometry near rivers shifted.
  */
-const PINNED_HASH = "6ed9f0f4";
+const PINNED_HASH = "5198c1b5";
 
 // ---------------------------------------------------------------------------
 // Run

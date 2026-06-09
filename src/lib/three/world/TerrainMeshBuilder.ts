@@ -128,7 +128,11 @@ export function assembleWaterGeometry(
 
   const positions: number[] = [];
   for (let i = 0; i < layout.count; i += 3) {
-    if (waterMask[i] === 0 || waterMask[i + 1] === 0 || waterMask[i + 2] === 0) {
+    // Render the triangle if ANY vertex is under water — keeps thin/curving
+    // rivers continuous instead of dropping shoreline triangles (which left
+    // visible gaps along a single river). Dry corners use their stored
+    // water-surface height, so the surface meets the bank cleanly.
+    if (waterMask[i] === 0 && waterMask[i + 1] === 0 && waterMask[i + 2] === 0) {
       continue;
     }
     for (let j = 0; j < 3; j++) {

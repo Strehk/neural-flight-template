@@ -48,6 +48,12 @@ export interface RiverConfig {
 	baseRain: number;
 	moistureRain: number;
 
+	/** Extra discharge injected at qualifying spring leaves (Rule 7) so water
+	 *  starts right at the source instead of some way downstream. */
+	springBonus: number;
+	/** Spring-score threshold [0,1] above which a headwater leaf becomes a spring. */
+	springThreshold: number;
+
 	/** Minimum discharge for a segment to carry an open water surface. */
 	waterMinQ: number;
 	/** Minimum discharge for a segment to carve a channel at all (dry gullies below). */
@@ -56,6 +62,30 @@ export interface RiverConfig {
 	/** Waterfalls only on small streams (order ≤ this) with drop/length above slope. */
 	waterfallMaxOrder: number;
 	waterfallSlope: number;
+
+	// ── Curves (Phase 6) ──
+	/** Sub-segments each node→node edge is split into (smoothness of the curve). */
+	subdivisions: number;
+	/** Perpendicular sampling radius (wu) used to find lower ground beside the path. */
+	nudgeRadius: number;
+	/** How strongly the path bends toward lower terrain (wu per wu of height diff). */
+	nudgeGain: number;
+	/** Cap on the terrain-driven perpendicular offset (wu). */
+	maxNudge: number;
+	/** Low-frequency meander noise: frequency + amplitude (wu), only in flat terrain. */
+	meanderFreq: number;
+	meanderAmp: number;
+
+	// ── Lakes (Phase 5) ──
+	/** Minimum inflow discharge for a sink to become a lake (smaller sinks stay dry). */
+	lakeMinQ: number;
+	/** Lake water level above the sink floor: base + perSqrtQ·√Q (bigger river → higher). */
+	lakeRiseBase: number;
+	lakeRisePerSqrtQ: number;
+	/** Lake flood radius: base + perSqrtQ·√Q, capped (bigger river → bigger lake). */
+	lakeRadiusBase: number;
+	lakeRadiusPerSqrtQ: number;
+	lakeMaxRadius: number;
 }
 
 export const BAT_RIVER_DEFAULTS: RiverConfig = {
@@ -65,27 +95,43 @@ export const BAT_RIVER_DEFAULTS: RiverConfig = {
 	nodeJitter: 0.62,
 	maxCachedRegions: 6,
 
-	minHalfWidth: 2,
-	widthPerSqrtQ: 1.6,
-	maxHalfWidth: 36,
+	minHalfWidth: 1.4,
+	widthPerSqrtQ: 2.1,
+	maxHalfWidth: 46,
 
-	minBedDepth: 1.2,
-	depthPerSqrtQ: 0.9,
-	maxBedDepth: 14,
+	minBedDepth: 1.0,
+	depthPerSqrtQ: 1.0,
+	maxBedDepth: 16,
 
-	bankBase: 6,
-	bankPerSqrtQ: 2.2,
+	bankBase: 5,
+	bankPerSqrtQ: 2.4,
 
 	surfaceInset: 0.6,
 
 	baseRain: 0.5,
 	moistureRain: 1.0,
+	springBonus: 1.0,
+	springThreshold: 0.55,
 
-	waterMinQ: 2.5,
-	carveMinQ: 1.0,
+	waterMinQ: 3.5,
+	carveMinQ: 2.6,
 
 	waterfallMaxOrder: 2,
 	waterfallSlope: 0.5,
+
+	subdivisions: 6,
+	nudgeRadius: 42,
+	nudgeGain: 1.1,
+	maxNudge: 40,
+	meanderFreq: 0.012,
+	meanderAmp: 10,
+
+	lakeMinQ: 4,
+	lakeRiseBase: 2,
+	lakeRisePerSqrtQ: 0.7,
+	lakeRadiusBase: 18,
+	lakeRadiusPerSqrtQ: 6,
+	lakeMaxRadius: 220,
 };
 
 // ── Discharge → geometry curves ────────────────────────────────────────────
@@ -120,4 +166,18 @@ export function riverBankWidth(cfg: RiverConfig, q: number): number {
 /** Full valley half-extent: channel + banks. Beyond this the river has no effect. */
 export function riverValleyWidth(cfg: RiverConfig, q: number): number {
 	return riverHalfWidth(cfg, q) + riverBankWidth(cfg, q);
+}
+
+/** Lake water level above the sink floor for a given inflow discharge. */
+export function lakeRise(cfg: RiverConfig, q: number): number {
+	return cfg.lakeRiseBase + cfg.lakeRisePerSqrtQ * Math.sqrt(q);
+}
+
+/** Lake flood radius for a given inflow discharge (capped). */
+export function lakeRadius(cfg: RiverConfig, q: number): number {
+	return clamp(
+		cfg.lakeRadiusBase + cfg.lakeRadiusPerSqrtQ * Math.sqrt(q),
+		cfg.lakeRadiusBase,
+		cfg.lakeMaxRadius,
+	);
 }

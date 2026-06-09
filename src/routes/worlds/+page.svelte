@@ -3,27 +3,98 @@ import { ChevronLeft, Copy, Database, Droplets, Save, SlidersHorizontal } from "
 import { onMount } from "svelte";
 import PageHeader from "$lib/components/PageHeader.svelte";
 import {
-	buildWorldMap,
 	cloneWorldPreset,
-	colorForBiome,
 	getActiveWorldPresetId,
 	getWorldPreset,
 	listWorldPresets,
 	saveCustomWorldPreset,
 	setActiveWorldPresetId,
+	TerrainSampler,
+	worldPresetToTerrainConfig,
 	WORLD_PARAMETER_DEFS,
 	WORLD_PRESETS,
 } from "$lib/worldgen";
 import type {
-	BiomeId,
-	WorldMap,
+	TerrainBiomeId,
 	WorldParameterDef,
 	WorldParameterPath,
 	WorldPreset,
 } from "$lib/worldgen";
 
-const PREVIEW_SIZE = 96;
-const PREVIEW_SPAN = 1200;
+const PREVIEW_SIZE = 110;
+const PREVIEW_SPAN = 1800;
+
+// Preview now samples the SAME pipeline the flight streams (TerrainSampler),
+// so the map shows the real macro layer: biomes, mountains, rivers and lakes.
+// The flight then adds high-frequency detail on top.
+const TERRAIN_BIOME_COLORS: Record<TerrainBiomeId, string> = {
+	forest: "#3f7d54",
+	grassland: "#8fae5e",
+	mountains: "#8a8f99",
+	snow: "#e9eef6",
+	desert: "#cdb069",
+	barrens: "#9c8a6e",
+};
+const WATER_COLOR = { r: 38, g: 98, b: 168 };
+
+function previewColorForBiome(biome: TerrainBiomeId): string {
+	return TERRAIN_BIOME_COLORS[biome];
+}
+
+interface PreviewCell {
+	biome: TerrainBiomeId;
+	height: number;
+	isWater: boolean;
+}
+interface PreviewMap {
+	size: number;
+	cells: PreviewCell[];
+	minHeight: number;
+	maxHeight: number;
+	dominantBiome: TerrainBiomeId;
+	waterFraction: number;
+}
+
+/**
+ * Build the top-down preview by sampling the real TerrainSampler over a grid —
+ * the macro layer of the actual streamed world (biomes + height + rivers/lakes).
+ */
+function buildPreview(source: WorldPreset): PreviewMap {
+	const sampler = new TerrainSampler(worldPresetToTerrainConfig(source));
+	const cells: PreviewCell[] = [];
+	const step = PREVIEW_SPAN / Math.max(1, PREVIEW_SIZE - 1);
+	const half = PREVIEW_SPAN / 2;
+	let minHeight = Infinity;
+	let maxHeight = -Infinity;
+	let waterCount = 0;
+	const biomeCounts = new Map<TerrainBiomeId, number>();
+	for (let z = 0; z < PREVIEW_SIZE; z++) {
+		for (let x = 0; x < PREVIEW_SIZE; x++) {
+			const p = sampler.sample(x * step - half, z * step - half);
+			cells.push({ biome: p.dominantBiome, height: p.height, isWater: p.isWater });
+			if (p.height < minHeight) minHeight = p.height;
+			if (p.height > maxHeight) maxHeight = p.height;
+			if (p.isWater) waterCount++;
+			biomeCounts.set(p.dominantBiome, (biomeCounts.get(p.dominantBiome) ?? 0) + 1);
+		}
+	}
+	let dominantBiome: TerrainBiomeId = "grassland";
+	let best = -1;
+	for (const [biome, count] of biomeCounts) {
+		if (count > best) {
+			best = count;
+			dominantBiome = biome;
+		}
+	}
+	return {
+		size: PREVIEW_SIZE,
+		cells,
+		minHeight,
+		maxHeight,
+		dominantBiome,
+		waterFraction: waterCount / Math.max(1, cells.length),
+	};
+}
 
 let canvas: HTMLCanvasElement;
 let preset = $state<WorldPreset>(cloneWorldPreset(WORLD_PRESETS[0]));
@@ -34,7 +105,7 @@ let saveMessage = $state("");
 let previewRevision = $state(0);
 let activeParameterGroup = $state("Terrain");
 
-const worldMap = $derived(buildWorldMap(preset, PREVIEW_SIZE, PREVIEW_SPAN));
+const worldMap = $derived(buildPreview(preset));
 const groupedParameters = $derived(groupParameters(WORLD_PARAMETER_DEFS));
 const activeParameterTitle = $derived(
 	groupedParameters.some(([group]) => group === activeParameterGroup)
@@ -256,7 +327,7 @@ function getParameterValue(path: WorldParameterPath): number {
 	}
 }
 
-function drawMap(target: HTMLCanvasElement, map: WorldMap): void {
+function drawMap(target: HTMLCanvasElement, map: PreviewMap): void {
 	const ctx = target.getContext("2d");
 	if (!ctx) return;
 	const scale = 3;
@@ -265,16 +336,28 @@ function drawMap(target: HTMLCanvasElement, map: WorldMap): void {
 	ctx.imageSmoothingEnabled = false;
 	ctx.clearRect(0, 0, target.width, target.height);
 
-	for (const cell of map.cells) {
-		ctx.fillStyle = shadeBiome(colorForBiome(cell.biome), cell.normalizedHeight);
-		ctx.fillRect(cell.gridX * scale, cell.gridZ * scale, scale, scale);
+	const range = Math.max(1e-3, map.maxHeight - map.minHeight);
+	for (let i = 0; i < map.cells.length; i++) {
+		const cell = map.cells[i];
+		const gridX = i % map.size;
+		const gridZ = Math.floor(i / map.size);
+		const nh = (cell.height - map.minHeight) / range;
+		ctx.fillStyle = cell.isWater
+			? shadeWater(nh)
+			: shadeBiome(previewColorForBiome(cell.biome), nh);
+		ctx.fillRect(gridX * scale, gridZ * scale, scale, scale);
 	}
 }
 
 function shadeBiome(hex: string, height: number): string {
 	const rgb = hexToRgb(hex);
-	const shade = 0.72 + height * 0.35;
+	const shade = 0.62 + height * 0.5;
 	return `rgb(${Math.round(rgb.r * shade)}, ${Math.round(rgb.g * shade)}, ${Math.round(rgb.b * shade)})`;
+}
+
+function shadeWater(height: number): string {
+	const shade = 0.6 + height * 0.5;
+	return `rgb(${Math.round(WATER_COLOR.r * shade)}, ${Math.round(WATER_COLOR.g * shade)}, ${Math.round(WATER_COLOR.b * shade)})`;
 }
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
@@ -286,13 +369,14 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
 	};
 }
 
-const legend: Array<{ biome: BiomeId; label: string }> = [
-	{ biome: "forest", label: "Wald" },
-	{ biome: "fungal-grove", label: "Pilzhain" },
-	{ biome: "dry-steppe", label: "Steppe" },
-	{ biome: "rock", label: "Fels" },
-	{ biome: "alpine", label: "Alpin" },
-	{ biome: "meadow", label: "Wiese" },
+const legend: Array<{ color: string; label: string }> = [
+	{ color: TERRAIN_BIOME_COLORS.forest, label: "Wald" },
+	{ color: TERRAIN_BIOME_COLORS.grassland, label: "Wiese" },
+	{ color: TERRAIN_BIOME_COLORS.mountains, label: "Berge" },
+	{ color: TERRAIN_BIOME_COLORS.snow, label: "Schnee" },
+	{ color: TERRAIN_BIOME_COLORS.desert, label: "Wüste" },
+	{ color: TERRAIN_BIOME_COLORS.barrens, label: "Ödland" },
+	{ color: `rgb(${WATER_COLOR.r}, ${WATER_COLOR.g}, ${WATER_COLOR.b})`, label: "Wasser" },
 ];
 </script>
 
@@ -328,18 +412,18 @@ const legend: Array<{ biome: BiomeId; label: string }> = [
 				<div class="stats-grid">
 					<div>
 						<span class="stat-label">Dominant</span>
-						<strong>{worldMap.stats.dominantBiome}</strong>
+						<strong>{worldMap.dominantBiome}</strong>
 					</div>
 					<div>
-						<span class="stat-label">Avg. Moisture</span>
-						<strong>{worldMap.stats.averageMoisture.toFixed(2)}</strong>
+						<span class="stat-label">Wasser</span>
+						<strong>{(worldMap.waterFraction * 100).toFixed(1)}%</strong>
 					</div>
 				</div>
 
 				<div class="legend">
 					{#each legend as item}
 						<span class="legend-item">
-							<span class="legend-swatch" style={`background: ${colorForBiome(item.biome)}`}></span>
+							<span class="legend-swatch" style={`background: ${item.color}`}></span>
 							{item.label}
 						</span>
 					{/each}

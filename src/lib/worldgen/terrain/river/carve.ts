@@ -45,6 +45,21 @@ export function applyRiverCarve(
 		return { height, waterSurfaceHeight: height, waterDepth: 0, isWater: false };
 	}
 
+	// Lake: flood the natural basin. The water surface is flat (the lake level);
+	// the bed is the existing terrain (lakes are deep in the middle, shallow at
+	// the rim) — we don't carve a flat disc, so hills around the basin keep the
+	// water contained.
+	if (river.isLake) {
+		const waterSurfaceHeight = river.waterSurface;
+		const isWater = height < waterSurfaceHeight;
+		return {
+			height,
+			waterSurfaceHeight,
+			waterDepth: isWater ? waterSurfaceHeight - height : 0,
+			isWater,
+		};
+	}
+
 	const half = river.halfWidth;
 	// Narrow the bank transition in steep terrain (gorge), keep it wide in
 	// flat terrain (floodplain). Clamp so banks never collapse below the channel.

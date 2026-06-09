@@ -127,11 +127,13 @@ export function computeTerrainData<
     const point = sample(wx, wz);
     heights[i] = point.height;
 
+    // Always record the water-surface elevation (the smooth carve profile, or
+    // the ground where there is no river). The mask flags actual open water.
+    // Storing it for every vertex lets a shoreline triangle that is only
+    // partly under water still sit at the correct, flat water level.
+    waterHeights[i] = point.waterSurfaceHeight ?? point.height + (point.waterDepth ?? 0);
     if (point.isWater === true || (point.waterDepth ?? 0) > 0.015) {
       waterMask[i] = 1;
-      // Use the smooth water-surface elevation from the carve; fall back to
-      // bed + depth for samples that only expose a depth.
-      waterHeights[i] = point.waterSurfaceHeight ?? point.height + (point.waterDepth ?? 0);
     }
 
     echo.apply(tmpEcho, point, echo.palette);

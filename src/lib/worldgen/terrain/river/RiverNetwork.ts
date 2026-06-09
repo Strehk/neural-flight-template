@@ -18,10 +18,13 @@
  * No THREE imports — pure data, runs in the worker.
  */
 
-import type { NoiseStack } from "$lib/three/world/NoiseStack";
+import { fbm, type NoiseStack } from "$lib/three/world/NoiseStack";
+import { saturate, smoothRange } from "$lib/three/world/math";
 import type { TerrainBiomeId } from "../biome-types";
-import { sampleMacro } from "./macro-height";
+import { sampleMacro, routingHeightLite } from "./macro-height";
 import {
+	lakeRadius,
+	lakeRise,
 	riverBedDepth,
 	riverHalfWidth,
 	riverValleyWidth,
@@ -61,6 +64,8 @@ export interface RiverSegment {
 	bedDepth: number;
 	valleyWidth: number;
 	isWaterfall: boolean;
+	/** Lake "segment" — a degenerate point (a==b) that floods its basin. */
+	isLake: boolean;
 }
 
 /** Resolved river influence at a query point — consumed by the height carve. */
@@ -79,6 +84,8 @@ export interface RiverSample {
 	isWaterfall: boolean;
 	/** True if discharge is high enough to render an open water surface. */
 	hasWater: boolean;
+	/** True when this is a lake basin (flood, don't carve a channel bed). */
+	isLake: boolean;
 }
 
 const FNV_OFFSET = 0x811c9dc5;
@@ -184,6 +191,27 @@ export class RiverNetwork {
 			node.downKey = bestKey;
 		}
 
+		// 2b. Spring bias (Rule 7): a headwater leaf (no upstream donor) in a
+		// high / steep / wet / snowy place becomes a spring and gets extra
+		// discharge, so water starts right at the source instead of appearing
+		// some way downstream. Non-spring leaves stay dry gullies.
+		const downstreamTargets = new Set<string>();
+		for (const node of nodes.values()) {
+			if (node.downKey) downstreamTargets.add(node.downKey);
+		}
+		for (const node of nodes.values()) {
+			if (downstreamTargets.has(`${node.i},${node.j}`)) continue; // not a leaf
+			const down = node.downKey ? nodes.get(node.downKey) : null;
+			const dist = down ? Math.hypot(down.x - node.x, down.z - node.z) || 1 : 1;
+			const slope = down ? saturate(((node.elev - down.elev) / dist) * 6) : 0;
+			const elevFactor = smoothRange(node.elev, 12, 70);
+			const snowFactor = saturate((1 - node.temperature) * 0.7 + elevFactor * 0.5 - 0.2);
+			const springScore = saturate(
+				elevFactor * 0.4 + slope * 0.35 + node.moisture * 0.45 + snowFactor * 0.35,
+			);
+			if (springScore > config.springThreshold) node.q += config.springBonus;
+		}
+
 		// Process high→low: a node's donors are all strictly higher, so they
 		// are visited first. This makes both accumulation and Strahler single-pass.
 		const sorted = [...nodes.values()].sort((a, b) => b.elev - a.elev);
@@ -209,7 +237,12 @@ export class RiverNetwork {
 			}
 		}
 
-		// 5. Segments with monotone-falling water surface.
+		// 5. Curved sub-segments with a monotone-falling water surface.
+		// Each node→down edge becomes a quadratic Bézier whose control point is
+		// pushed sideways toward lower terrain (the river bends around hills) +
+		// a small meander in flat ground. Sub-dividing the curve gives dense,
+		// overlapping channels so the carved trench stays continuous (no gaps).
+		const K = Math.max(1, Math.floor(config.subdivisions));
 		for (const node of sorted) {
 			if (!node.downKey) continue;
 			if (node.q < config.carveMinQ) continue;
@@ -226,19 +259,103 @@ export class RiverNetwork {
 				node.order <= config.waterfallMaxOrder && drop / length > config.waterfallSlope;
 
 			const q = node.q;
+			const halfWidth = riverHalfWidth(config, q);
+			const bedDepth = riverBedDepth(config, q);
+			const valleyWidth = riverValleyWidth(config, q);
+
+			// Control point: midpoint nudged perpendicular toward lower ground.
+			const midX = (node.x + down.x) / 2;
+			const midZ = (node.z + down.z) / 2;
+			const perpX = -dz / length;
+			const perpZ = dx / length;
+			const probe = config.nudgeRadius;
+			const hPlus = routingHeightLite(noise, midX + perpX * probe, midZ + perpZ * probe, biomeScale, mountainHeight);
+			const hMinus = routingHeightLite(noise, midX - perpX * probe, midZ - perpZ * probe, biomeScale, mountainHeight);
+			// Move toward the lower side; clamp the magnitude.
+			let offset = (hMinus - hPlus) * config.nudgeGain;
+			if (offset > config.maxNudge) offset = config.maxNudge;
+			else if (offset < -config.maxNudge) offset = -config.maxNudge;
+			// Flat terrain (small cross-gradient) → add a gentle noise meander.
+			const flatness = saturate(1 - Math.abs(hPlus - hMinus) / 8);
+			const meander =
+				fbm(noise.getNoise("basins"), midX * config.meanderFreq, midZ * config.meanderFreq, 2, 2, 0.5) *
+				config.meanderAmp *
+				flatness;
+			const ctrlX = midX + perpX * (offset + meander);
+			const ctrlZ = midZ + perpZ * (offset + meander);
+
+			let prevX = node.x;
+			let prevZ = node.z;
+			let prevW = aWater;
+			for (let k = 1; k <= K; k++) {
+				const t = k / K;
+				const mt = 1 - t;
+				const bx = mt * mt * node.x + 2 * mt * t * ctrlX + t * t * down.x;
+				const bz = mt * mt * node.z + 2 * mt * t * ctrlZ + t * t * down.z;
+				// Anchor the water surface to the macro terrain UNDER the curve
+				// (the curve bends toward lower ground, so the straight node
+				// interpolation would float the surface above the valley and
+				// pool deep). Sample macro at the curve point, minus inset, and
+				// clamp monotone-decreasing into [bWater, prevW] so it never
+				// rises and meets the downstream node exactly.
+				let bw: number;
+				if (k === K) {
+					bw = bWater;
+				} else {
+					const macro = sampleMacro(noise, bx, bz, biomeScale, mountainHeight, biomeMultipliers).height - config.surfaceInset;
+					bw = macro > prevW ? prevW : macro < bWater ? bWater : macro;
+				}
+				const seg: RiverSegment = {
+					ax: prevX,
+					az: prevZ,
+					aWater: prevW,
+					bx,
+					bz,
+					bWater: bw,
+					q,
+					order: node.order,
+					halfWidth,
+					bedDepth,
+					valleyWidth,
+					isWaterfall,
+					isLake: false,
+				};
+				const index = this.segments.push(seg) - 1;
+				this.insertSegment(index, seg);
+				prevX = bx;
+				prevZ = bz;
+				prevW = bw;
+			}
+		}
+
+		// 6. Lakes (Rule 11): a sink (local minimum) that collects enough inflow
+		// becomes a lake. Modelled as a degenerate point-segment whose flood
+		// radius + level scale with the inflow discharge (bigger river → bigger
+		// lake). The carve floods the basin rather than cutting a channel, so a
+		// river entering a sink ends in a lake instead of stopping abruptly.
+		for (const node of sorted) {
+			if (node.downKey) continue; // not a sink
+			if (node.q < config.lakeMinQ) continue;
+			// Level uses a constant rise over the sink floor (node.elev is a pure
+			// function ⇒ window-independent ⇒ no border seam). Lake *size* still
+			// scales with inflow via the radius (bigger river → bigger/deeper lake
+			// as more of the basin floods); the radius isn't seam-critical.
+			const level = node.elev + lakeRise(config, config.lakeMinQ);
+			const radius = lakeRadius(config, node.q);
 			const seg: RiverSegment = {
 				ax: node.x,
 				az: node.z,
-				aWater,
-				bx: down.x,
-				bz: down.z,
-				bWater,
-				q,
+				aWater: level,
+				bx: node.x,
+				bz: node.z,
+				bWater: level,
+				q: node.q,
 				order: node.order,
-				halfWidth: riverHalfWidth(config, q),
-				bedDepth: riverBedDepth(config, q),
-				valleyWidth: riverValleyWidth(config, q),
-				isWaterfall,
+				halfWidth: radius,
+				bedDepth: 0,
+				valleyWidth: radius,
+				isWaterfall: false,
+				isLake: true,
 			};
 			const index = this.segments.push(seg) - 1;
 			this.insertSegment(index, seg);
@@ -273,28 +390,55 @@ export class RiverNetwork {
 		const list = this.bins.get(key);
 		if (!list) return null;
 
-		let best: RiverSegment | null = null;
-		let bestDist = Infinity;
-		let bestT = 0;
+		// Track the nearest river segment and, separately, any lake the point
+		// falls inside. A lake the point sits within wins over a river feeding
+		// it, so the junction reads as "river enters lake" not "channel".
+		let bestRiver: RiverSegment | null = null;
+		let bestRiverDist = Infinity;
+		let bestRiverT = 0;
+		let bestLake: RiverSegment | null = null;
+		let bestLakeDist = Infinity;
 		for (const idx of list) {
 			const seg = this.segments[idx];
 			const { distance, t } = distanceToSegment(x, z, seg);
-			if (distance <= seg.valleyWidth && distance < bestDist) {
-				bestDist = distance;
-				bestT = t;
-				best = seg;
+			if (seg.isLake) {
+				if (distance <= seg.halfWidth && distance < bestLakeDist) {
+					bestLakeDist = distance;
+					bestLake = seg;
+				}
+			} else if (distance <= seg.valleyWidth && distance < bestRiverDist) {
+				bestRiverDist = distance;
+				bestRiverT = t;
+				bestRiver = seg;
 			}
 		}
+
+		if (bestLake) {
+			return {
+				distance: bestLakeDist,
+				waterSurface: bestLake.aWater,
+				bed: bestLake.aWater,
+				halfWidth: bestLake.halfWidth,
+				valleyWidth: bestLake.valleyWidth,
+				bedDepth: 0,
+				q: bestLake.q,
+				order: bestLake.order,
+				isWaterfall: false,
+				hasWater: bestLake.q >= this.config.waterMinQ,
+				isLake: true,
+			};
+		}
+
+		const best = bestRiver;
 		if (!best) return null;
 
-		const waterSurface = best.isWaterfall
-			? bestT < 0.5
-				? best.aWater
-				: best.bWater
-			: best.aWater + (best.bWater - best.aWater) * bestT;
+		// Linear interpolation keeps the surface smooth and monotone along the
+		// curve. (isWaterfall is kept as metadata for later visual treatment;
+		// stepping it per sub-segment would jag the surface.)
+		const waterSurface = best.aWater + (best.bWater - best.aWater) * bestRiverT;
 
 		return {
-			distance: bestDist,
+			distance: bestRiverDist,
 			waterSurface,
 			bed: waterSurface - best.bedDepth,
 			halfWidth: best.halfWidth,
@@ -304,6 +448,7 @@ export class RiverNetwork {
 			order: best.order,
 			isWaterfall: best.isWaterfall,
 			hasWater: best.q >= this.config.waterMinQ,
+			isLake: false,
 		};
 	}
 }
