@@ -24,6 +24,13 @@ export interface RiverConfig {
 	nodeSpacing: number;
 	/** Jitter applied to each lattice node, as a fraction of nodeSpacing. */
 	nodeJitter: number;
+	/**
+	 * Depression resolution: when a node is a local minimum, search outward up
+	 * to this many lattice rings for a lower node to "jump" to (the river cuts
+	 * across the small rise and keeps flowing). 0 disables — rivers then stop at
+	 * every little basin. Bounded ⇒ stays deterministic / seam-safe.
+	 */
+	maxJumpCells: number;
 	/** Max regions kept in the LRU before eviction. */
 	maxCachedRegions: number;
 
@@ -93,6 +100,7 @@ export const BAT_RIVER_DEFAULTS: RiverConfig = {
 	regionMargin: 2048,
 	nodeSpacing: 80,
 	nodeJitter: 0.62,
+	maxJumpCells: 6,
 	maxCachedRegions: 6,
 
 	minHalfWidth: 1.4,

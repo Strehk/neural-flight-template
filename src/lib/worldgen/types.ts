@@ -41,6 +41,27 @@ export interface VegetationConfig {
 	rockRatio: number;
 }
 
+/**
+ * River tuning exposed in the Terrain Builder UI. Each knob is normalised
+ * [0,1] (0.5 ≈ the built-in defaults) and maps to the engine RiverConfig via
+ * `riverPresetToConfig` (preset-adapter.ts), so it drives both the preview
+ * and the streamed flight.
+ */
+export interface RiverPresetConfig {
+	/** River density — more sources / closer channels. */
+	density: number;
+	/** Channel width scale. */
+	width: number;
+	/** Channel depth scale. */
+	depth: number;
+	/** Lake size scale. */
+	lakeSize: number;
+	/** How strongly rivers bend around hills + meander. */
+	curviness: number;
+	/** Overall amount of open water (lower threshold + more springs). */
+	amount: number;
+}
+
 export interface WorldStreamingConfig {
 	chunkSize: number;
 	buildRadius: number;
@@ -60,6 +81,8 @@ export interface WorldPreset {
 	biomes: BiomeRuleConfig;
 	vegetation: VegetationConfig;
 	streaming: WorldStreamingConfig;
+	/** Optional river tuning; falls back to defaults when absent (older presets). */
+	river?: RiverPresetConfig;
 }
 
 export interface BaseWorldSample {
@@ -118,7 +141,13 @@ export type WorldParameterPath =
 	| "vegetation.clearingAmount"
 	| "vegetation.treeRatio"
 	| "vegetation.bushRatio"
-	| "vegetation.rockRatio";
+	| "vegetation.rockRatio"
+	| "river.density"
+	| "river.width"
+	| "river.depth"
+	| "river.lakeSize"
+	| "river.curviness"
+	| "river.amount";
 
 export interface WorldParameterDef {
 	id: WorldParameterPath;

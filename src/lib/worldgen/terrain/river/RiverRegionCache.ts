@@ -18,7 +18,7 @@
 
 import type { NoiseStack } from "$lib/three/world/NoiseStack";
 import type { TerrainBiomeId } from "../biome-types";
-import { RiverNetwork, type RiverSample } from "./RiverNetwork";
+import { RiverNetwork, type RiverSample, type RiverSegment } from "./RiverNetwork";
 import type { RiverConfig } from "./river-config";
 
 interface CachedRegion {
@@ -59,6 +59,19 @@ export class RiverRegionCache {
 	/** Resolve the nearest river influence at (x, z), or null if none nearby. */
 	sample(x: number, z: number): RiverSample | null {
 		return this.getRegionForPoint(x, z).network.sampleAt(x, z);
+	}
+
+	/** All river/lake segments in the regions covering a world-space rectangle.
+	 *  Used by the map preview to draw rivers as crisp vector lines. */
+	collectSegments(minX: number, minZ: number, maxX: number, maxZ: number): RiverSegment[] {
+		const R = this.config.regionSize;
+		const out: RiverSegment[] = [];
+		for (let gz = Math.floor(minZ / R); gz <= Math.floor(maxZ / R); gz++) {
+			for (let gx = Math.floor(minX / R); gx <= Math.floor(maxX / R); gx++) {
+				out.push(...this.getRegion(gx, gz).network.segments);
+			}
+		}
+		return out;
 	}
 
 	private getRegionForPoint(x: number, z: number): CachedRegion {

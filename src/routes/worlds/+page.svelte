@@ -2,8 +2,11 @@
 import { ChevronLeft, Copy, Database, Droplets, Save, SlidersHorizontal } from "lucide-svelte";
 import { onMount } from "svelte";
 import PageHeader from "$lib/components/PageHeader.svelte";
+import { listExperiences } from "$lib/experiences/catalog";
+import { getActiveExperienceId, setActiveExperienceId } from "$lib/experiences/loader";
 import {
 	cloneWorldPreset,
+	DEFAULT_RIVER_PRESET,
 	getActiveWorldPresetId,
 	getWorldPreset,
 	listWorldPresets,
@@ -15,6 +18,7 @@ import {
 	WORLD_PRESETS,
 } from "$lib/worldgen";
 import type {
+	RiverSegment,
 	TerrainBiomeId,
 	WorldParameterDef,
 	WorldParameterPath,
@@ -53,6 +57,10 @@ interface PreviewMap {
 	maxHeight: number;
 	dominantBiome: TerrainBiomeId;
 	waterFraction: number;
+	/** River/lake segments in world coords — drawn as crisp vector lines. */
+	segments: RiverSegment[];
+	/** World span the cells/segments cover (for the world→canvas transform). */
+	span: number;
 }
 
 /**
@@ -93,6 +101,8 @@ function buildPreview(source: WorldPreset): PreviewMap {
 		maxHeight,
 		dominantBiome,
 		waterFraction: waterCount / Math.max(1, cells.length),
+		segments: sampler.riverSegments(-half, -half, half, half),
+		span: PREVIEW_SPAN,
 	};
 }
 
@@ -105,7 +115,21 @@ let saveMessage = $state("");
 let previewRevision = $state(0);
 let activeParameterGroup = $state("Terrain");
 
-const worldMap = $derived(buildPreview(preset));
+// Sampling the real pipeline is heavier than the old preview, so debounce the
+// rebuild: slider values update instantly, the map recomputes ~140 ms after the
+// last change instead of on every drag frame. Starts empty; the effect below
+// fills it on mount.
+let worldMap = $state<PreviewMap>({
+	size: 0,
+	cells: [],
+	minHeight: 0,
+	maxHeight: 1,
+	dominantBiome: "grassland",
+	waterFraction: 0,
+	segments: [],
+	span: PREVIEW_SPAN,
+});
+let rebuildTimer: ReturnType<typeof setTimeout> | undefined;
 const groupedParameters = $derived(groupParameters(WORLD_PARAMETER_DEFS));
 const activeParameterTitle = $derived(
 	groupedParameters.some(([group]) => group === activeParameterGroup)
@@ -123,9 +147,20 @@ onMount(() => {
 	draftName = `${preset.name} Copy`;
 });
 
+// Debounced recompute: re-run buildPreview a beat after the preset settles.
+$effect(() => {
+	previewRevision;
+	preset;
+	clearTimeout(rebuildTimer);
+	const snapshot = preset;
+	rebuildTimer = setTimeout(() => {
+		worldMap = buildPreview(snapshot);
+	}, 140);
+	return () => clearTimeout(rebuildTimer);
+});
+
 $effect(() => {
 	if (!canvas) return;
-	previewRevision;
 	drawMap(canvas, worldMap);
 });
 
@@ -155,6 +190,22 @@ function sanitizeId(name: string): string {
 	return id.length > 0 ? id : `world-${Date.now()}`;
 }
 
+/**
+ * Only experiences with `world.supported` consume the preset (river/terrain
+ * settings). The default experience (mountain-flight) ignores it — which is
+ * why edits seemed to have no effect in VR. Opening VR from here re-saves the
+ * current edits as the active preset AND switches to a preset-consuming
+ * experience so the sliders actually apply.
+ */
+function prepareVr(): void {
+	assignCurrentPreset();
+	const current = getActiveExperienceId();
+	const supporting = listExperiences().filter((exp) => exp.world?.supported);
+	if (!supporting.some((exp) => exp.id === current) && supporting[0]) {
+		setActiveExperienceId(supporting[0].id);
+	}
+}
+
 function selectPreset(id: string): void {
 	selectedPresetId = id;
 	preset = getWorldPreset(id);
@@ -179,10 +230,11 @@ function saveCurrentPreset(): void {
 }
 
 function assignCurrentPreset(): void {
+	const baseName = preset.name.replace(/( Draft)+$/, "");
 	const next: WorldPreset = {
 		...cloneWorldPreset(preset),
 		id: "active-world-draft",
-		name: `${preset.name} Draft`,
+		name: `${baseName} Draft`,
 		version: "0.1.0",
 	};
 	saveCustomWorldPreset(next);
@@ -195,9 +247,28 @@ function assignCurrentPreset(): void {
 
 function updateParameter(path: WorldParameterPath, value: number): void {
 	const next = cloneWorldPreset(preset);
+	if (!next.river) next.river = { ...DEFAULT_RIVER_PRESET };
 	switch (path) {
 		case "seed":
 			next.seed = value;
+			break;
+		case "river.density":
+			next.river.density = value;
+			break;
+		case "river.width":
+			next.river.width = value;
+			break;
+		case "river.depth":
+			next.river.depth = value;
+			break;
+		case "river.lakeSize":
+			next.river.lakeSize = value;
+			break;
+		case "river.curviness":
+			next.river.curviness = value;
+			break;
+		case "river.amount":
+			next.river.amount = value;
 			break;
 		case "terrain.heightScale":
 			next.terrain.heightScale = value;
@@ -324,6 +395,18 @@ function getParameterValue(path: WorldParameterPath): number {
 			return preset.vegetation.bushRatio;
 		case "vegetation.rockRatio":
 			return preset.vegetation.rockRatio;
+		case "river.density":
+			return preset.river?.density ?? DEFAULT_RIVER_PRESET.density;
+		case "river.width":
+			return preset.river?.width ?? DEFAULT_RIVER_PRESET.width;
+		case "river.depth":
+			return preset.river?.depth ?? DEFAULT_RIVER_PRESET.depth;
+		case "river.lakeSize":
+			return preset.river?.lakeSize ?? DEFAULT_RIVER_PRESET.lakeSize;
+		case "river.curviness":
+			return preset.river?.curviness ?? DEFAULT_RIVER_PRESET.curviness;
+		case "river.amount":
+			return preset.river?.amount ?? DEFAULT_RIVER_PRESET.amount;
 	}
 }
 
@@ -336,16 +419,42 @@ function drawMap(target: HTMLCanvasElement, map: PreviewMap): void {
 	ctx.imageSmoothingEnabled = false;
 	ctx.clearRect(0, 0, target.width, target.height);
 
+	// Base layer: biome colour shaded by height.
 	const range = Math.max(1e-3, map.maxHeight - map.minHeight);
 	for (let i = 0; i < map.cells.length; i++) {
 		const cell = map.cells[i];
 		const gridX = i % map.size;
 		const gridZ = Math.floor(i / map.size);
 		const nh = (cell.height - map.minHeight) / range;
-		ctx.fillStyle = cell.isWater
-			? shadeWater(nh)
-			: shadeBiome(previewColorForBiome(cell.biome), nh);
+		ctx.fillStyle = shadeBiome(previewColorForBiome(cell.biome), nh);
 		ctx.fillRect(gridX * scale, gridZ * scale, scale, scale);
+	}
+
+	// Water layer: draw the real river/lake segments as crisp vector shapes,
+	// so thin rivers read as continuous lines instead of dotted samples.
+	const pxPerWorld = (map.size * scale) / map.span;
+	const half = map.span / 2;
+	const toX = (wx: number) => (wx + half) * pxPerWorld;
+	const toZ = (wz: number) => (wz + half) * pxPerWorld;
+	const fill = `rgb(${WATER_COLOR.r}, ${WATER_COLOR.g}, ${WATER_COLOR.b})`;
+	ctx.fillStyle = fill;
+	ctx.strokeStyle = fill;
+	ctx.lineCap = "round";
+	ctx.lineJoin = "round";
+	// Lakes first (filled discs), then rivers on top.
+	for (const seg of map.segments) {
+		if (!seg.isLake) continue;
+		ctx.beginPath();
+		ctx.arc(toX(seg.ax), toZ(seg.az), Math.max(1.5, seg.halfWidth * pxPerWorld), 0, Math.PI * 2);
+		ctx.fill();
+	}
+	for (const seg of map.segments) {
+		if (seg.isLake) continue;
+		ctx.lineWidth = Math.max(1, seg.halfWidth * 2 * pxPerWorld);
+		ctx.beginPath();
+		ctx.moveTo(toX(seg.ax), toZ(seg.az));
+		ctx.lineTo(toX(seg.bx), toZ(seg.bz));
+		ctx.stroke();
 	}
 }
 
@@ -353,11 +462,6 @@ function shadeBiome(hex: string, height: number): string {
 	const rgb = hexToRgb(hex);
 	const shade = 0.62 + height * 0.5;
 	return `rgb(${Math.round(rgb.r * shade)}, ${Math.round(rgb.g * shade)}, ${Math.round(rgb.b * shade)})`;
-}
-
-function shadeWater(height: number): string {
-	const shade = 0.6 + height * 0.5;
-	return `rgb(${Math.round(WATER_COLOR.r * shade)}, ${Math.round(WATER_COLOR.g * shade)}, ${Math.round(WATER_COLOR.b * shade)})`;
 }
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
@@ -469,7 +573,7 @@ const legend: Array<{ color: string; label: string }> = [
 						<p class="save-message">
 							{saveMessage}
 							{#if saveMessage.includes("Gespeichert") || saveMessage.includes("assigned")}
-								<a href="/vr" class="vr-link">VR öffnen →</a>
+								<a href="/vr" class="vr-link" onclick={prepareVr}>VR öffnen →</a>
 							{/if}
 						</p>
 					{/if}

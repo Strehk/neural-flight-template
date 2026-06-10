@@ -100,11 +100,11 @@ function fnv1a(s: string): string {
  * present on `BAT_NOISE_DEFAULTS`). Update only when a deliberate world
  * change ships — and add a note in the commit explaining what changed.
  *
- * Re-pinned 2026-06-09: river quality pass — terrain-driven curved sub-segments
- * (bend toward lower ground), spring-biased sources, sharper width hierarchy,
- * and macro-anchored water surfaces. Carve geometry near rivers shifted.
+ * Re-pinned 2026-06-10: open water now fills only the channel (2·halfWidth) with
+ * a bed→rim cross-section; banks are dry valley. River width is fully controlled
+ * by the width knob (reaches ~0). Carve cross-section changed near rivers.
  */
-const PINNED_HASH = "5198c1b5";
+const PINNED_HASH = "8b79bf7c";
 
 // ---------------------------------------------------------------------------
 // Run

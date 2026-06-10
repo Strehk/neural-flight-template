@@ -60,32 +60,36 @@ export function applyRiverCarve(
 		};
 	}
 
+	const d = river.distance;
 	const half = river.halfWidth;
-	// Narrow the bank transition in steep terrain (gorge), keep it wide in
-	// flat terrain (floodplain). Clamp so banks never collapse below the channel.
+	const ws = river.waterSurface;
+	const bed = river.bed; // ws - bedDepth
+	// Narrow the bank transition in steep terrain (gorge), keep it wide in flat
+	// terrain (floodplain). The bank is DRY valley — it shapes the land but does
+	// not hold water.
 	const g = gorge < 0 ? 0 : gorge > 1 ? 1 : gorge;
 	const valley = half + (river.valleyWidth - half) * (1 - 0.6 * g);
 
-	let factor: number;
-	if (river.distance <= half) {
-		factor = 1;
-	} else if (river.distance >= valley) {
-		factor = 0;
+	let newHeight: number;
+	if (d <= half && half > 0) {
+		// Channel: bed at the centre rising to the water surface exactly at the
+		// rim, so the OPEN WATER spans 2·halfWidth — fully controlled by the
+		// width knob (and reaches ~0 when set to 0).
+		const t = smootherstep(d / half);
+		newHeight = bed + (ws - bed) * t;
+	} else if (d < valley) {
+		// Dry bank: from the water rim up to the surrounding terrain.
+		const t = smootherstep((d - half) / Math.max(1e-3, valley - half));
+		newHeight = ws + (height - ws) * t;
 	} else {
-		factor = 1 - smootherstep((river.distance - half) / (valley - half));
+		newHeight = height;
 	}
+	// Never raise terrain above the original ground (a river can't build a hill).
+	if (newHeight > height) newHeight = height;
 
-	// Blend the composed terrain toward the channel bed. In the channel
-	// (factor 1) this SETS the bed exactly, so depth is controlled (= bedDepth)
-	// and local detail bumps/potholes inside the channel are levelled into a
-	// coherent bed. Because the routing surface tracks the real terrain (minus
-	// detail), the bed sits just below the ground here — this lowers terrain in
-	// the common case and only fills shallow detail dips up to the bed.
-	const newHeight = height + (river.bed - height) * factor;
-
-	const waterSurfaceHeight = river.waterSurface;
-	const isWater = river.hasWater && newHeight < waterSurfaceHeight;
-	const waterDepth = isWater ? waterSurfaceHeight - newHeight : 0;
+	const waterSurfaceHeight = ws;
+	const isWater = river.hasWater && newHeight < ws;
+	const waterDepth = isWater ? ws - newHeight : 0;
 
 	return { height: newHeight, waterSurfaceHeight, waterDepth, isWater };
 }

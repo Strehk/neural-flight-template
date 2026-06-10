@@ -76,6 +76,7 @@ export {
 	type TerrainSample,
 	type TerrainSamplerOptions,
 } from "./terrain/terrain-sampler";
+export type { RiverSegment, RiverSample } from "./terrain/river/RiverNetwork";
 export {
 	sampleBiome,
 	type BiomeContext,
@@ -99,6 +100,8 @@ export {
 	type EchoMaterial,
 } from "./terrain/acoustics";
 export {
+	DEFAULT_RIVER_PRESET,
+	riverPresetToConfig,
 	worldPresetToTerrainBiomeMultipliers,
 	worldPresetToTerrainConfig,
 	type TerrainConfigOverrides,

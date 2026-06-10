@@ -177,7 +177,12 @@ export class RiverNetwork {
 			}
 		}
 
-		// 2. Steepest-descent edge: lowest strictly-lower neighbour.
+		// 2. Steepest-descent edge: lowest strictly-lower neighbour. When a node
+		// is a local minimum, search outward in rings (depression jump) for the
+		// nearest lower node so the river crosses the small rise and keeps
+		// flowing instead of stopping at every little basin. Bounded radius ⇒
+		// still a pure function of a fixed neighbourhood ⇒ seam-safe.
+		const maxJump = Math.max(0, Math.floor(config.maxJumpCells));
 		for (const node of nodes.values()) {
 			let bestKey: string | null = null;
 			let bestElev = node.elev;
@@ -186,6 +191,23 @@ export class RiverNetwork {
 				if (nb && nb.elev < bestElev) {
 					bestElev = nb.elev;
 					bestKey = `${nb.i},${nb.j}`;
+				}
+			}
+			if (!bestKey && maxJump >= 2) {
+				for (let r = 2; r <= maxJump && !bestKey; r++) {
+					let ringElev = node.elev;
+					let ringKey: string | null = null;
+					for (let dj = -r; dj <= r; dj++) {
+						for (let di = -r; di <= r; di++) {
+							if (Math.max(Math.abs(di), Math.abs(dj)) !== r) continue; // ring perimeter
+							const nb = nodes.get(`${node.i + di},${node.j + dj}`);
+							if (nb && nb.elev < ringElev) {
+								ringElev = nb.elev;
+								ringKey = `${nb.i},${nb.j}`;
+							}
+						}
+					}
+					if (ringKey) bestKey = ringKey;
 				}
 			}
 			node.downKey = bestKey;

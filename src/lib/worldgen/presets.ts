@@ -48,6 +48,7 @@ export const WORLD_PRESETS: WorldPreset[] = [
 			maxBuildsPerFrame: 1,
 			workerCount: 2,
 		},
+		river: { density: 0.5, width: 0.5, depth: 0.5, lakeSize: 0.5, curviness: 0.5, amount: 0.5 },
 	},
 	{
 		id: "alpine-forest",
@@ -94,6 +95,7 @@ export const WORLD_PRESETS: WorldPreset[] = [
 			maxBuildsPerFrame: 1,
 			workerCount: 2,
 		},
+		river: { density: 0.5, width: 0.5, depth: 0.5, lakeSize: 0.5, curviness: 0.5, amount: 0.5 },
 	},
 	{
 		id: "fungal-valley",
@@ -140,6 +142,7 @@ export const WORLD_PRESETS: WorldPreset[] = [
 			maxBuildsPerFrame: 1,
 			workerCount: 2,
 		},
+		river: { density: 0.5, width: 0.5, depth: 0.5, lakeSize: 0.5, curviness: 0.5, amount: 0.5 },
 	},
 	{
 		id: "dry-steppe",
@@ -186,33 +189,30 @@ export const WORLD_PRESETS: WorldPreset[] = [
 			maxBuildsPerFrame: 1,
 			workerCount: 2,
 		},
+		river: { density: 0.5, width: 0.5, depth: 0.5, lakeSize: 0.5, curviness: 0.5, amount: 0.5 },
 	},
 ];
 
+// Only parameters that actually drive the current (post-refactor) pipeline are
+// exposed, grouped for the Terrain Builder. The old terrain/climate noise knobs
+// belonged to the retired standalone sampler and are intentionally omitted.
 export const WORLD_PARAMETER_DEFS: WorldParameterDef[] = [
 	{ id: "seed", label: "Seed", group: "Terrain", min: 1, max: 99999, step: 1 },
 	{ id: "terrain.heightScale", label: "Höhe", group: "Terrain", min: 8, max: 120, step: 1, unit: "m" },
-	{ id: "terrain.continentScale", label: "Kontinente", group: "Terrain", min: 0.1, max: 1.4, step: 0.01 },
-	{ id: "terrain.ridgeStrength", label: "Bergkämme", group: "Terrain", min: 0, max: 1, step: 0.01 },
-	{ id: "terrain.basinDepth", label: "Becken", group: "Terrain", min: 0, max: 0.8, step: 0.01 },
-	{ id: "terrain.detailAmplitude", label: "Detail", group: "Terrain", min: 0, max: 0.6, step: 0.01 },
-	{ id: "terrain.cliffThreshold", label: "Klippen-Schwelle", group: "Terrain", min: 0.45, max: 0.98, step: 0.01 },
-	{ id: "terrain.waterLevel", label: "Höhen-Offset", group: "Terrain", min: 0.1, max: 0.7, step: 0.01 },
-	{ id: "climate.temperatureBias", label: "Temperatur", group: "Klima", min: 0, max: 1, step: 0.01 },
-	{ id: "climate.moistureBias", label: "Feuchtigkeit", group: "Klima", min: 0, max: 1, step: 0.01 },
-	{ id: "climate.rainfallAmount", label: "Regenmenge", group: "Klima", min: 0, max: 1, step: 0.01 },
-	{ id: "climate.windDirectionDeg", label: "Windrichtung", group: "Klima", min: 0, max: 360, step: 1, unit: "°" },
-	{ id: "climate.altitudeCooling", label: "Höhenkühlung", group: "Klima", min: 0, max: 0.8, step: 0.01 },
+	{ id: "terrain.continentScale", label: "Feature-Größe", group: "Terrain", min: 0.3, max: 1.4, step: 0.01 },
 	{ id: "biomes.forestWeight", label: "Wald", group: "Biome", min: 0, max: 1, step: 0.01 },
-	{ id: "biomes.drySteppeWeight", label: "Trockensteppe", group: "Biome", min: 0, max: 1, step: 0.01 },
-	{ id: "biomes.alpineWeight", label: "Alpin", group: "Biome", min: 0, max: 1, step: 0.01 },
-	{ id: "biomes.transitionSoftness", label: "Übergänge", group: "Biome", min: 0, max: 0.7, step: 0.01 },
+	{ id: "biomes.fungalWeight", label: "Pilz", group: "Biome", min: 0, max: 1, step: 0.01 },
+	{ id: "biomes.drySteppeWeight", label: "Steppe / Wüste", group: "Biome", min: 0, max: 1, step: 0.01 },
+	{ id: "biomes.alpineWeight", label: "Alpin / Schnee", group: "Biome", min: 0, max: 1, step: 0.01 },
+	{ id: "river.amount", label: "Wassermenge", group: "Flüsse", min: 0, max: 1, step: 0.01 },
+	{ id: "river.density", label: "Dichte", group: "Flüsse", min: 0, max: 1, step: 0.01 },
+	{ id: "river.width", label: "Breite", group: "Flüsse", min: 0, max: 1, step: 0.01 },
+	{ id: "river.depth", label: "Tiefe", group: "Flüsse", min: 0, max: 1, step: 0.01 },
+	{ id: "river.lakeSize", label: "Seen", group: "Flüsse", min: 0, max: 1, step: 0.01 },
+	{ id: "river.curviness", label: "Kurven", group: "Flüsse", min: 0, max: 1, step: 0.01 },
 	{ id: "vegetation.density", label: "Dichte", group: "Vegetation", min: 0, max: 1, step: 0.01 },
-	{ id: "vegetation.clustering", label: "Cluster", group: "Vegetation", min: 0, max: 1, step: 0.01 },
-	{ id: "vegetation.clearingAmount", label: "Lichtungen", group: "Vegetation", min: 0, max: 1, step: 0.01 },
 	{ id: "vegetation.treeRatio", label: "Bäume", group: "Vegetation", min: 0, max: 1, step: 0.01 },
 	{ id: "vegetation.bushRatio", label: "Büsche", group: "Vegetation", min: 0, max: 1, step: 0.01 },
-	{ id: "vegetation.rockRatio", label: "Felsen", group: "Vegetation", min: 0, max: 1, step: 0.01 },
 ];
 
 export function cloneWorldPreset(preset: WorldPreset): WorldPreset {

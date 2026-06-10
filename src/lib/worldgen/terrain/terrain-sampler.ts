@@ -154,6 +154,11 @@ export class TerrainSampler {
     };
   }
 
+  /** River/lake segments overlapping a world-space rectangle (for map previews). */
+  riverSegments(minX: number, minZ: number, maxX: number, maxZ: number) {
+    return this.riverCache.collectSegments(minX, minZ, maxX, maxZ);
+  }
+
   slope(x: number, z: number): number {
     const s = this.slopeStep;
     const dx = Math.abs(this.sampleExact(x + s, z).height - this.sampleExact(x - s, z).height);
