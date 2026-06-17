@@ -67,10 +67,9 @@ onMount(() => {
 		renderer.setSize(window.innerWidth, window.innerHeight);
 		renderer.xr.enabled = true;
 
-		// Dev-Konsole GPU-Timer (Taste "C") ist WebGL-spezifisch.
-		if (!wantsWebGPU) {
-			registerRenderer(renderer as THREE.WebGLRenderer, "ICAROS VR");
-		}
+		// Renderer der Dev-Konsole (Taste "C") melden — für beide Backends.
+		// GPU-Timing gibt es nur unter WebGL; bei WebGPU bleibt nur GPU-ms "n/a".
+		registerRenderer(renderer, "ICAROS VR");
 
 		vrButton = VRButton.createButton(renderer as THREE.WebGLRenderer);
 		document.body.appendChild(vrButton);
@@ -82,9 +81,7 @@ onMount(() => {
 		});
 
 		experienceName = exp.manifest.name;
-		if (!wantsWebGPU) {
-			registerRenderer(renderer as THREE.WebGLRenderer, exp.manifest.name);
-		}
+		registerRenderer(renderer, exp.manifest.name);
 		hasOutputs = (exp.manifest.outputs?.length ?? 0) > 0;
 		const renderCamera = exp.state.camera as THREE.PerspectiveCamera;
 
@@ -158,7 +155,7 @@ onMount(() => {
 
 onDestroy(() => {
 	renderer?.setAnimationLoop(null);
-	unregisterRenderer(renderer as THREE.WebGLRenderer);
+	unregisterRenderer(renderer);
 	if (scene) unloadExperience(scene);
 	renderer?.dispose();
 	vrButton?.remove();

@@ -16,6 +16,13 @@
  */
 
 import type { Camera, Scene, WebGLRenderer } from "three";
+import type { WebGPURenderer } from "three/webgpu";
+
+/**
+ * Ein Renderer, den die Dev-Konsole anzeigen kann. GPU-Timing gibt es nur unter
+ * WebGL 2 — WebGPU wird trotzdem registriert (zeigt alles außer GPU-ms).
+ */
+export type AnyRenderer = WebGLRenderer | WebGPURenderer;
 
 /**
  * Live-Regler, den eine Experience in der Dev-Konsole bereitstellen kann
@@ -39,7 +46,7 @@ export interface DevTweak {
 
 interface DevConsoleState {
 	/** Aktiver Renderer oder null, wenn keine 3D-Szene läuft. */
-	renderer: WebGLRenderer | null;
+	renderer: AnyRenderer | null;
 	/** Menschlich lesbares Label (z. B. Experience-Name). */
 	label: string;
 	/** Zuletzt gemessene GPU-Zeit in ms, oder null wenn nicht unterstützt. */
@@ -105,11 +112,17 @@ function pollGpuQueries(): void {
 	}
 }
 
-function setupGpuTimer(renderer: WebGLRenderer): void {
+function setupGpuTimer(renderer: AnyRenderer): void {
 	if (wrappedRenderer === renderer) return;
 	if (wrappedRenderer) teardownGpuTimer();
 
-	const ctx = renderer.getContext();
+	// GPU-Timing läuft über eine WebGL-2-Extension. WebGPU hat das nicht —
+	// überspringen; der Renderer bleibt trotzdem registriert (FPS, Draw Calls
+	// usw. funktionieren weiter, nur GPU-ms bleibt "n/a").
+	if ("isWebGPURenderer" in renderer && renderer.isWebGPURenderer) return;
+	const glRenderer = renderer as WebGLRenderer;
+
+	const ctx = glRenderer.getContext();
 	if (
 		typeof WebGL2RenderingContext === "undefined" ||
 		!(ctx instanceof WebGL2RenderingContext)
@@ -123,10 +136,10 @@ function setupGpuTimer(renderer: WebGLRenderer): void {
 		return; // GPU-Timing nicht verfügbar (häufig deaktiviert) – graceful.
 	}
 
-	originalRender = renderer.render.bind(renderer);
-	wrappedRenderer = renderer;
+	originalRender = glRenderer.render.bind(glRenderer);
+	wrappedRenderer = glRenderer;
 
-	renderer.render = function timedRender(scene: Scene, camera: Camera): void {
+	glRenderer.render = function timedRender(scene: Scene, camera: Camera): void {
 		pollGpuQueries();
 
 		// Nicht mehr als ein paar Messungen gleichzeitig in der Pipeline halten.
@@ -166,10 +179,7 @@ function teardownGpuTimer(): void {
 
 // ── Öffentliche API ───────────────────────────────────────────────────
 
-export function registerRenderer(
-	renderer: WebGLRenderer,
-	label = "",
-): void {
+export function registerRenderer(renderer: AnyRenderer, label = ""): void {
 	if (devConsole.renderer === renderer) {
 		devConsole.label = label;
 		setupGpuTimer(renderer);
@@ -185,7 +195,7 @@ export function registerRenderer(
 	setupGpuTimer(renderer);
 }
 
-export function unregisterRenderer(renderer?: WebGLRenderer): void {
+export function unregisterRenderer(renderer?: AnyRenderer): void {
 	// Nur abmelden, wenn es wirklich der aktuelle Renderer ist (Race bei
 	// schnellen Navigationen vermeiden).
 	if (renderer && devConsole.renderer !== renderer) return;
