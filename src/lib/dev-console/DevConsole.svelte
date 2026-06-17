@@ -9,8 +9,9 @@
  * Wird einmal global im Root-Layout gemountet und funktioniert dadurch
  * auf jeder Route, die ihren Renderer per `registerRenderer()` meldet.
  */
-import type { WebGLRenderer } from "three";
+
 import { onMount } from "svelte";
+import type { WebGLRenderer } from "three";
 import { devConsole } from "./registry.svelte";
 
 let open = $state(false);
@@ -140,7 +141,14 @@ function sample(now: number): void {
 		// WebGPU- und WebGL-Info teilen sich diese Felder; `programs` ist unter
 		// WebGPU undefined und wird per `?.` abgefangen.
 		const info = (r as WebGLRenderer).info;
-		drawCalls = info.render.calls;
+		// Achtung: Bei WebGL ist render.calls die Draw-Call-Zahl DES FRAMES
+		// (wird pro Frame zurückgesetzt). Bei WebGPU ist render.calls dagegen
+		// kumulativ seit App-Start — die Pro-Frame-Zahl steht dort in
+		// render.drawCalls. Deshalb drawCalls bevorzugen, sonst auf calls zurück.
+		const renderInfo = info.render as typeof info.render & {
+			drawCalls?: number;
+		};
+		drawCalls = renderInfo.drawCalls ?? renderInfo.calls;
 		triangles = info.render.triangles;
 		lines = info.render.lines;
 		points = info.render.points;
