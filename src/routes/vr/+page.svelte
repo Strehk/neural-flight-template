@@ -52,7 +52,13 @@ onMount(() => {
 			// Fresh WebGPU path — three/webgpu renderer (+ TSL + WebXR).
 			// Dynamic import so the WebGL bundle stays untouched.
 			const { WebGPURenderer } = await import("three/webgpu");
-			const r = new WebGPURenderer({ canvas, antialias: true });
+			// trackTimestamp: true enables GPU-Frame-Timing in der Dev-Konsole,
+			// sofern Gerät/Browser das `timestamp-query`-Feature unterstützen.
+			const r = new WebGPURenderer({
+				canvas,
+				antialias: true,
+				trackTimestamp: true,
+			});
 			await r.init();
 			renderer = r;
 		} else {

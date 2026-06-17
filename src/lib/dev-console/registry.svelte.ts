@@ -88,6 +88,12 @@ let originalRender: WebGLRenderer["render"] | null = null;
 let wrappedRenderer: WebGLRenderer | null = null;
 const pendingQueries: WebGLQuery[] = [];
 
+// WebGPU misst GPU-Zeit per Timestamp-Query — ein ganz anderer Weg als WebGL.
+// Wir umschließen render(), lösen danach die Timestamps asynchron auf und
+// schreiben die Dauer (ms) in devConsole.
+let wrappedGpuRenderer: WebGPURenderer | null = null;
+let originalGpuRender: WebGPURenderer["render"] | null = null;
+
 function pollGpuQueries(): void {
 	if (!gl || !timerExt) return;
 
@@ -113,13 +119,14 @@ function pollGpuQueries(): void {
 }
 
 function setupGpuTimer(renderer: AnyRenderer): void {
-	if (wrappedRenderer === renderer) return;
-	if (wrappedRenderer) teardownGpuTimer();
+	if (wrappedRenderer === renderer || wrappedGpuRenderer === renderer) return;
+	teardownGpuTimer();
 
-	// GPU-Timing läuft über eine WebGL-2-Extension. WebGPU hat das nicht —
-	// überspringen; der Renderer bleibt trotzdem registriert (FPS, Draw Calls
-	// usw. funktionieren weiter, nur GPU-ms bleibt "n/a").
-	if ("isWebGPURenderer" in renderer && renderer.isWebGPURenderer) return;
+	// WebGPU misst GPU-Zeit anders (Timestamp-Queries statt WebGL-2-Extension).
+	if ("isWebGPURenderer" in renderer && renderer.isWebGPURenderer) {
+		setupWebGPUTimer(renderer as WebGPURenderer);
+		return;
+	}
 	const glRenderer = renderer as WebGLRenderer;
 
 	const ctx = glRenderer.getContext();
@@ -161,7 +168,40 @@ function setupGpuTimer(renderer: AnyRenderer): void {
 	} as WebGLRenderer["render"];
 }
 
+// ── WebGPU-GPU-Timer ──────────────────────────────────────────────────
+
+function setupWebGPUTimer(renderer: WebGPURenderer): void {
+	originalGpuRender = renderer.render.bind(renderer);
+	wrappedGpuRenderer = renderer;
+
+	renderer.render = function timedRender(scene: Scene, camera: Camera) {
+		const result = originalGpuRender?.(scene, camera);
+		// Timestamps des gerade abgeschickten Frames asynchron auflösen. Liefert
+		// undefined, wenn das Gerät `timestamp-query` nicht kann → GPU-ms bleibt
+		// "n/a" (resolveTimestampsAsync warnt dann genau einmal).
+		renderer
+			.resolveTimestampsAsync()
+			.then((ms) => {
+				if (typeof ms === "number" && ms > 0) {
+					devConsole.gpuTimeMs = ms;
+					devConsole.gpuUpdatedAt = performance.now();
+				}
+			})
+			.catch(() => {});
+		return result;
+	} as WebGPURenderer["render"];
+}
+
+function teardownWebGPUTimer(): void {
+	if (wrappedGpuRenderer && originalGpuRender) {
+		wrappedGpuRenderer.render = originalGpuRender;
+	}
+	wrappedGpuRenderer = null;
+	originalGpuRender = null;
+}
+
 function teardownGpuTimer(): void {
+	teardownWebGPUTimer();
 	if (wrappedRenderer && originalRender) {
 		wrappedRenderer.render = originalRender;
 	}
