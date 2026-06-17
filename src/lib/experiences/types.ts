@@ -1,5 +1,18 @@
 import type * as THREE from "three";
+import type { WebGPURenderer } from "three/webgpu";
 import type { TriggerCommand } from "$lib/types/orientation";
+
+// ── Renderer Backend ──
+
+/** Which renderer backend an experience runs on. Default (omitted) = "webgl". */
+export type RendererKind = "webgl" | "webgpu";
+
+/**
+ * Renderer-agnostic handle passed to experiences. Most platform code is identical
+ * across backends; experiences that need backend-specific APIs narrow on
+ * `manifest.renderer`.
+ */
+export type AnyRenderer = THREE.WebGLRenderer | WebGPURenderer;
 
 // ── Signal Types ──
 
@@ -133,12 +146,12 @@ export interface RuntimeValues {
 export interface SetupContext {
 	scene: THREE.Scene;
 	camera: THREE.PerspectiveCamera;
-	renderer: THREE.WebGLRenderer;
+	renderer: AnyRenderer;
 }
 
 export interface RenderContext {
 	scene: THREE.Scene;
-	renderer: THREE.WebGLRenderer;
+	renderer: AnyRenderer;
 	camera: THREE.PerspectiveCamera;
 	delta: number;
 	elapsed: number;
@@ -168,6 +181,8 @@ export interface ExperienceManifest {
 	author: string;
 	/** Optional thumbnail path (relative to experience folder) */
 	thumbnail?: string;
+	/** Renderer backend this experience needs. Omit for the default "webgl". */
+	renderer?: RendererKind;
 
 	// ── I/O Contract ──
 	/** Steerable parameters — appear in Node Editor + Settings Sidebar */

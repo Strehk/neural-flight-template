@@ -592,7 +592,7 @@ export async function setup(ctx: SetupContext): Promise<GradientPrismState> {
 		};
 	});
 
-	const postfx = createPostFXPipeline(ctx.renderer, ctx.scene, player.camera, {
+	const postfx = createPostFXPipeline(ctx.renderer as THREE.WebGLRenderer, ctx.scene, player.camera, {
 		bloom: {
 			intensity: 2.5,
 			luminanceThreshold: 0.3,
