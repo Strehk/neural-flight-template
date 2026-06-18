@@ -1330,7 +1330,7 @@ export async function setup(
 
   const state: VisioTechnologicaCityTestState = {
     camera: ctx.camera,
-    renderer: ctx.renderer,
+    renderer: ctx.renderer as THREE.WebGLRenderer,
     modelRoot,
     sourceMeshes,
     pointRayConfig,

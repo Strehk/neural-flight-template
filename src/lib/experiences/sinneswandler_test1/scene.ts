@@ -604,7 +604,7 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
 
   const keyboardInput = new KeyboardInput();
   const controllerInput = new ControllerInput();
-  controllerInput.setRenderer(ctx.renderer);
+  controllerInput.setRenderer(ctx.renderer as THREE.WebGLRenderer);
   const senseSwitch = new SenseSwitchManager(
     world.sharedUniforms,
     ctx.scene,
@@ -613,7 +613,7 @@ export async function setup(ctx: SetupContext): Promise<BatEcholocationState> {
   );
   const chemosenseLayer = new ChemosenseLayer(world);
   const networkLayer = new NetworkLayer(world);
-  const depthPostprocess = createDepthPostprocess(ctx.renderer);
+  const depthPostprocess = createDepthPostprocess(ctx.renderer as THREE.WebGLRenderer);
 
   ctx.scene.add(world.group);
   ctx.scene.add(player.rig);

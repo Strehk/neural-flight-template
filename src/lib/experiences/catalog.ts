@@ -1,11 +1,16 @@
 import { manifest as batEcholocation } from "./bat-echolocation";
+import { manifest as becomingMany } from "./becoming-many";
 import { manifest as cloudTowers } from "./cloud-towers";
 import { manifest as gradientPrism } from "./gradient-prism";
 import { manifest as mountainFlight } from "./mountain-flight";
 import { manifest as shaderDemo } from "./shader-demo";
+import { manifest as sinneswandlerTest1 } from "./sinneswandler_test1";
 import { manifest as visioTechnologica } from "./visio-technologica";
-import { manifest as visioTechnologicaCityTest } from "./visio-technologica-city-test";
 import type { ExperienceManifest } from "./types";
+// NOTE: "visio-technologica-city-test" is intentionally NOT registered — it
+// imports `three-mesh-bvh`, which is not installed, and pulling it into the
+// catalog graph breaks SSR of the landing page. Re-add the import + entry once
+// the dependency is installed (`bun add three-mesh-bvh`).
 
 // ── Registry ──
 //
@@ -17,12 +22,12 @@ import type { ExperienceManifest } from "./types";
 
 const CATALOG: Record<string, ExperienceManifest> = {
 	"bat-echolocation": batEcholocation,
+	"becoming-many": becomingMany,
 	"cloud-towers": cloudTowers,
 	"gradient-prism": gradientPrism,
 	"mountain-flight": mountainFlight,
 	"shader-demo": shaderDemo,
 	"visio-technologica": visioTechnologica,
-	"visio-technologica-city-test": visioTechnologicaCityTest,
 	"sinneswandler_test1": sinneswandlerTest1,
 };
 

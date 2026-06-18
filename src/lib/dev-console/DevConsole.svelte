@@ -9,7 +9,9 @@
  * Wird einmal global im Root-Layout gemountet und funktioniert dadurch
  * auf jeder Route, die ihren Renderer per `registerRenderer()` meldet.
  */
+
 import { onMount } from "svelte";
+import type { WebGLRenderer } from "three";
 import { devConsole } from "./registry.svelte";
 
 let open = $state(false);
@@ -67,11 +69,26 @@ function readContextInfo(): void {
 		ctxInfo = null;
 		return;
 	}
+
+	// WebGPU-Renderer: kein WebGL-Context, keine `capabilities`.
+	if ("isWebGPURenderer" in r && r.isWebGPURenderer) {
+		ctxInfo = {
+			gpu: "unbekannt",
+			api: "WebGPU",
+			pixelRatio: r.getPixelRatio(),
+			bufferW: 0,
+			bufferH: 0,
+			maxTexture: 0,
+		};
+		return;
+	}
+
+	const glr = r as WebGLRenderer;
 	let gpu = "unbekannt";
 	let bufferW = 0;
 	let bufferH = 0;
 	try {
-		const gl = r.getContext();
+		const gl = glr.getContext();
 		bufferW = gl.drawingBufferWidth;
 		bufferH = gl.drawingBufferHeight;
 		const dbg = gl.getExtension("WEBGL_debug_renderer_info");
@@ -83,11 +100,11 @@ function readContextInfo(): void {
 	}
 	ctxInfo = {
 		gpu,
-		api: r.capabilities.isWebGL2 ? "WebGL 2" : "WebGL 1",
-		pixelRatio: r.getPixelRatio(),
+		api: glr.capabilities.isWebGL2 ? "WebGL 2" : "WebGL 1",
+		pixelRatio: glr.getPixelRatio(),
 		bufferW,
 		bufferH,
-		maxTexture: r.capabilities.maxTextureSize,
+		maxTexture: glr.capabilities.maxTextureSize,
 	};
 }
 
@@ -121,8 +138,17 @@ function sample(now: number): void {
 	fpsMin = Math.round(1000 / maxMs);
 
 	if (r) {
-		const info = r.info;
-		drawCalls = info.render.calls;
+		// WebGPU- und WebGL-Info teilen sich diese Felder; `programs` ist unter
+		// WebGPU undefined und wird per `?.` abgefangen.
+		const info = (r as WebGLRenderer).info;
+		// Achtung: Bei WebGL ist render.calls die Draw-Call-Zahl DES FRAMES
+		// (wird pro Frame zurückgesetzt). Bei WebGPU ist render.calls dagegen
+		// kumulativ seit App-Start — die Pro-Frame-Zahl steht dort in
+		// render.drawCalls. Deshalb drawCalls bevorzugen, sonst auf calls zurück.
+		const renderInfo = info.render as typeof info.render & {
+			drawCalls?: number;
+		};
+		drawCalls = renderInfo.drawCalls ?? renderInfo.calls;
 		triangles = info.render.triangles;
 		lines = info.render.lines;
 		points = info.render.points;

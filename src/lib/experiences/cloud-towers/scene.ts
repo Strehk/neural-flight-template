@@ -358,7 +358,7 @@ export async function setup(ctx: SetupContext): Promise<CloudTowersState> {
 	ctx.scene.add(starfield);
 
 	// PostFX
-	const postfx = createPostFXPipeline(ctx.renderer, ctx.scene, player.camera, {
+	const postfx = createPostFXPipeline(ctx.renderer as THREE.WebGLRenderer, ctx.scene, player.camera, {
 		bloom: {
 			intensity: 1.5,
 			luminanceThreshold: 0.2,
