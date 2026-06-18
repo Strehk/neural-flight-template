@@ -40,7 +40,21 @@ editor) is identical to a normal experience.
 | `player.ts`   | `updatePlayer` no-op stub — future flight controller.         |
 | `settings.ts` | `applySettings` — `rotationSpeed`, `spin`.                    |
 
+## Planning docs (`docs/`)
+
+The full rewrite plan and the captured Sinneswandler design now live in [`docs/`](./docs/):
+
+- [`plan.md`](./docs/plan.md) — the **meta plan**: vision, goals/non-goals, reuse-vs-rebuild
+  table, phased milestones (M0–M6), risks, open questions.
+- [`sinneswandler-spec.md`](./docs/sinneswandler-spec.md) — faithful **design spec** of the
+  source experience (structure, flight, world, senses, audio, creatures, 28 parameters) —
+  intent, not rendering.
+- [`asset-inventory.md`](./docs/asset-inventory.md) — every model/audio asset, the **broken
+  bat/fly models**, and the 79 orphaned meshes.
+
 ## Roadmap toward mirroring Sinneswandler
+
+(Summary — see [`docs/plan.md`](./docs/plan.md) §6 for the full milestone detail.)
 
 1. **Flight controller** — port `flight-controller.ts` to a player rig (`player.ts`).
 2. **World / terrain** — TSL/compute terrain to replace the WebGL terrain samplers.
