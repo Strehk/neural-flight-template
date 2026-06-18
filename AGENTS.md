@@ -30,8 +30,10 @@ Instructions for Claude, Copilot, and other AI coding assistants.
 All **new** graphics work in this repo targets **WebGPU + TSL**, mirroring the
 official three.js example
 [`webgpu_compute_particles_fluid`](https://threejs.org/examples/?q=webgpu#webgpu_compute_particles_fluid).
-The reference implementation in this repo is
-`src/lib/experiences/becoming-many/scene.ts` — read it before writing new GPU code.
+The GPU-compute reference implementation in this repo is
+`src/lib/experiences/becoming-many/swarm-scene.ts` — read it before writing new
+GPU code. (The loaded `scene.ts` is the static TSL terrain preview; the shared
+material-kit helpers it uses live in `src/lib/tsl/`.)
 
 ### ✅ ALWAYS
 

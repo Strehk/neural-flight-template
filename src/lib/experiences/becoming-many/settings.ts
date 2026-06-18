@@ -6,9 +6,8 @@ import type { BecomingManyState } from "./scene";
 // Called when a parameter changes (Settings Sidebar slider / Node Editor signal).
 // Each `case` matches a ParameterDef id from manifest.ts.
 //
-// These map straight onto live TSL uniforms (`uniform().value = …`): the change
-// is picked up by the GPU compute kernel on the very next frame — no rebuild,
-// no buffer reallocation. This is the cheapest possible steering path.
+// These map straight onto the live TSL uniforms in scene.ts: the change is picked
+// up by the material on the very next frame — no rebuild, no reallocation.
 
 export function applySettings(
 	id: string,
@@ -17,26 +16,35 @@ export function applySettings(
 	_scene: THREE.Scene,
 ): void {
 	const s = state as BecomingManyState;
+	const u = s.uniforms;
 
 	switch (id) {
-		case "swarmSpeed":
-			s.uSpeed.value = value as number;
+		case "depthLevels":
+			u.depthLevels.value = value as number;
 			break;
 
-		case "turbulence":
-			s.uTurbulence.value = value as number;
+		case "viewRadius":
+			u.viewRadius.value = value as number;
 			break;
 
-		case "attraction":
-			s.uAttraction.value = value as number;
+		case "revealSoftness":
+			u.revealSoftness.value = value as number;
 			break;
 
-		case "pointSize":
-			s.uPointSize.value = value as number;
+		case "fogNear":
+			u.fogNear.value = value as number;
 			break;
 
-		case "running":
-			s.running = value as boolean;
+		case "fogFar":
+			u.fogFar.value = value as number;
+			break;
+
+		case "rimPower":
+			u.rimPower.value = value as number;
+			break;
+
+		case "rimStrength":
+			u.rimStrength.value = value as number;
 			break;
 
 		default:
