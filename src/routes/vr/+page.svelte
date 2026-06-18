@@ -2,6 +2,7 @@
 import { Trophy } from "lucide-svelte";
 import { onDestroy, onMount } from "svelte";
 import * as THREE from "three";
+import type { Inspector } from "three/addons/inspector/Inspector.js";
 import { VRButton } from "three/examples/jsm/webxr/VRButton.js";
 import type { WebGPURenderer } from "three/webgpu";
 import {
@@ -25,6 +26,8 @@ import {
 
 let canvas: HTMLCanvasElement;
 let renderer: THREE.WebGLRenderer | WebGPURenderer;
+// three.js WebGPU dev panel — only on the WebGPU path; null otherwise.
+let inspector: Inspector | null = null;
 let scene: THREE.Scene;
 let vrButton: HTMLElement;
 let score = $state(0);
@@ -59,7 +62,21 @@ onMount(() => {
 				antialias: true,
 				trackTimestamp: true,
 			});
+			// three.js WebGPU dev panel (Inspector), as used in the official
+			// webgpu_compute_particles_fluid example. Gives Performance (incl. GPU
+			// frame timing via `trackTimestamp`), Console, Parameters and Viewer
+			// tabs. WebGPU-only. MUST be assigned BEFORE `r.init()`: the panel's
+			// DOM is mounted from inside the renderer's own init (it calls
+			// `this._inspector.init()`), so assigning it afterwards would never
+			// mount the panel. It self-mounts next to the canvas and ships its own
+			// toggle button, so no manual DOM wiring is needed.
+			const { Inspector } = await import(
+				"three/addons/inspector/Inspector.js"
+			);
+			r.inspector = inspector = new Inspector();
+
 			await r.init();
+
 			renderer = r;
 		} else {
 			// Classic WebGL path used by every other experience.
@@ -164,6 +181,8 @@ onDestroy(() => {
 	unregisterRenderer(renderer);
 	if (scene) unloadExperience(scene);
 	renderer?.dispose();
+	inspector?.domElement.remove();
+	inspector = null;
 	vrButton?.remove();
 	ws.disconnect();
 });

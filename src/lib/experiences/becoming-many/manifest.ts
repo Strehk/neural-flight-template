@@ -1,28 +1,58 @@
 import type { ExperienceManifest, ParameterDef } from "../types";
 import { updatePlayer } from "./player";
-import { dispose, setup, tick } from "./scene";
+import { dispose, render, setup, tick } from "./scene";
 import { applySettings } from "./settings";
 
 // ── Parameter Definitions ──────────────────────────────────────
 // Appear in the Settings Sidebar (slider/toggle) and the Node Editor (0-1 signal
-// remapped to min/max). Kept minimal for the scaffold — the cube's animation.
+// remapped to min/max). These steer the GPU compute swarm's uniforms live.
 
 const parameters: ParameterDef[] = [
 	{
-		id: "rotationSpeed",
-		label: "Rotation Speed",
-		group: "Animation",
+		id: "swarmSpeed",
+		label: "Swarm Speed",
+		group: "Simulation",
 		min: 0,
 		max: 3,
-		default: 0.6,
-		step: 0.1,
-		unit: "rad/s",
-		icon: "RotateCw",
+		default: 1,
+		step: 0.05,
+		unit: "×",
+		icon: "Gauge",
 	},
 	{
-		id: "spin",
-		label: "Spin",
-		group: "Animation",
+		id: "turbulence",
+		label: "Turbulence",
+		group: "Simulation",
+		min: 0,
+		max: 2,
+		default: 0.6,
+		step: 0.05,
+		icon: "Wind",
+	},
+	{
+		id: "attraction",
+		label: "Cohesion",
+		group: "Simulation",
+		min: 0,
+		max: 3,
+		default: 1.2,
+		step: 0.05,
+		icon: "Magnet",
+	},
+	{
+		id: "pointSize",
+		label: "Particle Size",
+		group: "Appearance",
+		min: 0.01,
+		max: 0.2,
+		default: 0.05,
+		step: 0.005,
+		icon: "Circle",
+	},
+	{
+		id: "running",
+		label: "Simulate",
+		group: "Simulation",
 		type: "boolean",
 		min: 0,
 		max: 1,
@@ -72,11 +102,15 @@ export const manifest: ExperienceManifest = {
 		sunColor: "#ffffff",
 		sunPosition: { x: 5, y: 8, z: 4 },
 	},
-	spawn: { position: { x: 0, y: 1.6, z: 3 } },
+	spawn: { position: { x: 0, y: 1.6, z: 6 } },
 
 	// ── Lifecycle ──
 	setup,
 	tick,
+	// Custom render hook: dispatches the per-frame GPU compute step before
+	// drawing. Defining `render` means this experience owns its frame (the /vr
+	// route calls it instead of the default renderer.render()).
+	render,
 	applySettings,
 	updatePlayer,
 	dispose,
