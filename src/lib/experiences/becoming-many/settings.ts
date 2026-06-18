@@ -6,8 +6,9 @@ import type { BecomingManyState } from "./scene";
 // Called when a parameter changes (Settings Sidebar slider / Node Editor signal).
 // Each `case` matches a ParameterDef id from manifest.ts.
 //
-// Both scaffold parameters use the "Simple State" pattern (RULES.md): store the
-// value, let tick() read it next frame. No GPU rebuilds needed yet.
+// These map straight onto live TSL uniforms (`uniform().value = …`): the change
+// is picked up by the GPU compute kernel on the very next frame — no rebuild,
+// no buffer reallocation. This is the cheapest possible steering path.
 
 export function applySettings(
 	id: string,
@@ -18,12 +19,24 @@ export function applySettings(
 	const s = state as BecomingManyState;
 
 	switch (id) {
-		case "rotationSpeed":
-			s.rotationSpeed = value as number;
+		case "swarmSpeed":
+			s.uSpeed.value = value as number;
 			break;
 
-		case "spin":
-			s.spin = value as boolean;
+		case "turbulence":
+			s.uTurbulence.value = value as number;
+			break;
+
+		case "attraction":
+			s.uAttraction.value = value as number;
+			break;
+
+		case "pointSize":
+			s.uPointSize.value = value as number;
+			break;
+
+		case "running":
+			s.running = value as boolean;
 			break;
 
 		default:

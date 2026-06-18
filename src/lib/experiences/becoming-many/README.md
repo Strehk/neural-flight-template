@@ -7,14 +7,23 @@ respected by construction instead of retrofitted.
 
 ## Status: scaffolding only
 
-Right now this experience does the bare minimum to prove the pipeline runs:
+Right now this experience proves the **real WebGPU compute pipeline** stands up —
+not just a TSL colour graph, but GPU simulation:
 
 - Mounts a `WebGPURenderer` (via the shared `/vr` route + loader).
-- Draws one spinning cube whose colour is a **TSL node graph** (`colorNode`).
-- `Enter VR` works through the same `VRButton` / `renderer.xr` path.
+- Simulates an **80k-particle swarm** entirely on the GPU:
+  - particle state lives in **storage buffers** (`instancedArray`)
+  - a one-time **compute kernel** seeds them (in `setup()`)
+  - a per-frame **compute kernel** integrates them (in the `render()` hook)
+  - a `SpriteNodeMaterial` reads the same buffers straight from the GPU
+- The motion is a centre-pull + tangential swirl + curl-noise turbulence field —
+  "becoming one / becoming many" — steered live by the Settings parameters.
+- `Enter VR` works through the same `VRButton` / `renderer.xr` path. ⚠️ Note: XR
+  falls back to the WebGL2 backend, where compute is unavailable — see AGENTS.md.
 
-There is **no movement, terrain, audio, or sense-switching yet** — those are the
-roadmap below.
+This mirrors the official `webgpu_compute_particles_fluid` example. There is still
+**no movement, terrain, audio, or sense-switching yet** — those are the roadmap
+below.
 
 ## How it plugs in
 
@@ -36,9 +45,9 @@ editor) is identical to a normal experience.
 | ------------- | ------------------------------------------------------------- |
 | `index.ts`    | Re-exports the manifest.                                      |
 | `manifest.ts` | Identity, `renderer: "webgpu"`, parameters, scene defaults.   |
-| `scene.ts`    | `setup`/`tick`/`dispose` — the TSL cube. Grow the world here. |
+| `scene.ts`    | `setup`/`tick`/`render`/`dispose` — the GPU compute swarm. Grow the world here. |
 | `player.ts`   | `updatePlayer` no-op stub — future flight controller.         |
-| `settings.ts` | `applySettings` — `rotationSpeed`, `spin`.                    |
+| `settings.ts` | `applySettings` — steers the swarm uniforms (speed/turbulence/cohesion/size/run). |
 
 ## Roadmap toward mirroring Sinneswandler
 
