@@ -1,6 +1,7 @@
 import type * as THREE from "three";
 import type { ExperienceState } from "../types";
 import { type BecomingManyState, SENSE_COUNT } from "./scene";
+import { listTerrainProviders } from "./terrain/providers";
 
 // ── Settings ───────────────────────────────────────────────────
 // Called when a parameter changes (Settings Sidebar slider / Node Editor signal).
@@ -9,7 +10,8 @@ import { type BecomingManyState, SENSE_COUNT } from "./scene";
 // The senses own the material-kit uniforms now, so settings drive the sense
 // state machine rather than individual uniforms: pick the active sense (also
 // reachable via keys 1–7) and tune the transition duration. The Flight group
-// tunes the controller's cruise/boost speed live.
+// tunes the controller's cruise/boost speed; the Terrain group swaps the
+// pluggable generation provider + its seed/amplitude (rebuilds the streamed world).
 
 export function applySettings(
 	id: string,
@@ -44,6 +46,21 @@ export function applySettings(
 
 		case "boostSpeed":
 			s.flight.boostSpeed = value as number;
+			break;
+
+		case "terrainProvider": {
+			const providers = listTerrainProviders();
+			const i = Math.min(Math.max(Math.round(value as number), 0), providers.length - 1);
+			s.world.setProvider(providers[i].id);
+			break;
+		}
+
+		case "worldSeed":
+			s.world.setConfig({ seed: Math.round(value as number) });
+			break;
+
+		case "terrainAmplitude":
+			s.world.setConfig({ amplitude: value as number });
 			break;
 
 		default:

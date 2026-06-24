@@ -1,52 +1,40 @@
-// ── Becoming Many — TSL Terrain + Sense Modes ──────────────────
+// ── Becoming Many — Streaming GPU Terrain + Senses + Flight ────
 //
-// A static terrain surface (M0/M1 slice) rendered through the shared TSL
-// material kit (src/lib/tsl), with the M2 sense-switch state machine driving the
-// kit uniforms so the 7 perceptual senses read as distinct view modes over the
-// same world (sinneswandler-spec §4). The terrain is baked once on the CPU (so
-// normals are correct); every *look* is TSL nodes:
+// You fly (M1) over a streaming, effectively-infinite world (M3): a grid of GPU-
+// generated terrain chunks that load ahead of you and unload behind. Each chunk's
+// vertices are computed on the GPU by a TSL compute kernel calling the active
+// *terrain provider* (terrain/) — a fully pluggable generation algorithm — and
+// drawn by one shared sense material. The M2 sense-switch state machine drives
+// that material's kit uniforms so the 7 senses read as distinct view modes over
+// the whole streamed world.
 //
-//   - `depthBands`  → the quantized "papercut" banding (the dark-sense cue)
-//   - `viewReveal`  → the per-mode view-radius bubble (world fades into the void)
-//   - `distanceFog` → biome-/sense-tinted haze
-//   - `fresnelEdge` → grazing-angle rim glow
-//
-// Senses are switched with keys 1–7 (desktop) or the "Sense" parameter; the
-// SenseManager lerps the uniforms over the clock's transition time. No streaming
-// or flight yet (M1/M3) — the camera auto-orbits. Compute-swarm ref: swarm-scene.
+//   - terrain/        → pluggable providers + GPU chunk payload + ChunkScheduler
+//   - senses.ts       → the 7 view-mode profiles lerped into the kit uniforms
+//   - flight-controller.ts / input/ → bat-flight on the modular control stack
 //
 // TIME SPINE: an experience-local ExperienceClock (clock.ts) drives everything —
-// sense transitions, the auto-orbit, the `uTime` shader uniform, and the audio
-// cues (audio.ts) are all advanced by / scheduled against it, so pause / reset /
-// timeScale move visuals and sound together. Transport keys: Space, R.
+// flight, sense transitions, the `uTime` shader uniform, and the audio cues
+// (audio.ts) are all advanced by / scheduled against it, so pause / reset /
+// timeScale move visuals, motion, and sound together. Transport keys: Space, R.
 //
 // IMPORTANT — see AGENTS.md "WebGPU + TSL": classes come from `three/webgpu`,
 // node functions from `three/tsl`. Never import core classes from plain `three`.
 
-import { cameraPosition, mix, positionWorld, uniform } from "three/tsl";
+import { uniform } from "three/tsl";
 import * as THREE from "three/webgpu";
-import { MeshStandardNodeMaterial } from "three/webgpu";
-import { depthBands, distanceFog, fresnelEdge, viewReveal } from "$lib/tsl";
 import type { ExperienceState, SetupContext, TickContext } from "../types";
 import { SoundBus, SoundDirector } from "./audio";
 import { ExperienceClock } from "./clock";
 import { FlightController } from "./flight-controller";
 import { createDefaultInput, type FlightIntent, type InputHub } from "./input";
-import {
-	type SenseId,
-	SENSE_ORDER,
-	SenseManager,
-	type SenseUniforms,
-} from "./senses";
-
-// Half-extent of the (square) terrain patch, in metres. Big enough that the
-// widest sense view radius reaches roughly to its corners.
-const PATCH = 350;
-const SEGMENTS = 200;
+import { type SenseId, SENSE_ORDER, SenseManager } from "./senses";
+import { createSenseUniforms, type KitUniforms } from "./terrain/material";
+import { DEFAULT_PROVIDER_ID, getTerrainProvider } from "./terrain/providers";
+import { TerrainWorld } from "./terrain/world";
 
 // Spawn pose for the flight rig (keep in sync with manifest.spawn). High enough
-// to clear the ~14 m hill crests; the soft altitude floor settles it to cruise
-// height. In XR the headset adds head pose on top of the rig.
+// to clear the hill crests; the soft altitude floor settles it to cruise height.
+// In XR the headset adds head pose on top of the rig.
 const SPAWN = { x: 0, y: 38, z: 0 };
 
 // Sense the experience opens in (index 6 = Normal — daylight).
@@ -66,12 +54,11 @@ const NARRATION: Partial<Record<SenseId, string>> = {
 
 export interface BecomingManyState extends ExperienceState {
 	camera: THREE.PerspectiveCamera;
-	terrain: THREE.Mesh;
-	geometry: THREE.PlaneGeometry;
-	material: MeshStandardNodeMaterial;
-	uniforms: SenseUniforms;
+	/** Streaming chunked terrain (owns its material + ChunkScheduler). */
+	world: TerrainWorld;
+	uniforms: KitUniforms;
 	senses: SenseManager;
-	/** The time spine — advanced each tick; drives visuals + audio. */
+	/** The time spine — advanced each tick; drives flight, visuals + audio. */
 	clock: ExperienceClock;
 	/** Sound system (clip playback + clock-scheduled cues). */
 	director: SoundDirector;
@@ -81,23 +68,6 @@ export interface BecomingManyState extends ExperienceState {
 	flight: FlightController;
 	/** Modular control stack (network + keyboard + gamepad/XR sources). */
 	input: InputHub;
-}
-
-// Deterministic rolling-hills height field (planar coords → metres). A handful of
-// layered sines — cheap, seed-free, and good enough to show relief under the kit.
-function terrainHeight(x: number, y: number): number {
-	let h = 8.0 * Math.sin(x * 0.045) * Math.cos(y * 0.05);
-	h += 3.2 * Math.sin(x * 0.12 + 1.3) * Math.cos(y * 0.1 - 0.7);
-	h += 1.6 * Math.sin(x * 0.27 - 2.1) * Math.cos(y * 0.31 + 0.4);
-	h += 0.8 * Math.sin((x + y) * 0.05);
-	return h;
-}
-
-// World-space ground height under a point. The terrain mesh is rotated -π/2 about
-// X (plane XY → ground XZ), which maps a local (px, py, height) vertex to world
-// (px, height, -py) — so the world point (x, z) reads the field at (x, -z).
-function sampleHeight(x: number, z: number): number {
-	return terrainHeight(x, -z);
 }
 
 // Map a merged input intent onto the world: flight controls, sense switching,
@@ -139,36 +109,10 @@ function applyIntent(
 }
 
 export async function setup(ctx: SetupContext): Promise<BecomingManyState> {
-	// ── Geometry: bake the height field on the CPU, then lay the patch flat ──
-	const geometry = new THREE.PlaneGeometry(
-		PATCH * 2,
-		PATCH * 2,
-		SEGMENTS,
-		SEGMENTS,
-	);
-	const pos = geometry.attributes.position;
-	for (let i = 0; i < pos.count; i++) {
-		pos.setZ(i, terrainHeight(pos.getX(i), pos.getY(i)));
-	}
-	pos.needsUpdate = true;
-	geometry.computeVertexNormals();
-
 	// ── Sense-driven uniforms ──
-	// The SenseManager mutates these every frame; they double as the kit inputs.
-	// Initial values are overwritten immediately by the manager's start profile.
-	const uniforms = {
-		viewRadius: uniform(160),
-		revealSoftness: uniform(28),
-		depthLevels: uniform(6),
-		fogNear: uniform(30),
-		fogFar: uniform(220),
-		rimPower: uniform(2.5),
-		rimStrength: uniform(0.6),
-		colorNear: uniform(new THREE.Color(0x8fa86a)),
-		colorFar: uniform(new THREE.Color(0x6a7a88)),
-		fogColor: uniform(new THREE.Color(0x0a0a14)),
-		rimColor: uniform(new THREE.Color(0x9fc0ff)),
-	};
+	// The SenseManager mutates these every frame; the shared terrain material
+	// reads them. Initial values are overwritten by the manager's start profile.
+	const uniforms = createSenseUniforms();
 	const senses = new SenseManager(uniforms, START_SENSE);
 
 	// ── Time spine + audio ──
@@ -212,41 +156,6 @@ export async function setup(ctx: SetupContext): Promise<BecomingManyState> {
 		}
 	};
 
-	// ── Material: every look comes from the kit, fed by the sense uniforms ──
-	const material = new MeshStandardNodeMaterial();
-	material.metalness = 0.0;
-	material.roughness = 0.95;
-
-	// Normalized camera distance → quantized bands → near/far tint.
-	const camDist = cameraPosition.distance(positionWorld);
-	const tNorm = camDist.div(uniforms.viewRadius).clamp(0, 1);
-	const banded = depthBands(tNorm, uniforms.depthLevels);
-	const albedo = mix(uniforms.colorNear, uniforms.colorFar, banded);
-
-	// Haze, then the view-radius bubble — both fade to the (sense) void colour.
-	const fogged = distanceFog(
-		albedo,
-		uniforms.fogColor,
-		uniforms.fogNear,
-		uniforms.fogFar,
-	);
-	const reveal = viewReveal(uniforms.viewRadius, uniforms.revealSoftness);
-	material.colorNode = mix(uniforms.fogColor, fogged, reveal);
-
-	// Grazing-angle rim, gated by the reveal so it never glows in the void, and
-	// given a slow "breath" off the shader clock — a visible TSL element tied to
-	// the time spine (it freezes when the clock pauses).
-	const breath = uTime.mul(0.8).sin().mul(0.15).add(0.85); // 0.7 … 1.0
-	const rim = fresnelEdge(uniforms.rimPower)
-		.mul(uniforms.rimStrength)
-		.mul(reveal)
-		.mul(breath);
-	material.emissiveNode = uniforms.rimColor.mul(rim);
-
-	const terrain = new THREE.Mesh(geometry, material);
-	terrain.rotation.x = -Math.PI / 2; // XY patch → XZ ground, +z → +y up
-	ctx.scene.add(terrain);
-
 	// ── Flight + modular controls ──
 	// The controller wraps the route-injected camera in a rig (so manifest
 	// fov/near/far + aspect-resize keep working, and the route's
@@ -256,11 +165,22 @@ export async function setup(ctx: SetupContext): Promise<BecomingManyState> {
 	ctx.scene.add(flight.rig);
 	const input = createDefaultInput(ctx.renderer);
 
+	// ── Streaming GPU terrain ──
+	// One shared sense material; each chunk's vertices generated on the GPU by the
+	// active provider. The provider's CPU height mirror feeds the flight floor.
+	const world = new TerrainWorld({
+		renderer: ctx.renderer as THREE.WebGPURenderer,
+		scene: ctx.scene,
+		uniforms,
+		uTime,
+		provider: getTerrainProvider(DEFAULT_PROVIDER_ID),
+	});
+	// Stream the first ring around spawn before the first frame.
+	world.update(SPAWN.x, SPAWN.z);
+
 	return {
 		camera: ctx.camera,
-		terrain,
-		geometry,
-		material,
+		world,
 		uniforms,
 		senses,
 		clock,
@@ -283,7 +203,9 @@ export function tick(
 	// must stay live so the Space-to-resume action still fires while paused).
 	s.clock.advance(ctx.delta);
 	applyIntent(s.input.poll(ctx.delta), s.flight, s.senses, s.clock);
-	s.flight.tick(s.clock.delta, sampleHeight);
+	s.flight.tick(s.clock.delta, (x, z) => s.world.sampleHeight(x, z));
+	// Stream chunks around the rig's new position.
+	s.world.update(s.flight.rig.position.x, s.flight.rig.position.z);
 	s.senses.update(s.clock.delta);
 	s.uTime.value = s.clock.now;
 
@@ -295,9 +217,7 @@ export function dispose(state: ExperienceState, scene: THREE.Scene): void {
 	s.input.dispose();
 	s.director.dispose();
 	scene.remove(s.flight.rig);
-	scene.remove(s.terrain);
-	s.geometry.dispose();
-	s.material.dispose();
+	s.world.dispose();
 }
 
 // Number of senses, exported for settings.ts range clamping.

@@ -79,6 +79,41 @@ const parameters: ParameterDef[] = [
 		unit: "m/s",
 		icon: "Rocket",
 	},
+	{
+		// Index into the terrain provider registry (0 = Sine Hills, 1 = Ridged
+		// Peaks). Switches the streamed generation algorithm live.
+		id: "terrainProvider",
+		label: "Terrain Algorithm",
+		group: "Terrain",
+		min: 0,
+		max: 1,
+		default: 0,
+		step: 1,
+		icon: "Mountain",
+	},
+	{
+		// Master seed — different worlds from the same algorithm.
+		id: "worldSeed",
+		label: "World Seed",
+		group: "Terrain",
+		min: 0,
+		max: 999,
+		default: 0,
+		step: 1,
+		icon: "Dice5",
+	},
+	{
+		// Vertical scale multiplier on the terrain field.
+		id: "terrainAmplitude",
+		label: "Terrain Amplitude",
+		group: "Terrain",
+		min: 0.2,
+		max: 3,
+		default: 1,
+		step: 0.1,
+		unit: "×",
+		icon: "MoveVertical",
+	},
 ];
 
 // ── Manifest ───────────────────────────────────────────────────
@@ -92,8 +127,8 @@ export const manifest: ExperienceManifest = {
 	id: "becoming-many",
 	name: "Becoming Many",
 	description:
-		"WebGPU + TSL terrain you fly over (M1), with the 7-sense view-mode state machine (M2). WASD/Shift or a controller/gyro to fly; keys 1–7 or the Sense parameter to switch senses; each is a TSL material-kit variant over the same world. Toward the Sinneswandler mirror.",
-	version: "0.4.0",
+		"Fly over a streaming, GPU-generated world (M3) with the 7-sense view-mode state machine (M2). WASD/Shift or a controller/gyro to fly; keys 1–7 or the Sense parameter switch senses; the Terrain Algorithm is a pluggable, swappable generation provider. Toward the Sinneswandler mirror.",
+	version: "0.5.0",
 	author: "Tade Strehk",
 
 	// ── Renderer ──
