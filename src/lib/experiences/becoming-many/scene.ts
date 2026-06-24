@@ -30,6 +30,8 @@ import { depthBands, distanceFog, fresnelEdge, viewReveal } from "$lib/tsl";
 import type { ExperienceState, SetupContext, TickContext } from "../types";
 import { SoundBus, SoundDirector } from "./audio";
 import { ExperienceClock } from "./clock";
+import { FlightController } from "./flight-controller";
+import { createDefaultInput, type FlightIntent, type InputHub } from "./input";
 import {
 	type SenseId,
 	SENSE_ORDER,
@@ -42,9 +44,10 @@ import {
 const PATCH = 350;
 const SEGMENTS = 200;
 
-// Camera vantage for the desktop preview (overridden by the headset pose in XR).
-const EYE_HEIGHT = 22;
-const LOOK_DOWN = -0.32; // radians of downward pitch
+// Spawn pose for the flight rig (keep in sync with manifest.spawn). High enough
+// to clear the ~14 m hill crests; the soft altitude floor settles it to cruise
+// height. In XR the headset adds head pose on top of the rig.
+const SPAWN = { x: 0, y: 38, z: 0 };
 
 // Sense the experience opens in (index 6 = Normal — daylight).
 const START_SENSE = "normal" as const;
@@ -74,10 +77,10 @@ export interface BecomingManyState extends ExperienceState {
 	director: SoundDirector;
 	/** Shader clock uniform, fed from `clock.now` each frame. */
 	uTime: ReturnType<typeof uniform>;
-	/** Keydown handler kept so dispose() can detach it. */
-	onKeyDown: (e: KeyboardEvent) => void;
-	/** Auto-orbit heading for the preview camera (radians). */
-	yaw: number;
+	/** Bat-flight controller (rig + physics), driven off the clock spine. */
+	flight: FlightController;
+	/** Modular control stack (network + keyboard + gamepad/XR sources). */
+	input: InputHub;
 }
 
 // Deterministic rolling-hills height field (planar coords → metres). A handful of
@@ -88,6 +91,51 @@ function terrainHeight(x: number, y: number): number {
 	h += 1.6 * Math.sin(x * 0.27 - 2.1) * Math.cos(y * 0.31 + 0.4);
 	h += 0.8 * Math.sin((x + y) * 0.05);
 	return h;
+}
+
+// World-space ground height under a point. The terrain mesh is rotated -π/2 about
+// X (plane XY → ground XZ), which maps a local (px, py, height) vertex to world
+// (px, height, -py) — so the world point (x, z) reads the field at (x, -z).
+function sampleHeight(x: number, z: number): number {
+	return terrainHeight(x, -z);
+}
+
+// Map a merged input intent onto the world: flight controls, sense switching,
+// and clock transport. The single seam between "what the controls want" and
+// "what the experience does" — add a new InputAction case here.
+function applyIntent(
+	intent: FlightIntent,
+	flight: FlightController,
+	senses: SenseManager,
+	clock: ExperienceClock,
+): void {
+	// Sources set pitch+roll together (or neither), so either being non-null
+	// means a real orientation this frame; otherwise we keep the last target.
+	if (intent.pitch !== null || intent.roll !== null) {
+		flight.setOrientation(intent.pitch ?? 0, intent.roll ?? 0);
+	}
+	flight.setSpeed(intent.accelerate, intent.brake);
+	flight.speedMultiplier = intent.boost ? 3 : 1;
+
+	for (const action of intent.actions) {
+		switch (action.kind) {
+			case "sense":
+				senses.switchToIndex(action.index);
+				break;
+			case "senseNext":
+				senses.next();
+				break;
+			case "sensePrev":
+				senses.prev();
+				break;
+			case "transportToggle":
+				clock.toggle();
+				break;
+			case "transportReset":
+				clock.reset();
+				break;
+		}
+	}
 }
 
 export async function setup(ctx: SetupContext): Promise<BecomingManyState> {
@@ -199,26 +247,14 @@ export async function setup(ctx: SetupContext): Promise<BecomingManyState> {
 	terrain.rotation.x = -Math.PI / 2; // XY patch → XZ ground, +z → +y up
 	ctx.scene.add(terrain);
 
-	// Elevated vantage looking out over the relief (desktop preview framing).
-	ctx.camera.position.set(0, EYE_HEIGHT, 0);
-	ctx.camera.rotation.set(LOOK_DOWN, 0, 0);
-
-	// Keyboard (desktop): 1–7 senses, N/P cycle; Space pause/resume, R reset clock.
-	const onKeyDown = (e: KeyboardEvent): void => {
-		if (e.key >= "1" && e.key <= "7") {
-			senses.switchToIndex(Number(e.key) - 1);
-		} else if (e.key === "n" || e.key === "N") {
-			senses.next();
-		} else if (e.key === "p" || e.key === "P") {
-			senses.prev();
-		} else if (e.key === " ") {
-			e.preventDefault();
-			clock.toggle();
-		} else if (e.key === "r" || e.key === "R") {
-			clock.reset();
-		}
-	};
-	window.addEventListener("keydown", onKeyDown);
+	// ── Flight + modular controls ──
+	// The controller wraps the route-injected camera in a rig (so manifest
+	// fov/near/far + aspect-resize keep working, and the route's
+	// renderCamera.parent lands on our rig). The input hub merges the network,
+	// keyboard, and gamepad/XR sources; the scene maps the result in tick().
+	const flight = new FlightController(ctx.camera, SPAWN, ctx.renderer);
+	ctx.scene.add(flight.rig);
+	const input = createDefaultInput(ctx.renderer);
 
 	return {
 		camera: ctx.camera,
@@ -230,8 +266,8 @@ export async function setup(ctx: SetupContext): Promise<BecomingManyState> {
 		clock,
 		director,
 		uTime,
-		onKeyDown,
-		yaw: 0,
+		flight,
+		input,
 	};
 }
 
@@ -242,23 +278,23 @@ export function tick(
 	const s = state as BecomingManyState;
 
 	// Advance the spine first, then drive everything off its (scaled) virtual
-	// delta — so pause / timeScale / reset move visuals and audio together.
+	// delta — so pause / timeScale / reset move flight, visuals, and audio
+	// together. Input is polled on the real delta (sampling is time-agnostic and
+	// must stay live so the Space-to-resume action still fires while paused).
 	s.clock.advance(ctx.delta);
+	applyIntent(s.input.poll(ctx.delta), s.flight, s.senses, s.clock);
+	s.flight.tick(s.clock.delta, sampleHeight);
 	s.senses.update(s.clock.delta);
 	s.uTime.value = s.clock.now;
-
-	// Slow auto-orbit so the radial bands + reveal edge are visible in motion.
-	// Preview-only framing — in XR the headset pose drives the camera instead.
-	s.yaw += s.clock.delta * 0.12;
-	s.camera.rotation.set(LOOK_DOWN, s.yaw, 0);
 
 	return { state: s };
 }
 
 export function dispose(state: ExperienceState, scene: THREE.Scene): void {
 	const s = state as BecomingManyState;
-	window.removeEventListener("keydown", s.onKeyDown);
+	s.input.dispose();
 	s.director.dispose();
+	scene.remove(s.flight.rig);
 	scene.remove(s.terrain);
 	s.geometry.dispose();
 	s.material.dispose();

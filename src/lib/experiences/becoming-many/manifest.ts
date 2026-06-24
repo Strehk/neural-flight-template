@@ -55,6 +55,30 @@ const parameters: ParameterDef[] = [
 		step: 0.05,
 		icon: "Volume2",
 	},
+	{
+		// Base forward speed when not boosting (FlightController.cruiseSpeed).
+		id: "cruiseSpeed",
+		label: "Cruise Speed",
+		group: "Flight",
+		min: 2,
+		max: 30,
+		default: 11,
+		step: 0.5,
+		unit: "m/s",
+		icon: "Gauge",
+	},
+	{
+		// Forward speed while accelerating (FlightController.boostSpeed).
+		id: "boostSpeed",
+		label: "Boost Speed",
+		group: "Flight",
+		min: 5,
+		max: 50,
+		default: 18,
+		step: 0.5,
+		unit: "m/s",
+		icon: "Rocket",
+	},
 ];
 
 // ── Manifest ───────────────────────────────────────────────────
@@ -68,8 +92,8 @@ export const manifest: ExperienceManifest = {
 	id: "becoming-many",
 	name: "Becoming Many",
 	description:
-		"WebGPU + TSL terrain with the 7-sense view-mode state machine (M2). Switch senses with keys 1–7 or the Sense parameter; each is a TSL material-kit variant over the same world. Toward the Sinneswandler mirror.",
-	version: "0.3.0",
+		"WebGPU + TSL terrain you fly over (M1), with the 7-sense view-mode state machine (M2). WASD/Shift or a controller/gyro to fly; keys 1–7 or the Sense parameter to switch senses; each is a TSL material-kit variant over the same world. Toward the Sinneswandler mirror.",
+	version: "0.4.0",
 	author: "Tade Strehk",
 
 	// ── Renderer ──
@@ -80,9 +104,10 @@ export const manifest: ExperienceManifest = {
 	// ── I/O Contract ──
 	parameters,
 	outputs: [],
-	// No input interfaces yet — the preview only auto-orbits. Flip orientation/
-	// speed on once player.ts grows a flight controller (M1).
-	interfaces: { orientation: false, speed: false },
+	// Flight is live (M1): orientation (pitch/roll) + speed (accelerate/brake)
+	// feed the modular input system's NetworkSource via updatePlayer(); keyboard
+	// and XR-controller sources are wired locally. See input/ + flight-controller.
+	interfaces: { orientation: true, speed: true },
 
 	// ── Scene Defaults ──
 	// Applied by the loader before setup(): background, fog, ambient + sun light.
@@ -100,7 +125,9 @@ export const manifest: ExperienceManifest = {
 		sunColor: "#ffffff",
 		sunPosition: { x: 5, y: 8, z: 4 },
 	},
-	spawn: { position: { x: 0, y: 22, z: 0 } },
+	// Keep in sync with SPAWN in scene.ts (the flight rig is placed there). High
+	// enough to clear the hill crests; the soft altitude floor settles it down.
+	spawn: { position: { x: 0, y: 38, z: 0 } },
 
 	// ── Lifecycle ──
 	// No custom `render` hook — the terrain has no compute step, so the default

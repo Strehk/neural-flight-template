@@ -1,23 +1,23 @@
 import type { ExperienceState } from "../types";
+import type { NetworkSource } from "./input/network-source";
+import type { BecomingManyState } from "./scene";
 
-// ── Player Movement — scaffold stub ────────────────────────────
+// ── Player Movement — network input bridge ─────────────────────
 //
-// Intentionally a no-op for now. The scaffold has no movement: it only proves the
-// WebGPU + WebXR render pipeline stands up.
-//
-// LONG-TERM: this is where "Becoming Many" will grow its flight controller to
-// mirror Sinneswandler — pitch/roll → orientation, accelerate/brake → speed,
-// driving a player rig (see flight-controller.ts in sinneswandler_test1 and the
-// shared FlightPlayer in src/lib/three/player.ts for the WebGL reference).
-//
-// To enable input wiring later: set `interfaces.orientation`/`.speed` in
-// manifest.ts and read `orientation`/`speed` here into player state.
+// The platform feeds device orientation (phone gyro / ICAROS / controller app)
+// + speed commands here once per frame, *before* tick(). We don't run physics
+// here — we just hand the values to the modular input system's NetworkSource,
+// which the hub merges with the keyboard/gamepad sources. The actual flight
+// integration happens in tick() off the clock spine (so pause / timeScale affect
+// movement too). See input/ and flight-controller.ts.
 
 export function updatePlayer(
-	_orientation: { pitch: number; roll: number },
-	_speed: { accelerate: boolean; brake: boolean },
-	_state: ExperienceState,
+	orientation: { pitch: number; roll: number },
+	speed: { accelerate: boolean; brake: boolean },
+	state: ExperienceState,
 	_delta: number,
 ): void {
-	// no-op (scaffold)
+	const s = state as BecomingManyState;
+	const net = s.input.get("network") as NetworkSource | undefined;
+	net?.setNet(orientation, speed);
 }

@@ -8,7 +8,8 @@ import { type BecomingManyState, SENSE_COUNT } from "./scene";
 //
 // The senses own the material-kit uniforms now, so settings drive the sense
 // state machine rather than individual uniforms: pick the active sense (also
-// reachable via keys 1–7) and tune the transition duration.
+// reachable via keys 1–7) and tune the transition duration. The Flight group
+// tunes the controller's cruise/boost speed live.
 
 export function applySettings(
 	id: string,
@@ -35,6 +36,14 @@ export function applySettings(
 
 		case "masterVolume":
 			s.director.setMasterGain(value as number);
+			break;
+
+		case "cruiseSpeed":
+			s.flight.cruiseSpeed = value as number;
+			break;
+
+		case "boostSpeed":
+			s.flight.boostSpeed = value as number;
 			break;
 
 		default:
