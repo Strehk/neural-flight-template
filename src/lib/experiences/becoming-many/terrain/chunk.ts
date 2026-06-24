@@ -17,10 +17,11 @@
 // IMPORTANT — see AGENTS.md "WebGPU + TSL": node fns from `three/tsl`, classes
 // from `three/webgpu`. Mirrors the compute idiom in swarm-scene.ts.
 
-import { Fn, float, instanceIndex, storage, vec3 } from "three/tsl";
+import { Fn, float, instanceIndex, storage, uniform, vec3 } from "three/tsl";
 import * as THREE from "three/webgpu";
 import type { ComputeNode, MeshStandardNodeMaterial } from "three/webgpu";
 import type { ChunkLike } from "$lib/three/world/ChunkScheduler";
+import type { DecorationSet } from "./decorations";
 import type { TerrainConfig, TerrainProvider } from "./provider";
 import { STORAGE_NORMAL, STORAGE_POSITION } from "./material";
 
@@ -39,6 +40,7 @@ export class TerrainChunk implements ChunkLike {
 	private readonly geometry: THREE.PlaneGeometry;
 	private readonly kernel: ComputeNode;
 	private readonly vertexCount: number;
+	private readonly decorations: THREE.InstancedMesh[];
 
 	constructor(
 		gridX: number,
@@ -47,6 +49,7 @@ export class TerrainChunk implements ChunkLike {
 		provider: TerrainProvider,
 		cfg: TerrainConfig,
 		material: MeshStandardNodeMaterial,
+		decorations?: DecorationSet,
 	) {
 		this.gridX = gridX;
 		this.gridZ = gridZ;
@@ -75,6 +78,13 @@ export class TerrainChunk implements ChunkLike {
 		const posStore = storage(posAttr, "vec3", count);
 		const nrmStore = storage(nrmAttr, "vec3", count);
 
+		// Chunk origin as UNIFORMS, not baked literals: this keeps every chunk's
+		// kernel byte-identical WGSL, so the compute pipeline compiles once and is
+		// reused for all chunks instead of recompiling per chunk (the streaming
+		// hitch). Only the uniform *values* differ; the shader does not.
+		const uOriginX = uniform(centerX);
+		const uOriginZ = uniform(centerZ);
+
 		this.kernel = Fn(() => {
 			// instanceIndex → grid (ix, iz). Float math keeps it portable across the
 			// uint/int TSL surface; idx ≤ ~few-thousand is exact in f32.
@@ -84,8 +94,8 @@ export class TerrainChunk implements ChunkLike {
 
 			const lx = ix.div(segments).sub(0.5).mul(chunkSize);
 			const lz = iz.div(segments).sub(0.5).mul(chunkSize);
-			const wx = lx.add(centerX);
-			const wz = lz.add(centerZ);
+			const wx = lx.add(uOriginX);
+			const wz = lz.add(uOriginZ);
 
 			const h = provider.heightNode(wx, wz, cfg);
 			// Surface normal from the height gradient (central differences).
@@ -106,6 +116,13 @@ export class TerrainChunk implements ChunkLike {
 		this.mesh.frustumCulled = false;
 		this.mesh.matrixAutoUpdate = false;
 		this.mesh.updateMatrix();
+
+		// Instanced decorations scattered on the surface (chunk-local coords), as
+		// children of the mesh so they stream + dispose with the chunk.
+		this.decorations = decorations
+			? decorations.populate(gridX, gridZ, chunkSize, provider, cfg)
+			: [];
+		for (const deco of this.decorations) this.mesh.add(deco);
 	}
 
 	/** Run the one-shot generation kernel. Awaited by the world before the chunk
@@ -119,5 +136,8 @@ export class TerrainChunk implements ChunkLike {
 	dispose(): void {
 		this.mesh.removeFromParent();
 		this.geometry.dispose();
+		// Free per-chunk instance buffers; the shared deco geo/materials are owned
+		// by the DecorationSet and disposed by the world.
+		for (const deco of this.decorations) deco.dispose();
 	}
 }

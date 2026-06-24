@@ -17,19 +17,27 @@ import type { MeshStandardNodeMaterial, Node } from "three/webgpu";
 import { ChunkScheduler } from "$lib/three/world/ChunkScheduler";
 import type { StreamingConfig } from "$lib/experiences/sinneswandler_test1/world-config";
 import { type ChunkParams, TerrainChunk } from "./chunk";
+import { DecorationSet } from "./decorations";
 import { createTerrainMaterial, type KitUniforms } from "./material";
 import type { TerrainConfig, TerrainProvider } from "./provider";
 import { getTerrainProvider } from "./providers";
 
-// Streaming defaults. buildRadius 3 over 128 m chunks ≈ a 450 m view, inside the
-// manifest's 620 m far plane; the sense view-radius reveal fades the rest.
+// Streaming defaults, tuned for smooth streaming over raw coverage:
+//   - Big 256 m chunks → far fewer build events (you cross cell boundaries
+//     rarely) and fewer draw calls; buildRadius 2 still covers ~640 m (past the
+//     620 m far plane), so even wide-view senses don't hit the void edge.
+//   - 40 segments → ~6.4 m/vertex, ~1.6k verts/chunk × 25 chunks ≈ 42k verts
+//     (was ~117k) — lighter on the GPU.
+//   - maxBuildsPerFrame 1 → at most one chunk's work per frame, so any residual
+//     build cost is spread out. (The compute pipeline itself only compiles once
+//     now — see chunk.ts's uniform origin.)
 const DEFAULT_STREAMING: StreamingConfig = {
-	chunkSize: 128,
-	terrainSegments: 48,
+	chunkSize: 256,
+	terrainSegments: 40,
 	anchorStepCells: 1,
-	buildRadius: 3,
-	keepRadius: 4,
-	maxBuildsPerFrame: 2,
+	buildRadius: 2,
+	keepRadius: 3,
+	maxBuildsPerFrame: 1,
 	// Unused here (the legacy acoustic field is not part of this slice).
 	acousticFieldEnabled: false,
 	acousticFieldGridStep: 0,
@@ -48,6 +56,8 @@ export interface TerrainWorldOptions {
 	config?: Partial<TerrainConfig>;
 	/** Streaming overrides (chunk size / radii / budget). */
 	streaming?: Partial<StreamingConfig>;
+	/** Decoration scatter density (0 = off). Default 0.6. */
+	decorationDensity?: number;
 }
 
 export class TerrainWorld {
@@ -56,6 +66,7 @@ export class TerrainWorld {
 
 	private readonly renderer: THREE.WebGPURenderer;
 	private readonly material: MeshStandardNodeMaterial;
+	private readonly decorations: DecorationSet;
 	private readonly scheduler: ChunkScheduler<TerrainChunk>;
 	private readonly params: ChunkParams;
 
@@ -68,6 +79,7 @@ export class TerrainWorld {
 		opts.scene.add(this.group);
 
 		this.material = createTerrainMaterial(opts.uniforms, opts.uTime);
+		this.decorations = new DecorationSet(opts.uniforms, opts.decorationDensity ?? 0.6);
 		this.provider = opts.provider;
 		this.cfg = { ...opts.provider.defaultConfig, ...opts.config };
 
@@ -111,6 +123,12 @@ export class TerrainWorld {
 		this.scheduler.clearAll();
 	}
 
+	/** Set decoration scatter density (0 = off); rebuilds chunks. */
+	setDecorationDensity(density: number): void {
+		this.decorations.density = density;
+		this.scheduler.clearAll();
+	}
+
 	get providerId(): string {
 		return this.provider.id;
 	}
@@ -119,6 +137,7 @@ export class TerrainWorld {
 		this.scheduler.clearAll();
 		this.group.removeFromParent();
 		this.material.dispose();
+		this.decorations.dispose();
 	}
 
 	private async buildChunk(gridX: number, gridZ: number): Promise<TerrainChunk> {
@@ -129,6 +148,7 @@ export class TerrainWorld {
 			this.provider,
 			this.cfg,
 			this.material,
+			this.decorations,
 		);
 		await chunk.generate(this.renderer);
 		return chunk;

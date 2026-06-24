@@ -114,6 +114,17 @@ const parameters: ParameterDef[] = [
 		unit: "×",
 		icon: "MoveVertical",
 	},
+	{
+		// Instanced rock/grass scatter density (0 = off).
+		id: "decorations",
+		label: "Decorations",
+		group: "Terrain",
+		min: 0,
+		max: 1,
+		default: 0.6,
+		step: 0.1,
+		icon: "Trees",
+	},
 ];
 
 // ── Manifest ───────────────────────────────────────────────────
