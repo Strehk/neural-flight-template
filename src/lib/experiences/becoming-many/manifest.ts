@@ -5,83 +5,55 @@ import { applySettings } from "./settings";
 
 // ── Parameter Definitions ──────────────────────────────────────
 // Appear in the Settings Sidebar (slider/toggle) and the Node Editor (0-1 signal
-// remapped to min/max). These steer the terrain preview's TSL material-kit
-// uniforms live (see scene.ts / settings.ts).
+// remapped to min/max). The senses now own the material-kit uniforms (the
+// SenseManager lerps them every frame), so the steerable surface here is the
+// active sense + how fast it transitions (see scene.ts / senses.ts / settings.ts).
 
 const parameters: ParameterDef[] = [
 	{
-		id: "depthLevels",
-		label: "Depth Bands",
-		group: "Vision",
-		min: 1,
-		max: 16,
+		// 0=Luft, 1=Echo, 2=Infrarot, 3=Duft, 4=Netzwerk, 5=Depth, 6=Normal.
+		// Keys 1–7 switch the same modes on desktop.
+		id: "sense",
+		label: "Sense",
+		group: "Perception",
+		min: 0,
+		max: 6,
 		default: 6,
 		step: 1,
-		icon: "Layers",
+		icon: "Eye",
 	},
 	{
-		id: "viewRadius",
-		label: "View Radius",
-		group: "Vision",
-		min: 20,
-		max: 400,
-		default: 160,
-		step: 5,
-		unit: "m",
-		icon: "Radar",
-	},
-	{
-		id: "revealSoftness",
-		label: "Reveal Softness",
-		group: "Vision",
-		min: 2,
-		max: 80,
-		default: 28,
-		step: 2,
-		unit: "m",
-		icon: "Aperture",
-	},
-	{
-		id: "fogNear",
-		label: "Fog Near",
-		group: "Atmosphere",
-		min: 0,
-		max: 200,
-		default: 30,
-		step: 5,
-		unit: "m",
-		icon: "CloudFog",
-	},
-	{
-		id: "fogFar",
-		label: "Fog Far",
-		group: "Atmosphere",
-		min: 40,
-		max: 500,
-		default: 220,
-		step: 10,
-		unit: "m",
-		icon: "Cloud",
-	},
-	{
-		id: "rimPower",
-		label: "Edge Sharpness",
-		group: "Atmosphere",
+		id: "transitionTime",
+		label: "Transition Time",
+		group: "Perception",
 		min: 0.5,
-		max: 6,
-		default: 2.5,
+		max: 8,
+		default: 4.5,
 		step: 0.1,
-		icon: "Sparkles",
+		unit: "s",
+		icon: "Timer",
 	},
 	{
-		id: "rimStrength",
-		label: "Edge Glow",
-		group: "Atmosphere",
+		// Scales the global clock: transitions, auto-orbit, and timed audio cues.
+		id: "timeScale",
+		label: "Time Scale",
+		group: "Perception",
 		min: 0,
-		max: 2,
-		default: 0.6,
+		max: 3,
+		default: 1,
 		step: 0.05,
-		icon: "Sun",
+		unit: "×",
+		icon: "Clock",
+	},
+	{
+		id: "masterVolume",
+		label: "Master Volume",
+		group: "Perception",
+		min: 0,
+		max: 1,
+		default: 0.8,
+		step: 0.05,
+		icon: "Volume2",
 	},
 ];
 
@@ -96,8 +68,8 @@ export const manifest: ExperienceManifest = {
 	id: "becoming-many",
 	name: "Becoming Many",
 	description:
-		"WebGPU + TSL terrain preview — exercises the shared material kit (depth bands, view-radius reveal, fog, fresnel) on a static surface. First step toward the Sinneswandler mirror.",
-	version: "0.2.0",
+		"WebGPU + TSL terrain with the 7-sense view-mode state machine (M2). Switch senses with keys 1–7 or the Sense parameter; each is a TSL material-kit variant over the same world. Toward the Sinneswandler mirror.",
+	version: "0.3.0",
 	author: "Tade Strehk",
 
 	// ── Renderer ──

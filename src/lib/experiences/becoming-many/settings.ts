@@ -1,13 +1,14 @@
 import type * as THREE from "three";
 import type { ExperienceState } from "../types";
-import type { BecomingManyState } from "./scene";
+import { type BecomingManyState, SENSE_COUNT } from "./scene";
 
 // ── Settings ───────────────────────────────────────────────────
 // Called when a parameter changes (Settings Sidebar slider / Node Editor signal).
 // Each `case` matches a ParameterDef id from manifest.ts.
 //
-// These map straight onto the live TSL uniforms in scene.ts: the change is picked
-// up by the material on the very next frame — no rebuild, no reallocation.
+// The senses own the material-kit uniforms now, so settings drive the sense
+// state machine rather than individual uniforms: pick the active sense (also
+// reachable via keys 1–7) and tune the transition duration.
 
 export function applySettings(
 	id: string,
@@ -16,35 +17,24 @@ export function applySettings(
 	_scene: THREE.Scene,
 ): void {
 	const s = state as BecomingManyState;
-	const u = s.uniforms;
 
 	switch (id) {
-		case "depthLevels":
-			u.depthLevels.value = value as number;
+		case "sense": {
+			const i = Math.round(value as number);
+			s.senses.switchToIndex(Math.min(Math.max(i, 0), SENSE_COUNT - 1));
+			break;
+		}
+
+		case "transitionTime":
+			s.senses.duration = value as number;
 			break;
 
-		case "viewRadius":
-			u.viewRadius.value = value as number;
+		case "timeScale":
+			s.clock.timeScale = value as number;
 			break;
 
-		case "revealSoftness":
-			u.revealSoftness.value = value as number;
-			break;
-
-		case "fogNear":
-			u.fogNear.value = value as number;
-			break;
-
-		case "fogFar":
-			u.fogFar.value = value as number;
-			break;
-
-		case "rimPower":
-			u.rimPower.value = value as number;
-			break;
-
-		case "rimStrength":
-			u.rimStrength.value = value as number;
+		case "masterVolume":
+			s.director.setMasterGain(value as number);
 			break;
 
 		default:
