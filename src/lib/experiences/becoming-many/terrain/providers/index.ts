@@ -8,9 +8,13 @@
 import { registerTerrainProvider } from "./registry";
 import { ridgedProvider } from "./ridged";
 import { sineHillsProvider } from "./sine-hills";
+// Thin shell only (id/label/kind/defaultConfig) — the heavy generation lives in
+// the worldgen worker, so registering it here does NOT bloat the main bundle.
+import { worldgenProvider } from "./worldgen";
 
 registerTerrainProvider(sineHillsProvider);
 registerTerrainProvider(ridgedProvider);
+registerTerrainProvider(worldgenProvider);
 
 export {
 	getTerrainProvider,
@@ -19,6 +23,7 @@ export {
 } from "./registry";
 export { sineHillsProvider } from "./sine-hills";
 export { ridgedProvider } from "./ridged";
+export { worldgenProvider } from "./worldgen";
 
 /** The provider the world opens with. */
-export const DEFAULT_PROVIDER_ID = sineHillsProvider.id;
+export const DEFAULT_PROVIDER_ID = worldgenProvider.id;

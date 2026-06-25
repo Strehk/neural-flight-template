@@ -1,16 +1,22 @@
 // ── Becoming Many — Streaming Terrain World ────────────────────
 //
 // Owns the streamed chunked terrain: the generic ChunkScheduler (reused from
-// src/lib/three/world), a worker pool that generates chunk vertex data off the
-// main thread, one shared sense material, a shared grid index, and the active
-// TerrainProvider + config. Generation is CPU-in-worker (no GPU compute), so no
-// per-chunk pipeline build → no streaming hitch. The provider's height() feeds
-// both the worker (geometry) and the main thread (flight floor + decorations).
+// src/lib/three/world), the generation transport, one shared sense material, a
+// shared grid index, and the active TerrainProvider + config. Generation is
+// CPU-in-worker (no GPU compute), so no per-chunk pipeline build → no streaming
+// hitch.
+//
+// Two provider kinds, two transports:
+//   - "pointwise" (sine/ridged): a round-robin TerrainWorkerPool runs the shared
+//     grid loop over provider.height; the flight floor samples provider.height.
+//   - "chunk" (worldgen): a single dedicated WorldgenClient runs the whole
+//     region/WFC/hydrology pipeline (its region cache stays warm); the flight
+//     floor samples each built chunk's height grid via a ChunkHeightCache.
 //
 // Modularity payoff:
 //   - setProvider(id)  → swap the terrain algorithm live; chunks rebuild.
 //   - setConfig(patch) → tweak seed/amplitude/…; chunks rebuild.
-//   - sampleHeight(x,z) → provider.height; the flight floor matches the surface.
+//   - sampleHeight(x,z) → the flight floor matches the surface for either kind.
 //
 // IMPORTANT — see AGENTS.md "WebGPU + TSL": classes from `three/webgpu`.
 
@@ -20,10 +26,12 @@ import { ChunkScheduler } from "$lib/three/world/ChunkScheduler";
 import type { StreamingConfig } from "$lib/experiences/sinneswandler_test1/world-config";
 import { TerrainChunk } from "./chunk";
 import { DecorationSet } from "./decorations";
+import { ChunkHeightCache, makeHeightEntry, sampleEntry } from "./height-cache";
 import { createTerrainMaterial, type KitUniforms } from "./material";
 import type { TerrainConfig, TerrainProvider } from "./provider";
 import { getTerrainProvider } from "./providers";
 import { TerrainWorkerPool } from "./worker/pool";
+import { WorldgenClient } from "./worker/worldgen-client";
 
 // Streaming defaults, tuned for smooth streaming over raw coverage: big 256 m
 // chunks (rare build events, fewer draws), buildRadius 2 ≈ 640 m coverage (past
@@ -62,12 +70,17 @@ export class TerrainWorld {
 
 	private readonly material: MeshStandardNodeMaterial;
 	private readonly decorations: DecorationSet;
-	private readonly pool: TerrainWorkerPool;
 	private readonly scheduler: ChunkScheduler<TerrainChunk>;
 	private readonly chunkSize: number;
 	private readonly segments: number;
 	/** Shared grid index (same topology for every chunk). */
 	private readonly indexArray: Uint16Array | Uint32Array;
+	/** Flight-floor source for chunk providers (baked per-chunk height grids). */
+	private readonly heightCache: ChunkHeightCache;
+
+	/** Transports, created lazily for whichever provider kind is active. */
+	private pool?: TerrainWorkerPool;
+	private worldgen?: WorldgenClient;
 
 	private provider: TerrainProvider;
 	private cfg: TerrainConfig;
@@ -84,6 +97,7 @@ export class TerrainWorld {
 		const streaming: StreamingConfig = { ...DEFAULT_STREAMING, ...opts.streaming };
 		this.chunkSize = streaming.chunkSize;
 		this.segments = streaming.terrainSegments;
+		this.heightCache = new ChunkHeightCache(this.chunkSize);
 
 		// Build the grid index once from a throwaway plane and reuse its array.
 		const template = new THREE.PlaneGeometry(1, 1, this.segments, this.segments);
@@ -92,12 +106,14 @@ export class TerrainWorld {
 			| Uint32Array;
 		template.dispose();
 
-		this.pool = new TerrainWorkerPool();
-
 		this.scheduler = new ChunkScheduler<TerrainChunk>({
 			config: streaming,
 			buildChunk: (gx, gz) => this.buildChunk(gx, gz),
-			onChunkBuilt: (chunk) => this.group.add(chunk.mesh),
+			onChunkBuilt: (chunk) => {
+				this.group.add(chunk.mesh);
+				if (chunk.heightGrid) this.heightCache.add(chunk.gridX, chunk.gridZ, chunk.heightGrid);
+			},
+			onChunkDisposed: (chunk) => this.heightCache.remove(chunk.gridX, chunk.gridZ),
 		});
 	}
 
@@ -108,7 +124,8 @@ export class TerrainWorld {
 
 	/** World ground height — the flight floor + gameplay sampling source. */
 	sampleHeight(x: number, z: number): number {
-		return this.provider.height(x, z, this.cfg);
+		if (this.provider.kind === "chunk") return this.heightCache.sample(x, z);
+		return this.provider.height ? this.provider.height(x, z, this.cfg) : 0;
 	}
 
 	/** Swap the terrain algorithm live; rebuilds every chunk. Keeps the current
@@ -116,19 +133,19 @@ export class TerrainWorld {
 	setProvider(id: string, config?: Partial<TerrainConfig>): void {
 		this.provider = getTerrainProvider(id);
 		if (config) this.cfg = { ...this.cfg, ...config };
-		this.scheduler.clearAll();
+		this.rebuild();
 	}
 
 	/** Tweak the active provider's config (seed/amplitude/…); rebuilds chunks. */
 	setConfig(patch: Partial<TerrainConfig>): void {
 		this.cfg = { ...this.cfg, ...patch };
-		this.scheduler.clearAll();
+		this.rebuild();
 	}
 
 	/** Set decoration scatter density (0 = off); rebuilds chunks. */
 	setDecorationDensity(density: number): void {
 		this.decorations.density = density;
-		this.scheduler.clearAll();
+		this.rebuild();
 	}
 
 	get providerId(): string {
@@ -137,14 +154,61 @@ export class TerrainWorld {
 
 	dispose(): void {
 		this.scheduler.clearAll();
-		this.pool.dispose();
+		this.pool?.dispose();
+		this.worldgen?.dispose();
+		this.heightCache.clear();
 		this.group.removeFromParent();
 		this.material.dispose();
 		this.decorations.dispose();
 	}
 
+	/** Drop all chunks + cached heights; the next update re-streams with current
+	 *  provider/config. The worldgen worker re-applies the config (it keys its
+	 *  region cache by the config signature). */
+	private rebuild(): void {
+		this.scheduler.clearAll();
+		this.heightCache.clear();
+	}
+
+	private ensurePool(): TerrainWorkerPool {
+		if (!this.pool) this.pool = new TerrainWorkerPool();
+		return this.pool;
+	}
+
+	private ensureWorldgen(): WorldgenClient {
+		if (!this.worldgen) this.worldgen = new WorldgenClient();
+		return this.worldgen;
+	}
+
 	private async buildChunk(gridX: number, gridZ: number): Promise<TerrainChunk> {
-		const result = await this.pool.build(
+		if (this.provider.kind === "chunk") {
+			const r = await this.ensureWorldgen().build(
+				this.cfg,
+				gridX,
+				gridZ,
+				this.chunkSize,
+				this.segments,
+			);
+			// This chunk isn't in the global height cache yet (added on build), so
+			// place its decorations against its own freshly-built grid.
+			const local = makeHeightEntry(gridX, gridZ, this.chunkSize, r.heightGrid);
+			return new TerrainChunk({
+				gridX: r.gridX,
+				gridZ: r.gridZ,
+				chunkSize: this.chunkSize,
+				positions: r.positions,
+				normals: r.normals,
+				heightGrid: r.heightGrid,
+				biome: r.biome,
+				index: this.indexArray,
+				material: this.material,
+				decorations: this.decorations,
+				decoSampleHeight: (x, z) => sampleEntry(local, x, z),
+				decoSeed: this.cfg.seed,
+			});
+		}
+
+		const r = await this.ensurePool().build(
 			this.provider.id,
 			this.cfg,
 			gridX,
@@ -152,14 +216,19 @@ export class TerrainWorld {
 			this.chunkSize,
 			this.segments,
 		);
-		return new TerrainChunk(
-			result,
-			this.chunkSize,
-			this.indexArray,
-			this.material,
-			this.provider,
-			this.cfg,
-			this.decorations,
-		);
+		const cfg = this.cfg;
+		const provider = this.provider;
+		return new TerrainChunk({
+			gridX: r.gridX,
+			gridZ: r.gridZ,
+			chunkSize: this.chunkSize,
+			positions: r.positions,
+			normals: r.normals,
+			index: this.indexArray,
+			material: this.material,
+			decorations: this.decorations,
+			decoSampleHeight: (x, z) => (provider.height ? provider.height(x, z, cfg) : 0),
+			decoSeed: this.cfg.seed,
+		});
 	}
 }

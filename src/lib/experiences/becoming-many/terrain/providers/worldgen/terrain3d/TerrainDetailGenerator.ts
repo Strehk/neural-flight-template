@@ -1,0 +1,204 @@
+/**
+ * The 3D detail layer.
+ *
+ * The Stage 1 height map is a coarse PLAN. This module turns it into believable
+ * 3D terrain by ADDING local relief that the macro map cannot hold — without ever
+ * contradicting the plan: a river still flows where the river map says, a lake
+ * still sits in its basin, a mountain region stays a mountain region. We only add
+ * structure WITHIN those regions.
+ *
+ *   finalHeight = macroHeight            (the plan, incl. carved river beds)
+ *               + biome detail           (rolling hills / dunes / plains)
+ *               + mountain ridge detail  (ridged noise, mountains only)
+ *               + cliff detail           (steep slopes / rock)
+ *               + micro surface noise
+ *               + river valley carving   (visible 3D valleys around channels)
+ *               + lake-basin clamp        (bed pushed below the flat lake surface)
+ *               + shore flattening        (detail fades to 0 toward water)
+ *
+ * Everything is a pure function of world (x,y) + seed, so adjacent chunks evaluate
+ * identical values at shared edges → seam-free. The big-amplitude terms are driven
+ * by the seamless bordered height (and slope derived from it); only gentle terms
+ * use the per-pixel maps.
+ */
+import type { GenParams } from '../generation/mapTypes';
+import { fbm2D, signedFbm2D, valueNoise2D } from '../generation/noise';
+import { computeMasks, smoothstep } from './BiomeTerrainProfiles';
+import type { TerrainSampler } from './TerrainSampler';
+
+/** Ridged multifractal in ~[0,1] with sharp crests (world-space, seamless). */
+function ridged(x: number, y: number, seed: number, octaves: number): number {
+  let sum = 0;
+  let amp = 1;
+  let freq = 1;
+  let norm = 0;
+  for (let o = 0; o < octaves; o++) {
+    const n = valueNoise2D(x * freq, y * freq, seed + o * 1709) * 2 - 1;
+    const r = 1 - Math.abs(n);
+    sum += r * r * amp;
+    norm += amp;
+    amp *= 0.5;
+    freq *= 2;
+  }
+  return sum / norm;
+}
+
+/**
+ * Normalised height → world Y. Shared by terrain AND every water mesh so surfaces
+ * always line up with the bed.
+ *
+ * It is NON-LINEAR above sea level: land elevation is raised to `reliefExponent`,
+ * which flattens the lowlands and makes high ground tower — so mountains actually
+ * rise dramatically over the plains instead of the whole landmass sitting high and
+ * mountains barely poking out. The curve is steepest near the top, so the same
+ * normalised ridge bump produces a much bigger vertical kick at altitude → peaked,
+ * not flat, summits. Continuous at sea level (maps sea → 0), and below sea it is
+ * linear down to a gentle ocean floor, so the flat water plane still aligns.
+ */
+export function heightToWorldY(heightNorm: number, params: GenParams): number {
+  const sea = params.waterLevel;
+  const reliefMax = params.terrainHeightScale;
+  if (heightNorm <= sea) {
+    return (heightNorm - sea) * reliefMax * 0.5; // gentle ocean floor (negative)
+  }
+  const landNorm = (heightNorm - sea) / (1 - sea); // 0 at shore, 1 at macro max, can exceed 1 with ridges
+  return Math.pow(landNorm, params.reliefExponent) * reliefMax;
+}
+
+/** Rich per-point result, reused by the mesh builder, material and placement. */
+export interface TerrainPoint {
+  heightNorm: number; // detailed normalised height (0..1)
+  y: number; // world Y
+  macroHeight: number; // the Stage 1 plan height at this point
+  slope: number; // seamless slope 0..1
+  mountain: number; // mountain mask 0..1
+  rock: number; // rock exposure 0..1 (slope/biome driven)
+  wetness: number; // proximity-to-water wetness 0..1
+}
+
+export class TerrainDetailGenerator {
+  private params: GenParams;
+  private seed: number;
+
+  constructor(params: GenParams) {
+    this.params = params;
+    this.seed = params.seed >>> 0;
+  }
+
+  setParams(params: GenParams): void {
+    this.params = params;
+    this.seed = params.seed >>> 0;
+  }
+
+  /** Detailed normalised height at a world position. */
+  heightAt(wx: number, wy: number, s: TerrainSampler): number {
+    return this.evaluate(wx, wy, s).heightNorm;
+  }
+
+  /** World-space Y at a world position. */
+  worldY(wx: number, wy: number, s: TerrainSampler): number {
+    return this.evaluate(wx, wy, s).y;
+  }
+
+  /** Full evaluation (height + the masks the material/placement want). */
+  evaluate(wx: number, wy: number, s: TerrainSampler): TerrainPoint {
+    const P = this.params;
+    const sea = P.waterLevel;
+    const seed = this.seed;
+    const u = (wx - s.originX) / s.size;
+    const v = (wy - s.originY) / s.size;
+
+    const macroH = s.sampleHeight(u, v);
+    const slope = s.slopeAt(u, v);
+    const moisture = s.sampleMoisture(u, v);
+    const temperature = s.sampleTemperature(u, v);
+    const river = s.sampleRiver(u, v);
+    const lake = s.sampleLake(u, v);
+    const waterDist = s.sampleWaterDistance(u, v);
+
+    const m = computeMasks(macroH, moisture, temperature, sea);
+
+    // Gates ------------------------------------------------------------------
+    const landGate = smoothstep(sea - 0.01, sea + 0.03, macroH); // 0 under sea
+    const waterFeature = Math.max(Math.min(1, lake * 1.4), Math.min(1, river * 1.6));
+    // Flatten toward water: full detail far away, smoothing in near shores/banks.
+    const shoreGate = smoothstep(0.0, 0.1, waterDist);
+    const shoreBlend = 1 - P.shoreSmoothing * (1 - shoreGate);
+    const detailGate = landGate * (1 - waterFeature) * Math.max(0, shoreBlend);
+
+    // Noise terms (normalised height units) ----------------------------------
+    const ds = P.detailStrength;
+
+    // Rolling plains / hills: stronger on hills, gentle on lowland, flattened in
+    // wetlands. Suppressed by the desert mask (dunes take over there).
+    const rollAmp = (m.hill * 0.05 + m.lowland * 0.022) * (1 - m.wetland * 0.85) * (1 - m.desert * 0.8);
+    const rolling = (fbm2D(wx / 95, wy / 95, seed + 101, 4) - 0.5) * 2 * rollAmp;
+
+    // Desert dunes: smooth directional waves + a little fbm crest break-up.
+    const duneDir = wx * 0.7 + wy * 0.7;
+    const dune =
+      (Math.sin(duneDir / 26 + fbm2D(wx / 180, wy / 180, seed + 202, 2) * 3.0) * 0.5 + 0.5) *
+      m.desert *
+      0.03;
+
+    // Mountain relief: a broad low-frequency massif uplift (whole ranges rise)
+    // plus finer ridged crests on top — together with the relief curve in
+    // heightToWorldY this makes mountains tower with peaked, not flat, summits.
+    const rs = P.mountainRidgeStrength;
+    const massif = ridged(wx / 720, wy / 720, seed + 707, 3) * m.mountain * 0.16 * rs;
+    const crests = ridged(wx / 190, wy / 190, seed + 303, 5) * m.mountain * 0.26 * rs;
+    const ridge = massif + crests;
+
+    // Cliffs / exposed rock on steep slopes and in rocky/mountain zones.
+    const steep = smoothstep(P.rockSlopeThreshold, P.rockSlopeThreshold + 0.25, slope);
+    const rockZone = Math.max(steep, m.mountain * 0.6);
+    const cliffAmp = rockZone * 0.06 * P.cliffStrength;
+    const cliff = (ridged(wx / 38, wy / 38, seed + 404, 3) - 0.4) * cliffAmp;
+
+    // Micro surface irregularity everywhere on land.
+    const micro = signedFbm2D(wx / 11, wy / 11, seed + 505, 3) * 0.0035;
+
+    let detail =
+      (rolling + dune + micro) * detailGate * ds +
+      ridge * landGate * ds +
+      cliff * landGate * ds;
+
+    // River valley: deepen + widen a visible 3D valley around the channel. The
+    // macro bed is already carved; this opens the banks so it reads in 3D.
+    const flow = s.sampleFlow(u, v);
+    const channel = smoothstep(0.04, 0.45, river);
+    const valley = channel * (0.012 + flow * 0.05) * P.riverValleyStrength;
+    detail -= valley;
+
+    let heightNorm = macroH + detail;
+
+    // Lake basin: clamp the bed below the flat lake surface so lakes are real
+    // basins with no terrain spikes poking through the water.
+    if (lake > 0.08) {
+      const surf = s.sampleWaterSurface(u, v);
+      const basinDepth = 0.01 + lake * 0.025;
+      const targetBed = surf - basinDepth;
+      const k = Math.min(1, lake * 1.3);
+      heightNorm = heightNorm + (Math.min(heightNorm, targetBed) - heightNorm) * k;
+    }
+
+    // Lower-clamp only. The upper bound is intentionally loose (NOT 1.0) so ridge
+    // detail can push past the macro max and build real peaks — clamping to 1.0
+    // here is what flattened the summits before.
+    if (heightNorm < 0) heightNorm = 0;
+    else if (heightNorm > 1.8) heightNorm = 1.8;
+
+    const rock = Math.min(1, Math.max(steep, m.mountain * smoothstep(0.7, 0.95, m.landNorm) * 0.8));
+    const wetness = Math.min(1, (1 - waterDist) * 0.9 + waterFeature * 0.6);
+
+    return {
+      heightNorm,
+      y: heightToWorldY(heightNorm, P),
+      macroHeight: macroH,
+      slope,
+      mountain: m.mountain,
+      rock,
+      wetness,
+    };
+  }
+}

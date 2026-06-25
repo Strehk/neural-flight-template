@@ -81,13 +81,14 @@ const parameters: ParameterDef[] = [
 	},
 	{
 		// Index into the terrain provider registry (0 = Sine Hills, 1 = Ridged
-		// Peaks). Switches the streamed generation algorithm live.
+		// Peaks, 2 = WorldGen — WFC biomes + noise + hydrology, generated in the
+		// dedicated worldgen worker). Switches the streamed algorithm live.
 		id: "terrainProvider",
 		label: "Terrain Algorithm",
 		group: "Terrain",
 		min: 0,
-		max: 1,
-		default: 0,
+		max: 2,
+		default: 2,
 		step: 1,
 		icon: "Mountain",
 	},
@@ -173,7 +174,7 @@ export const manifest: ExperienceManifest = {
 	},
 	// Keep in sync with SPAWN in scene.ts (the flight rig is placed there). High
 	// enough to clear the hill crests; the soft altitude floor settles it down.
-	spawn: { position: { x: 0, y: 38, z: 0 } },
+	spawn: { position: { x: 0, y: 100, z: 0 } },
 
 	// ── Lifecycle ──
 	// No custom `render` hook — the terrain has no compute step, so the default

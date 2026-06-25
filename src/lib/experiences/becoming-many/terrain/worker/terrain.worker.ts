@@ -23,6 +23,10 @@ self.onmessage = (event: MessageEvent<WorkerInbound>): void => {
 	try {
 		const { providerId, cfg, gridX, gridZ, chunkSize, segments } = msg;
 		const provider = getTerrainProvider(providerId);
+		// This pool only serves pointwise providers; chunk providers are routed to
+		// the worldgen worker instead (see TerrainWorld). Bind the height fn once.
+		const height = provider.height;
+		if (!height) throw new Error(`Provider "${providerId}" has no pointwise height()`);
 
 		const seg1 = segments + 1;
 		const count = seg1 * seg1;
@@ -41,16 +45,16 @@ self.onmessage = (event: MessageEvent<WorkerInbound>): void => {
 				const wx = centerX + lx;
 				const wz = centerZ + lz;
 
-				const h = provider.height(wx, wz, cfg);
+				const h = height(wx, wz, cfg);
 				positions[i * 3] = lx;
 				positions[i * 3 + 1] = h;
 				positions[i * 3 + 2] = lz;
 
 				// normal = normalize(hL - hR, 2e, hD - hU)
-				const hL = provider.height(wx - e, wz, cfg);
-				const hR = provider.height(wx + e, wz, cfg);
-				const hD = provider.height(wx, wz - e, cfg);
-				const hU = provider.height(wx, wz + e, cfg);
+				const hL = height(wx - e, wz, cfg);
+				const hR = height(wx + e, wz, cfg);
+				const hD = height(wx, wz - e, cfg);
+				const hU = height(wx, wz + e, cfg);
 				let nx = hL - hR;
 				let ny = 2 * e;
 				let nz = hD - hU;

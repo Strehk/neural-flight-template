@@ -35,7 +35,7 @@ import { TerrainWorld } from "./terrain/world";
 // Spawn pose for the flight rig (keep in sync with manifest.spawn). High enough
 // to clear the hill crests; the soft altitude floor settles it to cruise height.
 // In XR the headset adds head pose on top of the rig.
-const SPAWN = { x: 0, y: 38, z: 0 };
+const SPAWN = { x: 0, y: 100, z: 0 };
 
 // Sense the experience opens in (index 6 = Normal — daylight).
 const START_SENSE = "normal" as const;

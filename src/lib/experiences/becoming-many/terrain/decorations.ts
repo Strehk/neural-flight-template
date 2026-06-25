@@ -2,9 +2,9 @@
 //
 // A deliberately minimal per-chunk instanced scatter: low-poly rocks + grass
 // tufts placed on the terrain surface. It is decoupled from the generation
-// internals on purpose — it samples ONLY the active provider's CPU height
-// mirror (provider.height) for placement + slope, so the upcoming worldgen swap
-// changes the terrain without touching this layer.
+// internals on purpose — it samples ONLY a height closure (x,z)=>y supplied by
+// the world (the pointwise provider's height, or the worldgen chunk's baked
+// grid) for placement + slope, so swapping the terrain never touches this layer.
 //
 // One DecorationSet owns the shared geometries + sense-reveal materials; each
 // chunk calls populate() to get a few InstancedMeshes (chunk-local coords, added
@@ -19,7 +19,9 @@ import * as THREE from "three/webgpu";
 import { MeshStandardNodeMaterial, type Node } from "three/webgpu";
 import { viewReveal } from "$lib/tsl";
 import type { KitUniforms } from "./material";
-import type { TerrainConfig, TerrainProvider } from "./provider";
+
+/** World ground height at (x,z) — supplied by the world (provider-agnostic). */
+type HeightFn = (x: number, z: number) => number;
 
 // Per-chunk instance capacities at density = 1 (scaled by the density setting).
 const GRASS_CAP = 70;
@@ -40,16 +42,11 @@ function mulberry32(seed: number): () => number {
 	};
 }
 
-// Surface steepness at (x,z) from the provider's CPU height mirror.
-function slopeAt(
-	provider: TerrainProvider,
-	cfg: TerrainConfig,
-	x: number,
-	z: number,
-): number {
+// Surface steepness at (x,z) from the height closure.
+function slopeAt(sample: HeightFn, x: number, z: number): number {
 	const e = 2;
-	const hx = provider.height(x + e, z, cfg) - provider.height(x - e, z, cfg);
-	const hz = provider.height(x, z + e, cfg) - provider.height(x, z - e, cfg);
+	const hx = sample(x + e, z) - sample(x - e, z);
+	const hz = sample(x, z + e) - sample(x, z - e);
 	return (Math.abs(hx) + Math.abs(hz)) / (2 * e);
 }
 
@@ -90,17 +87,17 @@ export class DecorationSet {
 		gridX: number,
 		gridZ: number,
 		chunkSize: number,
-		provider: TerrainProvider,
-		cfg: TerrainConfig,
+		sampleHeight: HeightFn,
+		seed: number,
 	): THREE.InstancedMesh[] {
 		if (this.density <= 0) return [];
 
 		const centerX = gridX * chunkSize + chunkSize / 2;
 		const centerZ = gridZ * chunkSize + chunkSize / 2;
-		const seed =
+		const rngSeed =
 			(Math.imul(gridX, 73856093) ^ Math.imul(gridZ, 19349663) ^
-				Math.imul(cfg.seed | 0, 83492791)) >>> 0;
-		const rng = mulberry32(seed);
+				Math.imul(seed | 0, 83492791)) >>> 0;
+		const rng = mulberry32(rngSeed);
 
 		const grass = this.scatter(
 			this.grassGeo,
@@ -111,8 +108,8 @@ export class DecorationSet {
 			(lx, lz) => {
 				const wx = centerX + lx;
 				const wz = centerZ + lz;
-				if (slopeAt(provider, cfg, wx, wz) > GRASS_MAX_SLOPE) return null;
-				return provider.height(wx, wz, cfg);
+				if (slopeAt(sampleHeight, wx, wz) > GRASS_MAX_SLOPE) return null;
+				return sampleHeight(wx, wz);
 			},
 		);
 		const rock = this.scatter(
@@ -121,7 +118,7 @@ export class DecorationSet {
 			ROCK_CAP,
 			chunkSize,
 			rng,
-			(lx, lz) => provider.height(centerX + lx, centerZ + lz, cfg),
+			(lx, lz) => sampleHeight(centerX + lx, centerZ + lz),
 		);
 
 		return [grass, rock].filter((m): m is THREE.InstancedMesh => m !== null);

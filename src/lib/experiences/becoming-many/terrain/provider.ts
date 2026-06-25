@@ -32,6 +32,40 @@ export interface TerrainConfig {
 	octaves: number;
 }
 
+/**
+ * What a *chunk provider* returns for one chunk — plain typed arrays that
+ * structured-clone / transfer cleanly across the worker boundary. Vertex order
+ * is row-major over a (segments+1)² grid (same layout the pointwise worker uses),
+ * so the main thread can wrap them with the shared grid index unchanged.
+ */
+export interface ChunkVertexData {
+	/** (segments+1)² × 3 — chunk-local position (lx, worldY, lz) per vertex. */
+	positions: Float32Array;
+	/** (segments+1)² × 3 — world-space surface normal per vertex (Y-up). */
+	normals: Float32Array;
+	/** (segments+1)² — per-vertex biome id (reserved for biome-aware senses). */
+	biome: Uint8Array;
+	/** (segments+1)² — world-Y per vertex; the main-thread flight-floor source. */
+	heightGrid: Float32Array;
+}
+
+/** Grid parameters for a single chunk build (mirrors the worker protocol). */
+export interface ChunkBuildParams {
+	gridX: number;
+	gridZ: number;
+	chunkSize: number;
+	segments: number;
+}
+
+/**
+ * A terrain algorithm. Two kinds:
+ *   - "pointwise" (default): implements `height(x,z,cfg)`. The shared worker grid
+ *     loop builds geometry from it, and the flight floor samples it directly.
+ *   - "chunk": owns its own (region-cached, neighbourhood-dependent) generation
+ *     and produces whole-chunk vertex buffers. The world routes these to the
+ *     dedicated worldgen worker and samples the flight floor from the built
+ *     height grids (there is no cheap pointwise height). `height` is omitted.
+ */
 export interface TerrainProvider {
 	/** Stable id — used by the registry + the provider Settings enum. */
 	readonly id: string;
@@ -40,6 +74,13 @@ export interface TerrainProvider {
 	/** Config this provider ships with; the world clones it as the live config. */
 	readonly defaultConfig: TerrainConfig;
 
-	/** World ground height at (x, z) — the single source of truth for the surface. */
-	height(x: number, z: number, cfg: TerrainConfig): number;
+	/** Provider flavour. Absent ⇒ "pointwise" (back-compat). */
+	readonly kind?: "pointwise" | "chunk";
+
+	/**
+	 * World ground height at (x, z) — the single source of truth for the surface.
+	 * Required for pointwise providers; chunk providers omit it (they generate in
+	 * the worker and the world samples a cached height grid instead).
+	 */
+	height?(x: number, z: number, cfg: TerrainConfig): number;
 }
