@@ -1,34 +1,24 @@
 // ── Becoming Many — Shared Terrain Material ────────────────────
 //
-// One MeshStandardNodeMaterial reused by every streamed chunk. It reads each
-// chunk's GPU-computed vertex data through named storage attributes
-// (positionNode/normalNode → attribute(...)), and derives its *look* from the
-// shared sense uniforms exactly like the M1 static terrain did — so a single
-// sense transition restyles the whole world at once, and one material instance
-// serves all chunks (the per-chunk data lives on each chunk's geometry).
-//
-// This is the M1 sense node-graph (depthBands + distanceFog + viewReveal +
-// fresnelEdge over the sense uniforms), lifted out of scene.ts and given GPU
-// position/normal inputs.
+// One MeshStandardNodeMaterial reused by every streamed chunk. Chunk geometry is
+// built on the CPU in a worker (plain position + normal attributes), so this
+// material needs no vertex overrides — it just derives its *look* from the
+// shared sense uniforms (depthBands + distanceFog + viewReveal + fresnelEdge,
+// the M1 node-graph). One sense transition restyles the whole world at once.
 //
 // IMPORTANT — see AGENTS.md "WebGPU + TSL": node fns from `three/tsl`, classes
 // from `three/webgpu`.
 
-import { attribute, cameraPosition, mix, positionWorld, uniform } from "three/tsl";
+import { cameraPosition, mix, positionWorld, uniform } from "three/tsl";
 import * as THREE from "three/webgpu";
 import { MeshStandardNodeMaterial, type Node } from "three/webgpu";
 import { depthBands, distanceFog, fresnelEdge, viewReveal } from "$lib/tsl";
 
-/** Storage-attribute names the chunk compute kernel writes and this material reads. */
-export const STORAGE_POSITION = "storagePosition";
-export const STORAGE_NORMAL = "storageNormal";
-
 /**
- * The kit/sense uniforms as live TSL `uniform()` nodes. Defined as a factory so
- * the inferred return type (`KitUniforms`) keeps the node math methods — typing
- * the object as the structural `SenseUniforms` ({value} only) would mask them and
- * break the material graph. The nodes still satisfy `SenseUniforms` structurally
- * (they have `.value`), so the SenseManager can lerp them.
+ * The kit/sense uniforms as live TSL `uniform()` nodes. A factory so the inferred
+ * return type (`KitUniforms`) keeps the node math methods — typing it as the
+ * structural `SenseUniforms` ({value} only) would mask them. The nodes still
+ * satisfy `SenseUniforms` structurally, so the SenseManager can lerp them.
  */
 export function createSenseUniforms() {
 	return {
@@ -49,8 +39,8 @@ export function createSenseUniforms() {
 export type KitUniforms = ReturnType<typeof createSenseUniforms>;
 
 /**
- * Build the shared terrain material. `uTime` is the clock uniform node (for the
- * rim "breath"); `u` are the live sense uniforms the SenseManager lerps.
+ * Build the shared terrain material. `uTime` is the clock uniform node (rim
+ * "breath"); `u` are the live sense uniforms the SenseManager lerps.
  */
 export function createTerrainMaterial(
 	u: KitUniforms,
@@ -59,13 +49,9 @@ export function createTerrainMaterial(
 	const material = new MeshStandardNodeMaterial();
 	material.metalness = 0.0;
 	material.roughness = 0.95;
-	// Chunk winding follows PlaneGeometry; double-side avoids culling the ground
-	// when its base winding faces away after the GPU displacement.
+	// Chunk index winding follows PlaneGeometry; double-side avoids culling the
+	// ground when its base winding faces away.
 	material.side = THREE.DoubleSide;
-
-	// Vertex data straight from the chunk's GPU storage buffers.
-	material.positionNode = attribute(STORAGE_POSITION);
-	material.normalNode = attribute(STORAGE_NORMAL);
 
 	// ── The sense look (world-space, so it works per-chunk unchanged) ──
 	const camDist = cameraPosition.distance(positionWorld);

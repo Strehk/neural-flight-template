@@ -1,143 +1,75 @@
-// ── Becoming Many — GPU Terrain Chunk ──────────────────────────
+// ── Becoming Many — Terrain Chunk ──────────────────────────────
 //
-// One streamed terrain tile. Its vertex data lives entirely on the GPU: two
-// StorageBufferAttributes (position + normal) filled by a one-shot TSL compute
-// kernel that calls the active provider's heightNode per vertex. The shared
-// terrain material reads them via attribute("storagePosition"/"storageNormal")
-// (see material.ts), so chunks share one material and never round-trip to the CPU.
+// One streamed terrain tile. Its vertex data is generated off-thread by the
+// terrain worker (terrain/worker/) and arrives as plain position + normal
+// Float32Arrays; this wraps them in a BufferGeometry (sharing a single grid
+// index across all chunks) drawn by the shared sense material. No GPU compute,
+// so no per-chunk pipeline build — that was the streaming hitch.
 //
-// This is the "GPU chunk payload" the plan calls for: generate-on-GPU, draw
-// straight from the storage buffers, dispose them on unload.
+// Decorations are scattered on the surface (terrain/decorations.ts) and parented
+// under the mesh so they stream + dispose with the chunk.
 //
-// The compute kernel derives each vertex's world XZ from instanceIndex + the
-// chunk's (gridX,gridZ) and grid resolution, samples height (and four neighbours
-// for the normal via finite differences), and writes local-space position
-// (the mesh is translated to the chunk centre) + a world-space normal.
-//
-// IMPORTANT — see AGENTS.md "WebGPU + TSL": node fns from `three/tsl`, classes
-// from `three/webgpu`. Mirrors the compute idiom in swarm-scene.ts.
+// IMPORTANT — see AGENTS.md "WebGPU + TSL": classes from `three/webgpu`.
 
-import { Fn, float, instanceIndex, storage, uniform, vec3 } from "three/tsl";
 import * as THREE from "three/webgpu";
-import type { ComputeNode, MeshStandardNodeMaterial } from "three/webgpu";
+import type { MeshStandardNodeMaterial } from "three/webgpu";
 import type { ChunkLike } from "$lib/three/world/ChunkScheduler";
 import type { DecorationSet } from "./decorations";
 import type { TerrainConfig, TerrainProvider } from "./provider";
-import { STORAGE_NORMAL, STORAGE_POSITION } from "./material";
-
-export interface ChunkParams {
-	/** Chunk edge length in world units. */
-	chunkSize: number;
-	/** Grid cells per side (vertices per side = segments + 1). */
-	segments: number;
-}
+import type { TerrainBuildResult } from "./worker/protocol";
 
 export class TerrainChunk implements ChunkLike {
 	readonly gridX: number;
 	readonly gridZ: number;
 	readonly mesh: THREE.Mesh;
 
-	private readonly geometry: THREE.PlaneGeometry;
-	private readonly kernel: ComputeNode;
-	private readonly vertexCount: number;
+	private readonly geometry: THREE.BufferGeometry;
 	private readonly decorations: THREE.InstancedMesh[];
 
 	constructor(
-		gridX: number,
-		gridZ: number,
-		params: ChunkParams,
+		result: TerrainBuildResult,
+		chunkSize: number,
+		index: Uint16Array | Uint32Array,
+		material: MeshStandardNodeMaterial,
 		provider: TerrainProvider,
 		cfg: TerrainConfig,
-		material: MeshStandardNodeMaterial,
 		decorations?: DecorationSet,
 	) {
-		this.gridX = gridX;
-		this.gridZ = gridZ;
+		this.gridX = result.gridX;
+		this.gridZ = result.gridZ;
 
-		const { chunkSize, segments } = params;
-		const seg1 = segments + 1;
-		const count = seg1 * seg1;
-		this.vertexCount = count;
+		// Wrap the worker's arrays. The index is shared (same grid topology for
+		// every chunk); each chunk gets its own BufferAttribute over it so dispose
+		// frees only this chunk's GPU index buffer.
+		this.geometry = new THREE.BufferGeometry();
+		this.geometry.setAttribute("position", new THREE.BufferAttribute(result.positions, 3));
+		this.geometry.setAttribute("normal", new THREE.BufferAttribute(result.normals, 3));
+		this.geometry.setIndex(new THREE.BufferAttribute(index, 1));
+		// Local positions are real, so the bounding sphere is valid → off-screen
+		// chunks frustum-cull normally.
+		this.geometry.computeBoundingSphere();
 
-		// World centre of this cell — local [-cs/2, cs/2] maps to the cell's world
-		// span, and adjacent chunks meet exactly (shared edge → identical height).
-		const centerX = gridX * chunkSize + chunkSize / 2;
-		const centerZ = gridZ * chunkSize + chunkSize / 2;
-		// Finite-difference step for the normal: one grid cell.
-		const e = chunkSize / segments;
-
-		// PlaneGeometry gives us the (segments+1)² vertex grid + triangle index;
-		// its own position/normal attributes are overridden by the storage ones.
-		this.geometry = new THREE.PlaneGeometry(chunkSize, chunkSize, segments, segments);
-
-		const posAttr = new THREE.StorageBufferAttribute(count, 3);
-		const nrmAttr = new THREE.StorageBufferAttribute(count, 3);
-		this.geometry.setAttribute(STORAGE_POSITION, posAttr);
-		this.geometry.setAttribute(STORAGE_NORMAL, nrmAttr);
-
-		const posStore = storage(posAttr, "vec3", count);
-		const nrmStore = storage(nrmAttr, "vec3", count);
-
-		// Chunk origin as UNIFORMS, not baked literals: this keeps every chunk's
-		// kernel byte-identical WGSL, so the compute pipeline compiles once and is
-		// reused for all chunks instead of recompiling per chunk (the streaming
-		// hitch). Only the uniform *values* differ; the shader does not.
-		const uOriginX = uniform(centerX);
-		const uOriginZ = uniform(centerZ);
-
-		this.kernel = Fn(() => {
-			// instanceIndex → grid (ix, iz). Float math keeps it portable across the
-			// uint/int TSL surface; idx ≤ ~few-thousand is exact in f32.
-			const idx = float(instanceIndex);
-			const iz = idx.div(seg1).floor();
-			const ix = idx.sub(iz.mul(seg1));
-
-			const lx = ix.div(segments).sub(0.5).mul(chunkSize);
-			const lz = iz.div(segments).sub(0.5).mul(chunkSize);
-			const wx = lx.add(uOriginX);
-			const wz = lz.add(uOriginZ);
-
-			const h = provider.heightNode(wx, wz, cfg);
-			// Surface normal from the height gradient (central differences).
-			const hL = provider.heightNode(wx.sub(e), wz, cfg);
-			const hR = provider.heightNode(wx.add(e), wz, cfg);
-			const hD = provider.heightNode(wx, wz.sub(e), cfg);
-			const hU = provider.heightNode(wx, wz.add(e), cfg);
-			const normal = vec3(hL.sub(hR), float(2 * e), hD.sub(hU)).normalize();
-
-			posStore.element(instanceIndex).assign(vec3(lx, h, lz));
-			nrmStore.element(instanceIndex).assign(normal);
-		})().compute(count);
+		const centerX = result.gridX * chunkSize + chunkSize / 2;
+		const centerZ = result.gridZ * chunkSize + chunkSize / 2;
 
 		this.mesh = new THREE.Mesh(this.geometry, material);
 		this.mesh.position.set(centerX, 0, centerZ);
-		// Real positions live on the GPU, so the CPU bounding box is stale — don't
-		// let the frustum culler use it (same as the swarm reference).
-		this.mesh.frustumCulled = false;
 		this.mesh.matrixAutoUpdate = false;
 		this.mesh.updateMatrix();
 
-		// Instanced decorations scattered on the surface (chunk-local coords), as
-		// children of the mesh so they stream + dispose with the chunk.
+		// Instanced decorations on the surface (chunk-local coords), parented to
+		// the mesh so they stream + dispose with the chunk.
 		this.decorations = decorations
-			? decorations.populate(gridX, gridZ, chunkSize, provider, cfg)
+			? decorations.populate(result.gridX, result.gridZ, chunkSize, provider, cfg)
 			: [];
 		for (const deco of this.decorations) this.mesh.add(deco);
 	}
 
-	/** Run the one-shot generation kernel. Awaited by the world before the chunk
-	 *  enters the scene. */
-	async generate(renderer: THREE.WebGPURenderer): Promise<void> {
-		await renderer.computeAsync(this.kernel);
-	}
-
-	/** Detach + free GPU resources. Called by the scheduler on unload. The
-	 *  material is shared and owned by the world, so it is NOT disposed here. */
 	dispose(): void {
 		this.mesh.removeFromParent();
 		this.geometry.dispose();
-		// Free per-chunk instance buffers; the shared deco geo/materials are owned
-		// by the DecorationSet and disposed by the world.
+		// Shared deco geo/materials are owned by the DecorationSet (disposed by the
+		// world); here we just free the per-chunk instance buffers.
 		for (const deco of this.decorations) deco.dispose();
 	}
 }

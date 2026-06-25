@@ -1,13 +1,15 @@
 // ── Becoming Many — Streaming Terrain World ────────────────────
 //
 // Owns the streamed chunked terrain: the generic ChunkScheduler (reused from
-// src/lib/three/world), one shared sense material, and the active TerrainProvider
-// + config. Each chunk is generated on the GPU (terrain/chunk.ts) and read back
-// for flight via the provider's CPU height mirror.
+// src/lib/three/world), a worker pool that generates chunk vertex data off the
+// main thread, one shared sense material, a shared grid index, and the active
+// TerrainProvider + config. Generation is CPU-in-worker (no GPU compute), so no
+// per-chunk pipeline build → no streaming hitch. The provider's height() feeds
+// both the worker (geometry) and the main thread (flight floor + decorations).
 //
-// The modularity payoff lives here:
-//   - setProvider(id)  → swap the whole terrain algorithm at runtime; chunks rebuild.
-//   - setConfig(patch) → tweak seed/amplitude/etc.; chunks rebuild.
+// Modularity payoff:
+//   - setProvider(id)  → swap the terrain algorithm live; chunks rebuild.
+//   - setConfig(patch) → tweak seed/amplitude/…; chunks rebuild.
 //   - sampleHeight(x,z) → provider.height; the flight floor matches the surface.
 //
 // IMPORTANT — see AGENTS.md "WebGPU + TSL": classes from `three/webgpu`.
@@ -16,21 +18,16 @@ import * as THREE from "three/webgpu";
 import type { MeshStandardNodeMaterial, Node } from "three/webgpu";
 import { ChunkScheduler } from "$lib/three/world/ChunkScheduler";
 import type { StreamingConfig } from "$lib/experiences/sinneswandler_test1/world-config";
-import { type ChunkParams, TerrainChunk } from "./chunk";
+import { TerrainChunk } from "./chunk";
 import { DecorationSet } from "./decorations";
 import { createTerrainMaterial, type KitUniforms } from "./material";
 import type { TerrainConfig, TerrainProvider } from "./provider";
 import { getTerrainProvider } from "./providers";
+import { TerrainWorkerPool } from "./worker/pool";
 
-// Streaming defaults, tuned for smooth streaming over raw coverage:
-//   - Big 256 m chunks → far fewer build events (you cross cell boundaries
-//     rarely) and fewer draw calls; buildRadius 2 still covers ~640 m (past the
-//     620 m far plane), so even wide-view senses don't hit the void edge.
-//   - 40 segments → ~6.4 m/vertex, ~1.6k verts/chunk × 25 chunks ≈ 42k verts
-//     (was ~117k) — lighter on the GPU.
-//   - maxBuildsPerFrame 1 → at most one chunk's work per frame, so any residual
-//     build cost is spread out. (The compute pipeline itself only compiles once
-//     now — see chunk.ts's uniform origin.)
+// Streaming defaults, tuned for smooth streaming over raw coverage: big 256 m
+// chunks (rare build events, fewer draws), buildRadius 2 ≈ 640 m coverage (past
+// the 620 m far plane), 40 segments ≈ 6.4 m/vertex, one build initiated per frame.
 const DEFAULT_STREAMING: StreamingConfig = {
 	chunkSize: 256,
 	terrainSegments: 40,
@@ -44,7 +41,6 @@ const DEFAULT_STREAMING: StreamingConfig = {
 };
 
 export interface TerrainWorldOptions {
-	renderer: THREE.WebGPURenderer;
 	scene: THREE.Scene;
 	/** Live sense uniforms (shared with the rest of the experience). */
 	uniforms: KitUniforms;
@@ -64,17 +60,19 @@ export class TerrainWorld {
 	/** Parent of all chunk meshes; added to the scene in the constructor. */
 	readonly group: THREE.Group;
 
-	private readonly renderer: THREE.WebGPURenderer;
 	private readonly material: MeshStandardNodeMaterial;
 	private readonly decorations: DecorationSet;
+	private readonly pool: TerrainWorkerPool;
 	private readonly scheduler: ChunkScheduler<TerrainChunk>;
-	private readonly params: ChunkParams;
+	private readonly chunkSize: number;
+	private readonly segments: number;
+	/** Shared grid index (same topology for every chunk). */
+	private readonly indexArray: Uint16Array | Uint32Array;
 
 	private provider: TerrainProvider;
 	private cfg: TerrainConfig;
 
 	constructor(opts: TerrainWorldOptions) {
-		this.renderer = opts.renderer;
 		this.group = new THREE.Group();
 		opts.scene.add(this.group);
 
@@ -84,16 +82,21 @@ export class TerrainWorld {
 		this.cfg = { ...opts.provider.defaultConfig, ...opts.config };
 
 		const streaming: StreamingConfig = { ...DEFAULT_STREAMING, ...opts.streaming };
-		this.params = {
-			chunkSize: streaming.chunkSize,
-			segments: streaming.terrainSegments,
-		};
+		this.chunkSize = streaming.chunkSize;
+		this.segments = streaming.terrainSegments;
+
+		// Build the grid index once from a throwaway plane and reuse its array.
+		const template = new THREE.PlaneGeometry(1, 1, this.segments, this.segments);
+		this.indexArray = (template.index as THREE.BufferAttribute).array as
+			| Uint16Array
+			| Uint32Array;
+		template.dispose();
+
+		this.pool = new TerrainWorkerPool();
 
 		this.scheduler = new ChunkScheduler<TerrainChunk>({
 			config: streaming,
 			buildChunk: (gx, gz) => this.buildChunk(gx, gz),
-			// Only chunks that survive to the active set get shown; cancelled/late
-			// ones are disposed by the scheduler (chunk.dispose detaches the mesh).
 			onChunkBuilt: (chunk) => this.group.add(chunk.mesh),
 		});
 	}
@@ -109,8 +112,7 @@ export class TerrainWorld {
 	}
 
 	/** Swap the terrain algorithm live; rebuilds every chunk. Keeps the current
-	 *  config (seed/amplitude/…) since it's a shared shape — pass `config` to
-	 *  override fields. */
+	 *  config (shared shape) unless `config` overrides fields. */
 	setProvider(id: string, config?: Partial<TerrainConfig>): void {
 		this.provider = getTerrainProvider(id);
 		if (config) this.cfg = { ...this.cfg, ...config };
@@ -135,22 +137,29 @@ export class TerrainWorld {
 
 	dispose(): void {
 		this.scheduler.clearAll();
+		this.pool.dispose();
 		this.group.removeFromParent();
 		this.material.dispose();
 		this.decorations.dispose();
 	}
 
 	private async buildChunk(gridX: number, gridZ: number): Promise<TerrainChunk> {
-		const chunk = new TerrainChunk(
+		const result = await this.pool.build(
+			this.provider.id,
+			this.cfg,
 			gridX,
 			gridZ,
-			this.params,
+			this.chunkSize,
+			this.segments,
+		);
+		return new TerrainChunk(
+			result,
+			this.chunkSize,
+			this.indexArray,
+			this.material,
 			this.provider,
 			this.cfg,
-			this.material,
 			this.decorations,
 		);
-		await chunk.generate(this.renderer);
-		return chunk;
 	}
 }

@@ -1,33 +1,28 @@
 // ── Becoming Many — Terrain Provider Contract ──────────────────
 //
-// A terrain *algorithm* is a TerrainProvider: two mirrored expressions of one
-// height field over world XZ.
+// A terrain *algorithm* is a TerrainProvider: a pure-CPU height field over world
+// XZ. Generation runs in a Web Worker (terrain/worker/), so the provider must be
+// plain math with no renderer/three imports — that keeps it importable in the
+// worker bundle AND on the main thread (for the flight floor + decorations).
 //
-//   - heightNode(worldX, worldZ) → a TSL float node. This is the algorithm ON THE
-//     GPU; the generic chunk compute kernel calls it per vertex to fill the
-//     chunk's position storage buffer (terrain/chunk.ts).
-//   - height(x, z)        → the plain-JS mirror, used on the CPU for flight
-//     altitude and any gameplay sampling. It MUST match heightNode numerically
-//     (the one discipline a provider author has to keep — same as the legacy
-//     world's shared sample fn across worker + main thread).
+//   - height(x, z, cfg) → world ground height. Used by the worker to build chunk
+//     geometry, and on the main thread for flight altitude + decoration placement.
 //
-// Providers are registered in a plain runtime map (providers/registry.ts) — no
-// worker boundary, because GPU generation runs on the main thread via
-// renderer.compute(). Adding an algorithm is one file + registerTerrainProvider;
-// swapping the active one is TerrainWorld.setProvider(id), which rebuilds chunks.
+// A flat numeric TerrainConfig (seed/amplitude/frequency/octaves) maps 1:1 onto
+// the Settings sliders. Providers are registered in providers/registry.ts; the
+// worker imports providers/index.ts so the built-ins exist in its bundle.
 //
-// IMPORTANT — see AGENTS.md "WebGPU + TSL": node functions come from `three/tsl`,
-// classes/types from `three/webgpu`. Never import core classes from plain `three`.
-
-import type { Node } from "three/webgpu";
+// (Generation was GPU-compute earlier; it moved to a worker because building a
+// compute pipeline per chunk spiked the frame time — three keys the compute
+// pipeline cache by ComputeNode instance, so every chunk recompiled.)
 
 /**
  * Flat, numeric config shared by every provider (keeps the registry generic and
- * maps 1:1 onto the numeric Settings sliders). Each provider reads the fields it
+ * maps onto the numeric Settings sliders). Each provider reads the fields it
  * cares about and ignores the rest.
  */
 export interface TerrainConfig {
-	/** Master seed — providers fold it into their noise so worlds differ. */
+	/** Master seed — providers fold it in so worlds differ. */
 	seed: number;
 	/** Overall vertical scale (metres), multiplies the raw field. */
 	amplitude: number;
@@ -45,15 +40,6 @@ export interface TerrainProvider {
 	/** Config this provider ships with; the world clones it as the live config. */
 	readonly defaultConfig: TerrainConfig;
 
-	/**
-	 * GPU side: given world X and Z as float nodes, return the surface height
-	 * (float node). Pure TSL — no side effects, no per-frame state.
-	 */
-	heightNode(worldX: Node, worldZ: Node, cfg: TerrainConfig): Node;
-
-	/**
-	 * CPU mirror: world height at (x, z). Must agree with heightNode so the
-	 * flight floor matches the rendered surface.
-	 */
+	/** World ground height at (x, z) — the single source of truth for the surface. */
 	height(x: number, z: number, cfg: TerrainConfig): number;
 }

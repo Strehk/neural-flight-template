@@ -1,14 +1,14 @@
 // ── Becoming Many — Streaming GPU Terrain + Senses + Flight ────
 //
-// You fly (M1) over a streaming, effectively-infinite world (M3): a grid of GPU-
-// generated terrain chunks that load ahead of you and unload behind. Each chunk's
-// vertices are computed on the GPU by a TSL compute kernel calling the active
-// *terrain provider* (terrain/) — a fully pluggable generation algorithm — and
-// drawn by one shared sense material. The M2 sense-switch state machine drives
-// that material's kit uniforms so the 7 senses read as distinct view modes over
-// the whole streamed world.
+// You fly (M1) over a streaming, effectively-infinite world (M3): a grid of
+// terrain chunks that load ahead of you and unload behind. Each chunk's vertices
+// are generated off the main thread by a worker pool running the active *terrain
+// provider* (terrain/) — a fully pluggable generation algorithm — and drawn by
+// one shared sense material. The M2 sense-switch state machine drives that
+// material's kit uniforms so the 7 senses read as distinct view modes over the
+// whole streamed world.
 //
-//   - terrain/        → pluggable providers + GPU chunk payload + ChunkScheduler
+//   - terrain/        → pluggable providers + worker pool + ChunkScheduler
 //   - senses.ts       → the 7 view-mode profiles lerped into the kit uniforms
 //   - flight-controller.ts / input/ → bat-flight on the modular control stack
 //
@@ -165,11 +165,11 @@ export async function setup(ctx: SetupContext): Promise<BecomingManyState> {
 	ctx.scene.add(flight.rig);
 	const input = createDefaultInput(ctx.renderer);
 
-	// ── Streaming GPU terrain ──
-	// One shared sense material; each chunk's vertices generated on the GPU by the
-	// active provider. The provider's CPU height mirror feeds the flight floor.
+	// ── Streaming terrain ──
+	// One shared sense material; each chunk's vertices generated off-thread by a
+	// worker pool running the active provider. The provider's height() feeds both
+	// the worker (geometry) and the flight floor.
 	const world = new TerrainWorld({
-		renderer: ctx.renderer as THREE.WebGPURenderer,
 		scene: ctx.scene,
 		uniforms,
 		uTime,
