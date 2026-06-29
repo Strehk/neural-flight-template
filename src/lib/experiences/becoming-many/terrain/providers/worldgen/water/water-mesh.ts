@@ -92,29 +92,48 @@ function buildStillWater(
 	const step = size / res;
 	const half = size / 2;
 	const sea = params.waterLevel;
-	const { waterMask, waterSurfaceMap, heightMap, lakeMap } = chunk;
+	const { waterSurfaceMap, heightMap, lakeMap } = chunk;
 
 	const px = (t: number): number => Math.min(size - 1, Math.max(0, Math.round(t - 0.5)));
 
-	// Only still water — rivers are drawn as ribbons below; including river-only
-	// cells here rendered them as broken terraced fragments.
-	const isStillWater = (idx: number): boolean =>
-		waterMask[idx] === 1 && (heightMap[idx] < sea || lakeMap[idx] > 0.08);
-
-	// Per grid-vertex caches over the (res+1)² lattice: bilinear terrain bed (for
-	// smooth, sub-cell waterline crossings), nearest baked surface level, and the
-	// still-water mask that gates which cells get any water at all.
+	// Per grid-vertex caches over the (res+1)² lattice. `bed` is the bilinear
+	// terrain height (smooth, sub-cell waterline crossings); `surf0` is the flat
+	// STILL-water surface level (ocean = sea, lakes = spill) and 0 on land or on
+	// river-film cells — rivers are drawn as ribbons below, so including them here
+	// rendered broken terraced fragments.
 	const n = res + 1;
 	const bed = new Float32Array(n * n);
-	const surf = new Float32Array(n * n);
-	const wet = new Uint8Array(n * n);
+	const surf0 = new Float32Array(n * n);
 	for (let j = 0; j <= res; j++) {
 		for (let i = 0; i <= res; i++) {
 			const k = j * n + i;
 			const idx = px(j * step) * size + px(i * step);
 			bed[k] = bilinearClamped(heightMap, size, i * step - 0.5, j * step - 0.5);
-			surf[k] = waterSurfaceMap[idx];
-			wet[k] = isStillWater(idx) ? 1 : 0;
+			surf0[k] = heightMap[idx] < sea || lakeMap[idx] > 0.08 ? waterSurfaceMap[idx] : 0;
+		}
+	}
+
+	// Dilate the flat surface outward by one grid cell so a boundary cell just
+	// past the rasterised water mask still carries the water level; the
+	// f = level − bed test below then clips it to the true sub-cell waterline.
+	// Without this the silhouette snapped to the mask raster (square lake edges):
+	// nearest-neighbour gating left edge cells with no wet corner, so marching
+	// squares never fired there.
+	const surf = new Float32Array(n * n);
+	for (let j = 0; j <= res; j++) {
+		for (let i = 0; i <= res; i++) {
+			let m = 0;
+			for (let dj = -1; dj <= 1; dj++) {
+				const jj = j + dj;
+				if (jj < 0 || jj > res) continue;
+				for (let di = -1; di <= 1; di++) {
+					const ii = i + di;
+					if (ii < 0 || ii > res) continue;
+					const v = surf0[jj * n + ii];
+					if (v > m) m = v;
+				}
+			}
+			surf[j * n + i] = m;
 		}
 	}
 
@@ -132,11 +151,11 @@ function buildStillWater(
 	for (let j = 0; j < res; j++) {
 		for (let i = 0; i < res; i++) {
 			const ks = [j * n + i, j * n + i + 1, (j + 1) * n + i + 1, (j + 1) * n + i];
-			// Skip cells with no still water nearby; otherwise pick the cell's flat
-			// surface as the highest baked level among its wet corners.
-			let level = -Infinity;
-			for (let c = 0; c < 4; c++) if (wet[ks[c]]) level = Math.max(level, surf[ks[c]]);
-			if (level === -Infinity) continue;
+			// The cell's flat water surface = highest (dilated) still-water level at
+			// its corners; 0 means no water nearby, so skip.
+			let level = 0;
+			for (let c = 0; c < 4; c++) if (surf[ks[c]] > level) level = surf[ks[c]];
+			if (level <= 0) continue;
 
 			// Signed depth field per corner (water surface − terrain bed); >0 is
 			// submerged. The waterline is the 0-isoline we fit to.
