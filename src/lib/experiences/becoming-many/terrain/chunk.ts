@@ -17,7 +17,7 @@
 // IMPORTANT — see AGENTS.md "WebGPU + TSL": classes from `three/webgpu`.
 
 import * as THREE from "three/webgpu";
-import type { MeshStandardNodeMaterial } from "three/webgpu";
+import type { MeshBasicNodeMaterial, MeshStandardNodeMaterial } from "three/webgpu";
 import type { ChunkLike } from "$lib/three/world/ChunkScheduler";
 import type { DecorationSet } from "./decorations";
 
@@ -41,6 +41,12 @@ export interface TerrainChunkParams {
 	decoSampleHeight?: (x: number, z: number) => number;
 	/** Seed for the decoration scatter PRNG. */
 	decoSeed?: number;
+	/** Non-indexed water vertex positions (chunk-local); chunk providers only. */
+	waterPositions?: Float32Array;
+	/** Per-vertex water colour, paired with waterPositions. */
+	waterColors?: Float32Array;
+	/** Shared water material (required if waterPositions is present). */
+	waterMaterial?: MeshBasicNodeMaterial;
 }
 
 export class TerrainChunk implements ChunkLike {
@@ -54,6 +60,7 @@ export class TerrainChunk implements ChunkLike {
 
 	private readonly geometry: THREE.BufferGeometry;
 	private readonly decorations: THREE.InstancedMesh[];
+	private readonly waterMesh: THREE.Mesh | null = null;
 
 	constructor(p: TerrainChunkParams) {
 		this.gridX = p.gridX;
@@ -87,6 +94,21 @@ export class TerrainChunk implements ChunkLike {
 				? p.decorations.populate(p.gridX, p.gridZ, p.chunkSize, p.decoSampleHeight, p.decoSeed ?? 0)
 				: [];
 		for (const deco of this.decorations) this.mesh.add(deco);
+
+		// Water (ocean + lakes + river ribbons). Non-indexed, chunk-local coords
+		// like the terrain, parented under the terrain mesh so it streams with it.
+		// Rendered after the land (transparent, no depth write).
+		if (p.waterPositions && p.waterPositions.length > 0 && p.waterColors && p.waterMaterial) {
+			const wgeo = new THREE.BufferGeometry();
+			wgeo.setAttribute("position", new THREE.BufferAttribute(p.waterPositions, 3));
+			wgeo.setAttribute("color", new THREE.BufferAttribute(p.waterColors, 3));
+			wgeo.computeBoundingSphere();
+			this.waterMesh = new THREE.Mesh(wgeo, p.waterMaterial);
+			this.waterMesh.renderOrder = 2;
+			this.waterMesh.matrixAutoUpdate = false;
+			this.waterMesh.updateMatrix();
+			this.mesh.add(this.waterMesh);
+		}
 	}
 
 	dispose(): void {
@@ -95,5 +117,7 @@ export class TerrainChunk implements ChunkLike {
 		// Shared deco geo/materials are owned by the DecorationSet (disposed by the
 		// world); here we just free the per-chunk instance buffers.
 		for (const deco of this.decorations) deco.dispose();
+		// Water geometry is per-chunk; the shared water material is owned by the world.
+		this.waterMesh?.geometry.dispose();
 	}
 }

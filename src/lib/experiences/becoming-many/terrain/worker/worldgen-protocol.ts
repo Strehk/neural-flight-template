@@ -13,6 +13,8 @@ export interface WorldgenBuildRequest {
 	type: "build";
 	id: number;
 	cfg: TerrainConfig;
+	/** Live GenParams overlay from the dev GUI, merged on top of configToParams. */
+	params?: Record<string, number>;
 	gridX: number;
 	gridZ: number;
 	chunkSize: number;
@@ -29,6 +31,10 @@ export interface WorldgenBuildResult {
 	normals: Float32Array;
 	biome: Uint8Array;
 	heightGrid: Float32Array;
+	/** Non-indexed water mesh (ocean + lakes + river ribbons); absent if dry. */
+	waterPositions?: Float32Array;
+	/** Per-vertex water colour (depth/foam tint); paired with waterPositions. */
+	waterColors?: Float32Array;
 }
 
 /** Worker → main: build failed. */

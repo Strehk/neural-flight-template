@@ -33,6 +33,7 @@ export class WorldgenClient {
 		gridZ: number,
 		chunkSize: number,
 		segments: number,
+		params?: Record<string, number>,
 	): Promise<WorldgenBuildResult> {
 		if (this.disposed) return Promise.reject(new Error("WorldgenClient: disposed"));
 		const id = this.nextId++;
@@ -42,6 +43,7 @@ export class WorldgenClient {
 				type: "build",
 				id,
 				cfg,
+				params,
 				gridX,
 				gridZ,
 				chunkSize,
@@ -62,11 +64,14 @@ export class WorldgenClient {
 		const p = this.pending.get(msg.id);
 		if (!p) return;
 		this.pending.delete(msg.id);
-		if (msg.type === "error") p.reject(new Error(msg.message));
-		else p.resolve(msg);
+		if (msg.type === "error") {
+			console.error("[worldgen] build failed:", msg.message);
+			p.reject(new Error(msg.message));
+		} else p.resolve(msg);
 	}
 
 	private handleError(e: ErrorEvent): void {
+		console.error("[worldgen] worker crashed:", e.message, e.filename, e.lineno);
 		const err = new Error(`WorldgenWorker error: ${e.message}`);
 		for (const p of this.pending.values()) p.reject(err);
 		this.pending.clear();

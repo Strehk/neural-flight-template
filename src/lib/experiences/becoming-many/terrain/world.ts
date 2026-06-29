@@ -21,13 +21,14 @@
 // IMPORTANT — see AGENTS.md "WebGPU + TSL": classes from `three/webgpu`.
 
 import * as THREE from "three/webgpu";
-import type { MeshStandardNodeMaterial, Node } from "three/webgpu";
+import type { MeshBasicNodeMaterial, MeshStandardNodeMaterial, Node } from "three/webgpu";
 import { ChunkScheduler } from "$lib/three/world/ChunkScheduler";
 import type { StreamingConfig } from "$lib/experiences/sinneswandler_test1/world-config";
 import { TerrainChunk } from "./chunk";
 import { DecorationSet } from "./decorations";
 import { ChunkHeightCache, makeHeightEntry, sampleEntry } from "./height-cache";
 import { createTerrainMaterial, type KitUniforms } from "./material";
+import { createWaterMaterial } from "./water-material";
 import type { TerrainConfig, TerrainProvider } from "./provider";
 import { getTerrainProvider } from "./providers";
 import { TerrainWorkerPool } from "./worker/pool";
@@ -69,6 +70,8 @@ export class TerrainWorld {
 	readonly group: THREE.Group;
 
 	private readonly material: MeshStandardNodeMaterial;
+	/** Shared water material (ocean + lakes + rivers); used by chunk providers. */
+	private readonly waterMaterial: MeshBasicNodeMaterial;
 	private readonly decorations: DecorationSet;
 	private readonly scheduler: ChunkScheduler<TerrainChunk>;
 	private readonly chunkSize: number;
@@ -84,12 +87,15 @@ export class TerrainWorld {
 
 	private provider: TerrainProvider;
 	private cfg: TerrainConfig;
+	/** Live GenParams overlay from the dev GUI (worldgen only); sent with builds. */
+	private worldgenParams: Record<string, number> = {};
 
 	constructor(opts: TerrainWorldOptions) {
 		this.group = new THREE.Group();
 		opts.scene.add(this.group);
 
 		this.material = createTerrainMaterial(opts.uniforms, opts.uTime);
+		this.waterMaterial = createWaterMaterial(opts.uniforms, opts.uTime);
 		this.decorations = new DecorationSet(opts.uniforms, opts.decorationDensity ?? 0.6);
 		this.provider = opts.provider;
 		this.cfg = { ...opts.provider.defaultConfig, ...opts.config };
@@ -112,6 +118,7 @@ export class TerrainWorld {
 			onChunkBuilt: (chunk) => {
 				this.group.add(chunk.mesh);
 				if (chunk.heightGrid) this.heightCache.add(chunk.gridX, chunk.gridZ, chunk.heightGrid);
+				console.log("[worldgen] built", chunk.gridX, chunk.gridZ, "active=", this.scheduler.size);
 			},
 			onChunkDisposed: (chunk) => this.heightCache.remove(chunk.gridX, chunk.gridZ),
 		});
@@ -148,6 +155,14 @@ export class TerrainWorld {
 		this.rebuild();
 	}
 
+	/** Merge a GenParams overlay from the dev GUI (worldgen only); rebuilds chunks.
+	 *  The overlay is sent with every build and wins over the cfg-derived params. */
+	setWorldgenParams(patch: Record<string, number>): void {
+		this.worldgenParams = { ...this.worldgenParams, ...patch };
+		console.log("[worldgen] setWorldgenParams", patch, "→ rebuild");
+		this.rebuild();
+	}
+
 	get providerId(): string {
 		return this.provider.id;
 	}
@@ -159,6 +174,7 @@ export class TerrainWorld {
 		this.heightCache.clear();
 		this.group.removeFromParent();
 		this.material.dispose();
+		this.waterMaterial.dispose();
 		this.decorations.dispose();
 	}
 
@@ -182,13 +198,16 @@ export class TerrainWorld {
 
 	private async buildChunk(gridX: number, gridZ: number): Promise<TerrainChunk> {
 		if (this.provider.kind === "chunk") {
+			console.log("[worldgen] buildChunk START", gridX, gridZ);
 			const r = await this.ensureWorldgen().build(
 				this.cfg,
 				gridX,
 				gridZ,
 				this.chunkSize,
 				this.segments,
+				this.worldgenParams,
 			);
+			console.log("[worldgen] buildChunk DONE", gridX, gridZ);
 			// This chunk isn't in the global height cache yet (added on build), so
 			// place its decorations against its own freshly-built grid.
 			const local = makeHeightEntry(gridX, gridZ, this.chunkSize, r.heightGrid);
@@ -205,6 +224,9 @@ export class TerrainWorld {
 				decorations: this.decorations,
 				decoSampleHeight: (x, z) => sampleEntry(local, x, z),
 				decoSeed: this.cfg.seed,
+				waterPositions: r.waterPositions,
+				waterColors: r.waterColors,
+				waterMaterial: this.waterMaterial,
 			});
 		}
 
