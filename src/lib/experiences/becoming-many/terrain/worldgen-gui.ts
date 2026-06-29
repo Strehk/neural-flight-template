@@ -58,6 +58,7 @@ const GROUPS: { folder: string; controls: Control[] }[] = [
 		controls: [
 			{ key: "lakeFrequency", label: "Lake Frequency", min: 0, max: 1, step: 0.02 },
 			{ key: "lakeSpillTolerance", label: "Lake Spill Tol.", min: 0, max: 0.1, step: 0.002 },
+			{ key: "lakeMaxHeight", label: "Max Height", min: 0.45, max: 1, step: 0.01 },
 		],
 	},
 	{

@@ -77,6 +77,7 @@ export interface GenParams {
   // lakes
   lakeFrequency: number;
   lakeSpillTolerance: number;
+  lakeMaxHeight: number; // normalised surface height above which basins are not made lakes (no perched mountain lakes)
 
   // surface
   shoreWidth: number;
@@ -147,6 +148,7 @@ export const DEFAULT_PARAMS: GenParams = {
 
   lakeFrequency: 0.4,
   lakeSpillTolerance: 0.02,
+  lakeMaxHeight: 0.74,
 
   shoreWidth: 0.5,
   vegetationDensity: 1.0,

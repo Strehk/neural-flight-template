@@ -158,10 +158,16 @@ export class TerrainDetailGenerator {
     // Micro surface irregularity everywhere on land.
     const micro = signedFbm2D(wx / 11, wy / 11, seed + 505, 3) * 0.0035;
 
+    // The big mountain ridge/cliff terms ride on `landGate` (so massifs can tower),
+    // which bypasses the water-flattening `detailGate`. Inside a lake that let
+    // ridge spikes punch up through the flat surface, so gate them out of the lake
+    // footprint — the bed stays a clean basin while mountains still rise on land.
+    const lakeGate = 1 - smoothstep(0.05, 0.3, lake);
+
     let detail =
       (rolling + dune + micro) * detailGate * ds +
-      ridge * landGate * ds +
-      cliff * landGate * ds;
+      ridge * landGate * lakeGate * ds +
+      cliff * landGate * lakeGate * ds;
 
     // River valley: deepen + widen a visible 3D valley around the channel. The
     // macro bed is already carved; this opens the banks so it reads in 3D.

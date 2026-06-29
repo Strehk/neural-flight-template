@@ -23,6 +23,7 @@ export function detectLakes(
   seaLevel: number,
   spillTolerance: number,
   lakeFrequency: number,
+  maxHeight: number,
 ): LakeResult {
   const eps = Math.max(0.0015, spillTolerance * (1.4 - lakeFrequency));
   const lakeDepth = new Float32Array(N);
@@ -30,7 +31,9 @@ export function detectLakes(
   const lakeMask = new Uint8Array(N);
   for (let i = 0; i < N; i++) {
     const d = filled[i] - height[i];
-    if (d > eps && filled[i] >= seaLevel) {
+    // No perched mountain lakes: a basin whose flat surface sits above maxHeight
+    // is left as dry terrain (its detail noise read as broken slabs up there).
+    if (d > eps && filled[i] >= seaLevel && filled[i] <= maxHeight) {
       lakeMask[i] = 1;
       lakeDepth[i] = d;
       lakeSurface[i] = filled[i];

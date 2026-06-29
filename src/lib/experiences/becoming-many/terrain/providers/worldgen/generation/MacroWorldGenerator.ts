@@ -105,6 +105,7 @@ export class MacroWorldGenerator {
       seaLevel,
       params.lakeSpillTolerance,
       params.lakeFrequency,
+      params.lakeMaxHeight,
     );
     const lakeMask = new Uint8Array(NB);
     for (let i = 0; i < NB; i++) lakeMask[i] = lakes.lakeDepth[i] > 0 ? 1 : 0;
