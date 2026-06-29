@@ -116,6 +116,20 @@ const parameters: ParameterDef[] = [
 		icon: "MoveVertical",
 	},
 	{
+		// Horizontal feature scale. >1 shrinks continents (more hills/valleys per
+		// view), <1 broadens them. WorldGen folds this into continentScale; the
+		// pointwise providers read it as their base frequency.
+		id: "terrainFrequency",
+		label: "Terrain Frequency",
+		group: "Terrain",
+		min: 0.3,
+		max: 4,
+		default: 1,
+		step: 0.1,
+		unit: "×",
+		icon: "Waves",
+	},
+	{
 		// Instanced rock/grass scatter density (0 = off).
 		id: "decorations",
 		label: "Decorations",

@@ -11,10 +11,16 @@ import { DEFAULT_PARAMS, type GenParams } from "./generation/mapTypes";
 // ~566 m — under the 620 m far plane — while typical land sits near cruise height.
 const BASE_HEIGHT_SCALE = 100;
 
-/** GenParams with the flight-retuned vertical scale. */
+// Continents shrunk from the source's 2200 so hills/valleys/mountains read
+// within a normal flight (the view is ~640 m; 2200 m features looked flat).
+// The Terrain Frequency slider divides this live.
+const BASE_CONTINENT_SCALE = 700;
+
+/** GenParams with the flight-retuned vertical + continent scale. */
 export const WORLDGEN_PARAMS: GenParams = {
 	...DEFAULT_PARAMS,
 	terrainHeightScale: BASE_HEIGHT_SCALE,
+	continentScale: BASE_CONTINENT_SCALE,
 };
 
 /** Fold a flat TerrainConfig onto the full GenParams. */

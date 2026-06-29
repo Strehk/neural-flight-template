@@ -31,6 +31,7 @@ import { type SenseId, SENSE_ORDER, SenseManager } from "./senses";
 import { createSenseUniforms, type KitUniforms } from "./terrain/material";
 import { DEFAULT_PROVIDER_ID, getTerrainProvider } from "./terrain/providers";
 import { TerrainWorld } from "./terrain/world";
+import { createWorldgenGui, type WorldgenGui } from "./terrain/worldgen-gui";
 
 // Spawn pose for the flight rig (keep in sync with manifest.spawn). High enough
 // to clear the hill crests; the soft altitude floor settles it to cruise height.
@@ -68,6 +69,8 @@ export interface BecomingManyState extends ExperienceState {
 	flight: FlightController;
 	/** Modular control stack (network + keyboard + gamepad/XR sources). */
 	input: InputHub;
+	/** lil-gui dev panel for live WorldGen param tuning (desktop only). */
+	gui: WorldgenGui;
 }
 
 // Map a merged input intent onto the world: flight controls, sense switching,
@@ -178,6 +181,10 @@ export async function setup(ctx: SetupContext): Promise<BecomingManyState> {
 	// Stream the first ring around spawn before the first frame.
 	world.update(SPAWN.x, SPAWN.z);
 
+	// Live WorldGen tuning panel (lil-gui). Desktop dev tool; harmless in XR
+	// (the DOM overlay just isn't shown in-headset).
+	const gui = createWorldgenGui(world);
+
 	return {
 		camera: ctx.camera,
 		world,
@@ -188,6 +195,7 @@ export async function setup(ctx: SetupContext): Promise<BecomingManyState> {
 		uTime,
 		flight,
 		input,
+		gui,
 	};
 }
 
@@ -214,6 +222,7 @@ export function tick(
 
 export function dispose(state: ExperienceState, scene: THREE.Scene): void {
 	const s = state as BecomingManyState;
+	s.gui.dispose();
 	s.input.dispose();
 	s.director.dispose();
 	scene.remove(s.flight.rig);

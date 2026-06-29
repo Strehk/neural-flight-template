@@ -63,6 +63,10 @@ export function applySettings(
 			s.world.setConfig({ amplitude: value as number });
 			break;
 
+		case "terrainFrequency":
+			s.world.setConfig({ frequency: value as number });
+			break;
+
 		case "decorations":
 			s.world.setDecorationDensity(value as number);
 			break;
