@@ -22,7 +22,10 @@ const M = MacroTile;
 // kept: ocean only meets low/coastal land, desert never meets wetland, snow only
 // meets high cold neighbours.
 const ALLOW: Record<number, MacroTile[]> = {
-  [M.Ocean]: [M.Ocean, M.Coast, M.Lowland, M.Wetland, M.LakeCandidate],
+  // Ocean must NOT touch LakeCandidate — a lake basin abutting the sea produced
+  // sea-level "ocean" puddles inside an elevated lake. A coast/lowland/wetland
+  // tile is forced between them, keeping lakes inland.
+  [M.Ocean]: [M.Ocean, M.Coast, M.Lowland, M.Wetland],
   [M.Coast]: [
     M.Ocean, M.Coast, M.Lowland, M.Wetland, M.Grassland, M.Forest, M.Desert, M.RiverCorridor,
   ],
@@ -51,7 +54,7 @@ const ALLOW: Record<number, MacroTile[]> = {
   ],
   [M.SnowMountain]: [M.Hills, M.RockyMountain, M.SnowMountain, M.RiverSource],
   [M.LakeCandidate]: [
-    M.Ocean, M.Lowland, M.Grassland, M.Forest, M.Wetland, M.LakeCandidate, M.RiverCorridor,
+    M.Lowland, M.Grassland, M.Forest, M.Wetland, M.LakeCandidate, M.RiverCorridor,
   ],
   [M.RiverSource]: [
     M.Lowland, M.Forest, M.Hills, M.RockyMountain, M.SnowMountain, M.RiverCorridor, M.RiverSource,

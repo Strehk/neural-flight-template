@@ -54,6 +54,11 @@ export function traceRivers(input: TraceInput): RiverNetwork {
   // or reach upland, so rivers appear to rise in hills/mountains. The river still
   // flows to its true terminus — only the upstream start is trimmed (no dead-ends).
   const visibleMul = 1 + params.riverSourceBias * 8;
+  // Rivers stay invisible while above this height, so the visible channel only
+  // begins once it has descended out of steep mountain terrain (flat ribbons
+  // draped down a mountainside looked wrong). The river still flows to its true
+  // terminus — only the high headwater is trimmed.
+  const maxHeight = params.riverMaxHeight;
 
   const isChannel = (i: number): boolean =>
     accum[i] >= threshold && filled[i] >= seaLevel && lakeMask[i] === 0;
@@ -114,8 +119,10 @@ export function traceRivers(input: TraceInput): RiverNetwork {
     };
 
     for (let guard = 0; guard < N; guard++) {
-      // Gate the visible start of the river (only trims the upstream head).
-      if (!started && visible(cur)) {
+      // Gate the visible start of the river (only trims the upstream head):
+      // requires both the flow/upland visibility test and a drop below the
+      // mountain cutoff, so no river ribbon is drawn on high steep terrain.
+      if (!started && visible(cur) && filled[cur] <= maxHeight) {
         started = true;
         const w = worldOf(cur);
         if (inRect(w)) source = w;

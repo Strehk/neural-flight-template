@@ -146,16 +146,20 @@ export class WorldMapGenerator {
         const fmx = (pOx + px) / cs - 0.5 - mmx0;
         const i = py * W + px;
         const h = pad.heightMap[i];
-        if (h < wl) {
-          pad.waterSurfaceMap[i] = wl;
-          pad.waterMask[i] = 1;
-        } else if (bilinearLocal(locLake, LW, LH, fmx, fmy) > 0.02) {
-          // Lake surface must be perfectly FLAT at the basin's spill level. Take
-          // the max of the surrounding macro lake-surface cells (constant across a
-          // basin) instead of max(h, surf) — the latter made the surface follow
-          // the bed and terrace. The 3D basin clamp keeps the bed below this.
+        const lake = bilinearLocal(locLake, LW, LH, fmx, fmy);
+        if (lake > 0.02) {
+          // Lake takes priority over ocean: a depression filled to a spill level
+          // at/above sea can dip below `wl` in places, and treating those as ocean
+          // stamped sea-level puddles inside an elevated lake. The surface must be
+          // perfectly FLAT at the basin's spill level — take the max of the
+          // surrounding macro lake-surface cells (constant across a basin) instead
+          // of max(h, surf), which made the surface follow the bed and terrace.
+          // The 3D basin clamp keeps the bed below this.
           const surf = maxLocal2x2(locLakeSurf, LW, LH, fmx, fmy);
-          pad.waterSurfaceMap[i] = surf > 0 ? surf : h;
+          pad.waterSurfaceMap[i] = surf > 0 ? surf : Math.max(h, wl);
+          pad.waterMask[i] = 1;
+        } else if (h < wl) {
+          pad.waterSurfaceMap[i] = wl;
           pad.waterMask[i] = 1;
         } else if (pad.riverMap[i] > 0.12) {
           pad.waterSurfaceMap[i] = h + 0.004;

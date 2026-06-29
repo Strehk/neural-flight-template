@@ -72,6 +72,7 @@ export interface GenParams {
   riverCarvingStrength: number;
   riverWidthMultiplier: number;
   riverSourceBias: number; // 0 = pure hydrology, 1 = sources only in WFC upland (hills/mountains)
+  riverMaxHeight: number; // normalised height above which rivers are not drawn (keeps them out of steep mountain terrain)
 
   // lakes
   lakeFrequency: number;
@@ -142,6 +143,7 @@ export const DEFAULT_PARAMS: GenParams = {
   riverCarvingStrength: 0.5,
   riverWidthMultiplier: 1.0,
   riverSourceBias: 0.5,
+  riverMaxHeight: 0.72,
 
   lakeFrequency: 0.4,
   lakeSpillTolerance: 0.02,

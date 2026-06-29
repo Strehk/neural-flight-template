@@ -10,6 +10,7 @@
 // whole world isn't regenerated every frame.
 
 import GUI from "lil-gui";
+import type { FlightController } from "../flight-controller";
 import { WORLDGEN_PARAMS } from "./providers/worldgen/gen-params";
 import type { TerrainWorld } from "./world";
 
@@ -49,6 +50,7 @@ const GROUPS: { folder: string; controls: Control[] }[] = [
 			{ key: "riverDensity", label: "River Density", min: 0.2, max: 3, step: 0.05 },
 			{ key: "riverWidthMultiplier", label: "River Width", min: 0.3, max: 3, step: 0.05 },
 			{ key: "riverSourceBias", label: "Source Bias", min: 0, max: 1, step: 0.05 },
+			{ key: "riverMaxHeight", label: "Max Height", min: 0.45, max: 1, step: 0.01 },
 		],
 	},
 	{
@@ -72,7 +74,7 @@ export interface WorldgenGui {
 }
 
 /** Mount the WorldGen dev panel (top-left); returns a handle to tear it down. */
-export function createWorldgenGui(world: TerrainWorld): WorldgenGui {
+export function createWorldgenGui(world: TerrainWorld, flight: FlightController): WorldgenGui {
 	const defaults = WORLDGEN_PARAMS as unknown as Record<string, number>;
 	const params: Record<string, number> = {};
 	for (const g of GROUPS) for (const c of g.controls) params[c.key] = defaults[c.key];
@@ -84,6 +86,11 @@ export function createWorldgenGui(world: TerrainWorld): WorldgenGui {
 	el.style.top = "12px";
 	el.style.right = "auto";
 	el.style.zIndex = "30";
+
+	// Camera comfort tilt (desktop + XR). Binds straight to the controller —
+	// lil-gui writes flight.cameraTilt live, no world rebuild needed.
+	const camera = gui.addFolder("Camera");
+	camera.add(flight, "cameraTilt", 0, 45, 1).name("VR Look Tilt (°)");
 
 	for (const g of GROUPS) {
 		const folder = gui.addFolder(g.folder);
